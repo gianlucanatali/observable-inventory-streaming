@@ -1,0 +1,59 @@
+{
+  "type": "record",
+  "name": "CartAtRisk",
+  "namespace": "urbanstreet.offers",
+  "doc": "Value of carts.at-risk, produced by Flink: an active ONLINE cart holds a product whose sellable stock is 0. risk_id = scenario_id|cart_id|product_id|sellable_changed_at_ms, so replays and repeated join output deduplicate. A null value (tombstone) on the key means the risk ended (cart abandoned or expired, or stock came back) and must be ignored.",
+  "fields": [
+    {
+      "name": "risk_id",
+      "type": "string"
+    },
+    {
+      "name": "scenario_id",
+      "type": "string"
+    },
+    {
+      "name": "cart_id",
+      "type": "string"
+    },
+    {
+      "name": "shopper_id",
+      "type": "string"
+    },
+    {
+      "name": "product_id",
+      "type": "string"
+    },
+    {
+      "name": "cart_value_eur",
+      "type": "double",
+      "default": 0.0,
+      "doc": "Synthetic cart value signal propagated from carts.events."
+    },
+    {
+      "name": "returning_shopper",
+      "type": "boolean",
+      "default": false,
+      "doc": "Synthetic returning-shopper signal propagated from carts.events."
+    },
+    {
+      "name": "item_count",
+      "type": "int",
+      "default": 1,
+      "doc": "Synthetic cart item-count signal propagated from carts.events."
+    },
+    {
+      "name": "sellable_changed_at_ms",
+      "type": "long",
+      "doc": "last_changed_at_ms of the stock.sellable row that was 0."
+    },
+    {
+      "name": "detected_at",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Later of the cart event time and the sellable change time: when the condition became true. Deterministic, so the Flink row can be retracted."
+    }
+  ]
+}

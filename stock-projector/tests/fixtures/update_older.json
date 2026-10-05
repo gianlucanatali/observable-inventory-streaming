@@ -1,0 +1,22 @@
+{
+  "before": null,
+  "after": {
+    "store_id": "S03",
+    "product_id": "P0042",
+    "quantity": 9,
+    "revision": 1040,
+    "changed_at": "2026-10-09T11:02:00.123456Z",
+    "deleted": false
+  },
+  "op": "u",
+  "ts_ms": 1791543720200,
+  "source": {
+    "version": "3.0.0.Final",
+    "connector": "postgresql",
+    "name": "inventory",
+    "db": "inventory",
+    "schema": "public",
+    "table": "stock_position",
+    "snapshot": "false"
+  }
+}

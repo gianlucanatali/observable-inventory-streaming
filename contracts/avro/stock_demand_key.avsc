@@ -1,0 +1,8 @@
+{
+  "type": "record", "name": "StockDemandKey", "namespace": "urbanstreet.inventory",
+  "doc": "Key of stock.demand (contracts section 13). Produced by Flink demand.sql (cloud).",
+  "fields": [
+    {"name": "store_id", "type": "string"},
+    {"name": "product_id", "type": "string"}
+  ]
+}

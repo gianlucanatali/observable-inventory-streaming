@@ -1,0 +1,5 @@
+{
+  "type": "record", "name": "CartAtRiskKey", "namespace": "urbanstreet.offers",
+  "doc": "Key of carts.at-risk: risk_id = scenario_id|cart_id|product_id|sellable_changed_at_ms (upsert key).",
+  "fields": [{"name": "risk_id", "type": "string"}]
+}

@@ -1,0 +1,11 @@
+{
+  "type": "record", "name": "RestockRequest", "namespace": "urbanstreet.inventory",
+  "doc": "Value of restock.requests: one request to restock a position that reached 0. Plain int/long only (no logical types).",
+  "fields": [
+    {"name": "request_id", "type": "string"},
+    {"name": "store_id", "type": "string"},
+    {"name": "product_id", "type": "string"},
+    {"name": "quantity_requested", "type": "int", "doc": "Policy quantity, fixed 10."},
+    {"name": "requested_at_ms", "type": "long", "doc": "changed_at of the position state that reached 0, epoch milliseconds."}
+  ]
+}

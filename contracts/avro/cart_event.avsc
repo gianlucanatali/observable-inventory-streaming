@@ -1,0 +1,17 @@
+{
+  "type": "record", "name": "CartEvent", "namespace": "urbanstreet.carts",
+  "doc": "Value of carts.events. Synthetic shopper cart activity. One event per item change.",
+  "fields": [
+    {"name": "event_id", "type": "string"},
+    {"name": "scenario_id", "type": "string", "doc": "Changes on every make reset; older scenarios are ignored downstream."},
+    {"name": "cart_id", "type": "string"},
+    {"name": "shopper_id", "type": "string", "doc": "Synthetic, never a real person."},
+    {"name": "store_id", "type": "string", "doc": "Store the shopper reserves/collects from."},
+    {"name": "product_id", "type": "string"},
+    {"name": "event_type", "type": {"type": "enum", "name": "CartEventType", "symbols": ["ADD", "ABANDON"]}},
+    {"name": "event_time", "type": {"type": "long", "logicalType": "timestamp-millis"}},
+    {"name": "cart_value_eur", "type": "double", "default": 0.0, "doc": "Synthetic cart value signal in EUR; never a real shopper value."},
+    {"name": "returning_shopper", "type": "boolean", "default": false, "doc": "Synthetic stable shopper signal; never derived from a real person."},
+    {"name": "item_count", "type": "int", "default": 1, "doc": "Synthetic number of items in this cart."}
+  ]
+}

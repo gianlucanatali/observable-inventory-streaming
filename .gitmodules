@@ -1,0 +1,4 @@
+[submodule "vendor/jr"]
+	path = vendor/jr
+	url = https://github.com/gianlucanatali/jr.git
+	branch = sql-producer

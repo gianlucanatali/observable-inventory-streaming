@@ -1,0 +1,5 @@
+# Cloud variant (EC2). Published ingress on 80; the security group admits only the presenter's /32.
+services:
+  nginx:
+    ports: !override
+      - "80:80"

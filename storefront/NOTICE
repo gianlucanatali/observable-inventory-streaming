@@ -1,0 +1,23 @@
+UrbanStreet storefront (`storefront/`)
+
+Portions of `storefront/frontend/` are adapted from the retail-ai-demo project
+(https://github.com/ifnesi/retail-ai-demo, frontend/), licensed under the Apache License,
+Version 2.0. See https://github.com/ifnesi/retail-ai-demo/LICENSE for the full license text.
+The upstream LICENSE file contains no copyright holder line, so none is reproduced here.
+
+Files adapted, and how they were modified:
+
+- frontend/src/components/Toast.jsx   from frontend/src/components/Toast.js
+    Converted to JSX, removed the dangerouslySetInnerHTML option, dropped the icon markup,
+    new CSS (styles.css) instead of Toast.css.
+- frontend/src/main.jsx               from frontend/src/index.js
+    Same React 18 createRoot/StrictMode bootstrap, renamed and pointed at the new App.
+- frontend/package.json               from frontend/package.json
+    Replaced react-scripts with Vite/Vitest, removed axios (fetch is used), removed the
+    CRA "proxy"/eslintConfig/browserslist entries; React 18 is kept.
+
+No other upstream file was copied. App.jsx, api.js, hooks.js, stockView.js, the stock and offer
+components and styles.css are new work for this demo. No upstream branding, logos or images are
+included. The backend (backend/) is entirely new.
+
+Modified files carry this notice in lieu of per-file headers.

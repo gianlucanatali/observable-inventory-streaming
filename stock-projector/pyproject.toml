@@ -1,0 +1,21 @@
+[project]
+name = "stock-projector"
+version = "0.1.0"
+description = "Projects the inventory.cdc change stream into the Redis serving view and the inventory.state topic"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "confluent-kafka[avro,schemaregistry]==2.15.1",
+  "redis==8.1.0",
+  "ddtrace==4.15.3",
+  "datadog==0.55.0",
+]
+
+[dependency-groups]
+dev = ["pytest==9.1.1", "fakeredis[lua]==2.39.0"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

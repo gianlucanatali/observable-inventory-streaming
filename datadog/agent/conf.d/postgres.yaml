@@ -1,0 +1,67 @@
+# Mounted at /etc/datadog-agent/conf.d/postgres.d/conf.yaml
+# One instance per store source, tagged store:S0n. Basic check only (connections, replication slot / WAL, table stats). No DBM: slow SQL is deliberately outside this demo's incident.
+# The password is resolved by the Agent from its own environment (DD template variable); it is not in this file.
+# Confirm %%env_..%% resolution in a static conf.d file during the first Agent run; if the check
+# shows an auth error, switch to Autodiscovery labels or the Agent secrets backend.
+init_config:
+instances:
+  - host: store-s01
+    port: 5432
+    username: datadog
+    password: "%%env_PG_DATADOG_PASSWORD%%"
+    dbname: inventory
+    dbm: false
+    collect_default_database: true
+    relations:
+      - relation_name: stock_position
+    tags:
+      - service:postgres
+      - store:S01
+  - host: store-s02
+    port: 5432
+    username: datadog
+    password: "%%env_PG_DATADOG_PASSWORD%%"
+    dbname: inventory
+    dbm: false
+    collect_default_database: true
+    relations:
+      - relation_name: stock_position
+    tags:
+      - service:postgres
+      - store:S02
+  - host: store-s03
+    port: 5432
+    username: datadog
+    password: "%%env_PG_DATADOG_PASSWORD%%"
+    dbname: inventory
+    dbm: false
+    collect_default_database: true
+    relations:
+      - relation_name: stock_position
+    tags:
+      - service:postgres
+      - store:S03
+  - host: store-s04
+    port: 5432
+    username: datadog
+    password: "%%env_PG_DATADOG_PASSWORD%%"
+    dbname: inventory
+    dbm: false
+    collect_default_database: true
+    relations:
+      - relation_name: stock_position
+    tags:
+      - service:postgres
+      - store:S04
+  - host: store-s05
+    port: 5432
+    username: datadog
+    password: "%%env_PG_DATADOG_PASSWORD%%"
+    dbname: inventory
+    dbm: false
+    collect_default_database: true
+    relations:
+      - relation_name: stock_position
+    tags:
+      - service:postgres
+      - store:S05

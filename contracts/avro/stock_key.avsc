@@ -1,0 +1,8 @@
+{
+  "type": "record", "name": "StockKey", "namespace": "urbanstreet.inventory",
+  "doc": "Key of inventory.state. Immutable stock position identity.",
+  "fields": [
+    {"name": "store_id", "type": "string"},
+    {"name": "product_id", "type": "string"}
+  ]
+}

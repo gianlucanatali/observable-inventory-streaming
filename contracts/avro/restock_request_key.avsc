@@ -1,0 +1,7 @@
+{
+  "type": "record", "name": "RestockRequestKey", "namespace": "urbanstreet.inventory",
+  "doc": "Key of restock.requests: store_id|product_id|revision of the position that reached 0. Produced by Flink (cloud).",
+  "fields": [
+    {"name": "request_id", "type": "string"}
+  ]
+}

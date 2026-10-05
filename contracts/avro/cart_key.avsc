@@ -1,0 +1,4 @@
+{
+  "type": "record", "name": "CartKey", "namespace": "urbanstreet.carts",
+  "fields": [{"name": "cart_id", "type": "string"}]
+}

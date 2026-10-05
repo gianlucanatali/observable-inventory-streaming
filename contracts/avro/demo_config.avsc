@@ -1,0 +1,9 @@
+{
+  "type": "record", "name": "DemoConfig", "namespace": "urbanstreet.demo",
+  "doc": "Value of demo.config (compacted): current value of one kafka_config demo parameter, written only by demo-control. Flink joins it as an upsert table.",
+  "fields": [
+    {"name": "key", "type": "string"},
+    {"name": "value", "type": "double"},
+    {"name": "updated_at_ms", "type": "long", "doc": "Epoch milliseconds of the change."}
+  ]
+}

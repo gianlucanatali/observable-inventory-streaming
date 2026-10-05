@@ -1,0 +1,8 @@
+{
+  "type": "record", "name": "StockMovementKey", "namespace": "urbanstreet.inventory",
+  "doc": "Key of stock.movements. Same identity as StockKey.",
+  "fields": [
+    {"name": "store_id", "type": "string"},
+    {"name": "product_id", "type": "string"}
+  ]
+}

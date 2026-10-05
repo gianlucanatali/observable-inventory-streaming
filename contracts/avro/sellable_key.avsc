@@ -1,0 +1,7 @@
+{
+  "type": "record", "name": "SellableKey", "namespace": "urbanstreet.inventory",
+  "doc": "Key of stock.sellable: the product. Produced by Flink (cloud).",
+  "fields": [
+    {"name": "product_id", "type": "string"}
+  ]
+}

@@ -1,0 +1,22 @@
+# Copy to demo.yaml, replace every required value, then protect it:
+#   cp demo.example.yaml demo.yaml && chmod 600 demo.yaml
+# demo.yaml is deliberately ignored. This parser supports only top-level key: value.
+
+# Stack identity: lowercase letters, digits and hyphens; 2–16 characters.
+stack: hybrid
+# Existing AWS CLI profile and deployment region.
+aws_profile: dd-demo
+aws_region: eu-west-1
+# Optional CIDR permitted to reach presenter-facing endpoints; omit or quote-empty to leave it unset.
+presenter_cidr: ""
+# Hybrid layers, comma-separated. core and control-center are included with the default optional hybrid layers.
+layers: core,releases,restock,offers,dd-streams,dd-synthetics,dd-rum,control-center
+# Datadog account endpoint and API/application keys.
+datadog_site: datadoghq.eu
+dd_api_key: REPLACE_WITH_DATADOG_API_KEY
+dd_app_key: REPLACE_WITH_DATADOG_APP_KEY
+# Confluent Cloud organisation credentials.
+confluent_cloud_api_key: REPLACE_WITH_CONFLUENT_API_KEY
+confluent_cloud_api_secret: REPLACE_WITH_CONFLUENT_API_SECRET
+# Optional: leave empty to use the deterministic rule-only offers path.
+jev_api_key: ""

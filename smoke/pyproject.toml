@@ -1,0 +1,29 @@
+[project]
+name = "smoke"
+version = "0.1.0"
+description = "Smoke test of the running demo: Connect, availability API, storefront in a browser, control panel"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "httpx==0.28.1",
+    # Must equal the version in the base image tag (Dockerfile): the image ships that version's browsers.
+    "playwright==1.63.0",
+]
+
+[project.scripts]
+smoke = "smoke.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["smoke"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "pytest==9.1.1",
+]

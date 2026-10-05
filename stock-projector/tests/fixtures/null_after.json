@@ -1,0 +1,15 @@
+{
+  "before": null,
+  "after": null,
+  "op": "u",
+  "ts_ms": 1791543720200,
+  "source": {
+    "version": "3.0.0.Final",
+    "connector": "postgresql",
+    "name": "inventory",
+    "db": "inventory",
+    "schema": "public",
+    "table": "stock_position",
+    "snapshot": "false"
+  }
+}

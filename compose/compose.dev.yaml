@@ -1,0 +1,149 @@
+# Local rehearsal: a throwaway single-node Kafka (KRaft) and Schema Registry, no auth, replaces Confluent Cloud.
+# Use with dev.env (KAFKA_SECURITY_PROTOCOL=PLAINTEXT, replication factor 1). Never used in the cloud variant.
+# Pins: apache/kafka 4.3.1 (latest stable 4.x GA on Docker Hub 2026-10-03; 4.4.0 is still rc; Connect/Debezium
+# line is Kafka 4.3) and cp-schema-registry 8.3.2; both list linux/arm64 and linux/amd64.
+services:
+  kafka:
+    image: apache/kafka:4.3.1@sha256:77e3df9054047a88b520d0cc46e16696d3b22022e1d580aeccd2632df6532837
+    restart: unless-stopped
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      # Like Confluent Cloud's setup here: topics are created on purpose (kafka-init), not on first use.
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_HEAP_OPTS: -Xms256m -Xmx512m
+    volumes:
+      - kafkadata:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 30s
+    cpus: 1.0
+    mem_limit: 1024m
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:8.3.2@sha256:482d3048b3f6029bae5794b5c3b5e2eea8d61ca064dacd32241315e818fd8d7c
+    restart: unless-stopped
+    depends_on:
+      kafka: {condition: service_healthy}
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: kafka:9092
+      SCHEMA_REGISTRY_KAFKASTORE_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_HEAP_OPTS: -Xms128m -Xmx384m
+    healthcheck:
+      # The image has no curl/wget; python3 is there.
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8081/subjects', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    cpus: 0.5
+    mem_limit: 640m
+
+  # One-shot: creates the contract topics (overlay/contracts/README.md section 2), one partition each.
+  kafka-init:
+    image: apache/kafka:4.3.1@sha256:77e3df9054047a88b520d0cc46e16696d3b22022e1d580aeccd2632df6532837
+    restart: "no"
+    depends_on:
+      kafka: {condition: service_healthy}
+    entrypoint: ["/bin/bash", "-euc"]
+    command:
+      - |
+        T=/opt/kafka/bin/kafka-topics.sh; B=kafka:9092
+        mk() { "$$T" --bootstrap-server "$$B" --create --if-not-exists --partitions 1 --replication-factor 1 --topic "$$1" --config "$$2" --config "$$3"; }
+        mk inventory.cdc   cleanup.policy=delete  retention.ms=604800000
+        mk inventory.state cleanup.policy=compact retention.ms=-1
+        mk carts.events    cleanup.policy=delete  retention.ms=86400000
+        mk carts.at-risk   cleanup.policy=delete  retention.ms=86400000
+        mk offers          cleanup.policy=compact retention.ms=-1
+        mk stock.sellable  cleanup.policy=compact retention.ms=-1
+        mk restock.requests cleanup.policy=compact retention.ms=-1
+        mk stock.movements   cleanup.policy=delete  retention.ms=86400000
+        mk stock.demand      cleanup.policy=compact retention.ms=-1
+        mk restock.forecast  cleanup.policy=compact retention.ms=-1
+        mk procurement.orders cleanup.policy=delete retention.ms=604800000
+        mk demo.config       cleanup.policy=compact retention.ms=-1
+        "$$T" --bootstrap-server "$$B" --list
+    mem_limit: 512m
+
+  connect:
+    depends_on:
+      kafka: {condition: service_healthy}
+      schema-registry: {condition: service_healthy}
+      kafka-init: {condition: service_completed_successfully}
+  # Dev stand-in for the Flink job (overlay/flink/sellable.sql): computes stock.sellable from inventory.state.
+  sellable-dev:
+    restart: unless-stopped
+    build:
+      context: ..
+      dockerfile: sellable-dev/Dockerfile
+    image: dd-sellable-dev:${IMAGE_TAG:-dev}
+    pull_policy: never
+    depends_on:
+      kafka-init: {condition: service_completed_successfully}
+      schema-registry: {condition: service_healthy}
+    environment:
+      DD_AGENT_HOST: datadog-agent
+      DD_ENV: dd-demo-${STACK}
+      DD_SERVICE: sellable-dev
+      DD_TAGS: "project:dd-demo stack:${STACK} layer:core"
+      DD_VERSION: ${SELLABLE_DEV_VERSION:-1.0.0}
+      KAFKA_BOOTSTRAP: ${KAFKA_BOOTSTRAP:?KAFKA_BOOTSTRAP missing (dev.env)}
+      SR_URL: ${SR_URL:?SR_URL missing (dev.env)}
+      KAFKA_SECURITY_PROTOCOL: ${KAFKA_SECURITY_PROTOCOL:-PLAINTEXT}
+      KAFKA_GROUP_ID: sellable-dev
+      MOVEMENTS_TOPIC: stock.movements
+      DEMAND_TOPIC: stock.demand
+      ORDERS_TOPIC: procurement.orders
+      FORECAST_TOPIC: restock.forecast
+      CONFIG_TOPIC: demo.config
+      # Empty = restock logic off (core). layer.sh sets RESTOCK_TOPIC=restock.requests in .state/layers-<stack>.env while layer restock runs.
+      RESTOCK_TOPIC: ${RESTOCK_TOPIC:-}
+      # Cart-at-risk stand-in (cart_at_risk.sql): on while the offers layer runs (layer.sh sets it in .state/layers-<stack>.env).
+      OFFERS_ENABLED: ${OFFERS_ENABLED:-false}
+    cpus: 0.25
+    mem_limit: 256m
+    labels:
+      com.datadoghq.tags.env: dd-demo-${STACK}
+      com.datadoghq.tags.project: dd-demo
+      com.datadoghq.tags.stack: ${STACK}
+      com.datadoghq.tags.layer: core
+      com.datadoghq.tags.service: sellable-dev
+      com.datadoghq.tags.version: ${SELLABLE_DEV_VERSION:-1.0.0}
+      com.datadoghq.ad.logs: '[{"source":"python","service":"sellable-dev"}]'
+
+  stock-projector:
+    depends_on:
+      kafka-init: {condition: service_completed_successfully}
+      schema-registry: {condition: service_healthy}
+  storefront:
+    depends_on:
+      kafka-init: {condition: service_completed_successfully}
+      schema-registry: {condition: service_healthy}
+  demo-control:
+    depends_on:
+      kafka-init: {condition: service_completed_successfully}
+      schema-registry: {condition: service_healthy}
+
+  # The Lima `template:docker` VM runs rootless Docker: socket and container logs live under the VM user, not /var.
+  # Compose merges volumes by container path, so these replace the base file's two host paths (interpolated in the VM).
+  datadog-agent:
+    volumes:
+      - ${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR unset (run through make MODE=dev)}/docker.sock:/var/run/docker.sock:ro
+      - ${HOME:?}/.local/share/docker/containers:/var/lib/docker/containers:ro
+
+volumes:
+  kafkadata:

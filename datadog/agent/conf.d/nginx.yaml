@@ -1,0 +1,6 @@
+# Mounted at /etc/datadog-agent/conf.d/nginx.d/conf.yaml
+init_config:
+instances:
+  - nginx_status_url: http://nginx:8081/nginx_status
+    tags:
+      - service:nginx

@@ -1,0 +1,1034 @@
+# Demo stack. Base file = cloud-capable (Confluent Cloud, SASL_SSL). Variants:
+#   compose.dev.yaml   adds a local Kafka + Schema Registry (no auth) and topic bootstrap, for local rehearsal.
+#   compose.cloud.yaml publishes the ingress on port 80 (the EC2 security group admits only the presenter).
+# Run through the Makefile (it passes the right --env-file list). Build context is overlay/ (the parent of this dir).
+#
+# Variables and where they come from (interpolated with --env-file; `${VAR:?msg}` fails loudly when missing):
+#   <repo>/.env          DD_API_KEY (required), DD_SITE (default datadoghq.eu)         hand-edited, untracked
+#   <repo>/.env.cloud    KAFKA_BOOTSTRAP, SR_URL, {CONNECT,PROJECTOR,STOREFRONT,OFFERS,DEMO_CONTROL}_{KAFKA,SR}_API_{KEY,SECRET},
+#                        CONNECT_GROUP_ID, PROJECTOR_GROUP_ID                          `terraform output -raw env_file`
+#   <repo>/.env.secrets  PG_SUPERUSER_PASSWORD, PG_DEBEZIUM_PASSWORD, PG_WRITER_PASSWORD, PG_DATADOG_PASSWORD, PG_PROCUREMENT_PASSWORD, CONTROL_PASSWORD
+#                                                                                      `make secrets`
+#   overlay/compose/dev.env  same Kafka/SR names with local no-auth values             tracked, no secrets (dev only)
+# Layers = compose profiles: core (no profile), releases, restock, offers; plus tools and jr. dd-synthetics has no containers (Datadog public locations, Terraform only).
+#   overlay/.state/layers-<stack>.env  written by compose/scripts/layer.sh (e.g. RESTOCK_TOPIC while the restock layer runs); the Makefile always passes it last
+# Optional: STORE_HOSTS (S01=store-s01,...,S05=store-s05), JEV_API_KEY/JEV_URL/BEDROCK_ENABLED/OFFERS_KILL_SWITCH (offers profile), STACK (required in cloud; dev.env sets dev; DD_ENV is dd-demo-<STACK>), DD_HOSTNAME (dd-demo-host), PG_DATABASE (inventory), INGRESS_PORT (8080), IMAGE_TAG (dev).
+
+name: "dd-demo-${STACK:?STACK missing, dev.env sets dev, cloud needs STACK=<name>}"
+
+x-restart: &restart
+  restart: unless-stopped
+
+# Unified service tags on the container (Agent reads labels) and in the process (tracer reads env).
+x-dd-env: &dd-env
+  DD_AGENT_HOST: datadog-agent
+  DD_ENV: "dd-demo-${STACK:?STACK missing, dev.env sets dev, cloud needs STACK=<name>}"
+  DD_LOGS_INJECTION: "true"
+
+# Single-host PG_HOST is gone; every component reads STORE_HOSTS (order = display order).
+x-pg-client: &pg-client
+  PG_PORT: "5432"
+  PG_DATABASE: ${PG_DATABASE:-inventory}
+
+x-store-hosts: &store-hosts
+  STORE_HOSTS: ${STORE_HOSTS:-S01=store-s01,S02=store-s02,S03=store-s03,S04=store-s04,S05=store-s05}
+
+x-kafka-sasl-internal: &connect-clients
+  # Connect's own producer/consumer/admin need the same security settings as the worker.
+  CONNECT_PRODUCER_SECURITY_PROTOCOL: ${KAFKA_SECURITY_PROTOCOL:-SASL_SSL}
+  CONNECT_PRODUCER_SASL_MECHANISM: PLAIN
+  CONNECT_PRODUCER_SASL_JAAS_CONFIG: 'org.apache.kafka.common.security.plain.PlainLoginModule required username="${CONNECT_KAFKA_API_KEY:?CONNECT_KAFKA_API_KEY missing (.env.cloud or dev.env)}" password="${CONNECT_KAFKA_API_SECRET:?CONNECT_KAFKA_API_SECRET missing}";'
+  CONNECT_CONSUMER_SECURITY_PROTOCOL: ${KAFKA_SECURITY_PROTOCOL:-SASL_SSL}
+  CONNECT_CONSUMER_SASL_MECHANISM: PLAIN
+  CONNECT_CONSUMER_SASL_JAAS_CONFIG: 'org.apache.kafka.common.security.plain.PlainLoginModule required username="${CONNECT_KAFKA_API_KEY:?CONNECT_KAFKA_API_KEY missing}" password="${CONNECT_KAFKA_API_SECRET:?CONNECT_KAFKA_API_SECRET missing}";'
+  CONNECT_ADMIN_SECURITY_PROTOCOL: ${KAFKA_SECURITY_PROTOCOL:-SASL_SSL}
+  CONNECT_ADMIN_SASL_MECHANISM: PLAIN
+  CONNECT_ADMIN_SASL_JAAS_CONFIG: 'org.apache.kafka.common.security.plain.PlainLoginModule required username="${CONNECT_KAFKA_API_KEY:?CONNECT_KAFKA_API_KEY missing}" password="${CONNECT_KAFKA_API_SECRET:?CONNECT_KAFKA_API_SECRET missing}";'
+
+# Same limits for all three inventory-api releases: a fair comparison, and 1.1.0 cannot starve the host.
+x-inventory-api: &inventory-api
+  <<: *restart
+  image: dd-inventory-api:${IMAGE_TAG:-dev}
+  pull_policy: never   # built once by inventory-api-100 (shared image); never pulled from a registry
+  cpus: ${INVENTORY_API_CPUS:-2.0}
+  mem_limit: ${INVENTORY_API_MEM_LIMIT:-768m}
+  depends_on:
+    redis: {condition: service_healthy}
+    datadog-agent: {condition: service_started}
+  healthcheck:
+    test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/readyz', timeout=3)"]
+    interval: 10s
+    timeout: 5s
+    retries: 6
+    start_period: 40s
+
+x-inventory-api-env: &inventory-api-env
+  <<: [*dd-env, *store-hosts]
+  DD_SERVICE: inventory-api
+  PORT: "8080"
+  WEB_CONCURRENCY: "${INVENTORY_API_WEB_CONCURRENCY:-4}"
+  REDIS_URL: redis://redis:6379/0
+
+# One PostgreSQL per store: same image, schema and limits; STORE_ID pins the store (app.store_id).
+x-store-source: &store-source
+  <<: *restart
+  image: postgres:17.11-trixie@sha256:d74eeac9a635390a49bc21bd49fccd973de707e2a53a76ac49b552b8712ec46f
+  command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
+  configs:
+    - source: pg_conf
+      target: /etc/postgresql/postgresql.conf
+    - source: pg_init_schema
+      target: /docker-entrypoint-initdb.d/001_inventory.sql
+    - source: pg_init_roles
+      target: /docker-entrypoint-initdb.d/002_roles.sql
+    - source: pg_init_demo
+      target: /docker-entrypoint-initdb.d/003_demo.sql   # sorts before 003_passwords.sh; needs the roles from 002
+    - source: pg_init_passwords
+      target: /docker-entrypoint-initdb.d/003_passwords.sh   # not executable: the entrypoint sources it
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U postgres -d $${POSTGRES_DB}"]
+    interval: 5s
+    timeout: 3s
+    retries: 20
+    start_period: 20s
+  cpus: 0.4
+  mem_limit: 384m
+
+x-store-source-env: &store-source-env
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: ${PG_SUPERUSER_PASSWORD:?PG_SUPERUSER_PASSWORD missing (run make secrets)}
+  POSTGRES_DB: ${PG_DATABASE:-inventory}
+  PG_DEBEZIUM_PASSWORD: ${PG_DEBEZIUM_PASSWORD:?PG_DEBEZIUM_PASSWORD missing (run make secrets)}
+  PG_WRITER_PASSWORD: ${PG_WRITER_PASSWORD:?PG_WRITER_PASSWORD missing (run make secrets)}
+  PG_DATADOG_PASSWORD: ${PG_DATADOG_PASSWORD:?PG_DATADOG_PASSWORD missing (run make secrets)}
+
+x-jr-sales: &jr-sales
+  <<: *restart
+  profiles: ["jr"]
+  build:
+    context: ${JR_CONTEXT:-../vendor/jr}
+    dockerfile: ${JR_DOCKERFILE:-../../jr/Dockerfile}
+  image: dd-jr:${IMAGE_TAG:-dev}
+  pull_policy: never
+  configs:
+    - source: jr_sales
+      target: /home/jr/sales.json
+  cpus: 0.25
+  mem_limit: 128m
+
+x-jr-sales-env: &jr-sales-env
+  <<: *pg-client
+  PG_WRITER_USER: stock_writer
+  PG_WRITER_PASSWORD: ${PG_WRITER_PASSWORD:?PG_WRITER_PASSWORD missing (run make secrets)}
+
+services:
+  store-s01:
+    <<: *store-source
+    environment:
+      <<: *store-source-env
+      STORE_ID: S01
+    volumes:
+      - pgdata-s01:/var/lib/postgresql/data
+    labels:
+      com.datadoghq.tags.env: dd-demo-${STACK}
+      com.datadoghq.tags.project: dd-demo
+      com.datadoghq.tags.stack: ${STACK}
+      com.datadoghq.tags.layer: core
+      com.datadoghq.tags.service: postgres
+      com.datadoghq.tags.version: "17.11"
+      com.datadoghq.ad.logs: '[{"source":"postgresql","service":"postgres","tags":["store:S01"]}]'
+
+  store-s02:
+    <<: *store-source
+    environment:
+      <<: *store-source-env
+      STORE_ID: S02
+    volumes:
+      - pgdata-s02:/var/lib/postgresql/data
+    labels:
+      com.datadoghq.tags.env: dd-demo-${STACK}
+      com.datadoghq.tags.project: dd-demo
+      com.datadoghq.tags.stack: ${STACK}
+      com.datadoghq.tags.layer: core
+      com.datadoghq.tags.service: postgres
+      com.datadoghq.tags.version: "17.11"
+      com.datadoghq.ad.logs: '[{"source":"postgresql","service":"postgres","tags":["store:S02"]}]'
+
+  store-s03:
+    <<: *store-source
+    environment:
+      <<: *store-source-env
+      STORE_ID: S03
+    volumes:
+      - pgdata-s03:/var/lib/postgresql/data
+    labels:
+      com.datadoghq.tags.env: dd-demo-${STACK}
+      com.datadoghq.tags.project: dd-demo
+      com.datadoghq.tags.stack: ${STACK}
+      com.datadoghq.tags.layer: core
+      com.datadoghq.tags.service: postgres
+      com.datadoghq.tags.version: "17.11"
+      com.datadoghq.ad.logs: '[{"source":"postgresql","service":"postgres","tags":["store:S03"]}]'
+
+  store-s04:
+    <<: *store-source
+    environment:
+      <<: *store-source-env
+      STORE_ID: S04
+    volumes:
+      - pgdata-s04:/var/lib/postgresql/data
+    labels:
+      com.datadoghq.tags.env: dd-demo-${STACK}
+      com.datadoghq.tags.project: dd-demo
+      com.datadoghq.tags.stack: ${STACK}
+      com.datadoghq.tags.layer: core
+      com.datadoghq.tags.service: postgres
+      com.datadoghq.tags.version: "17.11"
+      com.datadoghq.ad.logs: '[{"source":"postgresql","service":"postgres","tags":["store:S04"]}]'
+
+  store-s05:
+    <<: *store-source
+    environment:
+      <<: *store-source-env
+      STORE_ID: S05
+    volumes:
+      - pgdata-s05:/var/lib/postgresql/data
+    labels:
+      com.datadoghq.tags.env: dd-demo-${STACK}
+      com.datadoghq.tags.project: dd-demo
+      com.datadoghq.tags.stack: ${STACK}
+      com.datadoghq.tags.layer: core
+      com.datadoghq.tags.service: postgres
+      com.datadoghq.tags.version: "17.11"
+      com.datadoghq.ad.logs: '[{"source":"postgresql","service":"postgres","tags":["store:S05"]}]'
+
+  redis:
+    <<: *restart
+    image: redis:8.6.7-alpine@sha256:ac2da09bc822f325a9f68f533120b86fa39c1b8db46b3aa7c1bbea7fdfd4fcba
+    # Contract section 4: bounded memory, noeviction, AOF, no TTLs. Not published: only the compose network reaches it.
+    command: ["redis-server", "--maxmemory", "512mb", "--maxmemory-policy", "noeviction", "--appendonly", "yes", "--appendfsync", "everysec"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    cpus: 0.5
+    mem_limit: 768m
+    labels:
+      com.datadoghq.tags.env: dd-demo-${STACK}
+      com.datadoghq.tags.project: dd-demo
+      com.datadoghq.tags.stack: ${STACK}
+      com.datadoghq.tags.layer: core
+      com.datadoghq.tags.service: redis
+      com.datadoghq.tags.version: "8.6.7"
+      com.datadoghq.ad.logs: '[{"source":"redis","service":"redis"}]'
+
+  connect:
+    <<: *restart
+    build:
+      context: ../connect
+    image: dd-connect:${IMAGE_TAG:-dev}
+    pull_policy: never
+    depends_on:
+      store-s01: {condition: service_healthy}
+      store-s02: {condition: service_healthy}
+      store-s03: {condition: service_healthy}
+      store-s04: {condition: service_healthy}
+      store-s05: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    environment:
+      <<: [*connect-clients, *pg-client, *store-hosts]
+      CONNECT_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP:?KAFKA_BOOTSTRAP missing (.env.cloud or dev.env)}
+      CONNECT_REST_ADVERTISED_HOST_NAME: connect
+      CONNECT_REST_PORT: "8083"
+      CONNECT_GROUP_ID: ${CONNECT_GROUP_ID:-dd-demo-connect}
+      CONNECT_CONFIG_STORAGE_TOPIC: _connect.dd-demo.configs
+      CONNECT_OFFSET_STORAGE_TOPIC: _connect.dd-demo.offsets
+      CONNECT_STATUS_STORAGE_TOPIC: _connect.dd-demo.status
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: ${KAFKA_REPLICATION_FACTOR:-3}
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: ${KAFKA_REPLICATION_FACTOR:-3}
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: ${KAFKA_REPLICATION_FACTOR:-3}
+      CONNECT_KEY_CONVERTER: io.confluent.connect.avro.AvroConverter
+      CONNECT_VALUE_CONVERTER: io.confluent.connect.avro.AvroConverter
+      CONNECT_KEY_CONVERTER_SCHEMA_REGISTRY_URL: ${SR_URL:?SR_URL missing (.env.cloud or dev.env)}
+      CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL: ${SR_URL:?SR_URL missing}
+      CONNECT_SECURITY_PROTOCOL: ${KAFKA_SECURITY_PROTOCOL:-SASL_SSL}
+      CONNECT_SASL_MECHANISM: PLAIN
+      CONNECT_SASL_JAAS_CONFIG: 'org.apache.kafka.common.security.plain.PlainLoginModule required username="${CONNECT_KAFKA_API_KEY:?CONNECT_KAFKA_API_KEY missing}" password="${CONNECT_KAFKA_API_SECRET:?CONNECT_KAFKA_API_SECRET missing}";'
+      CONNECT_PLUGIN_PATH: /usr/share/java,/usr/share/confluent-hub-components
+      KAFKA_HEAP_OPTS: -Xms384m -Xmx768m
+      # Worker converters (defaults) and the per-connector converter sets both authenticate to Schema Registry.
+      CONNECT_KEY_CONVERTER_BASIC_AUTH_CREDENTIALS_SOURCE: USER_INFO
+      CONNECT_KEY_CONVERTER_BASIC_AUTH_USER_INFO: ${CONNECT_SR_API_KEY:?CONNECT_SR_API_KEY missing (.env.cloud or dev.env)}:${CONNECT_SR_API_SECRET:?CONNECT_SR_API_SECRET missing}
+      CONNECT_VALUE_CONVERTER_BASIC_AUTH_CREDENTIALS_SOURCE: USER_INFO
+      CONNECT_VALUE_CONVERTER_BASIC_AUTH_USER_INFO: ${CONNECT_SR_API_KEY:?CONNECT_SR_API_KEY missing}:${CONNECT_SR_API_SECRET:?CONNECT_SR_API_SECRET missing}
+      # Read by /opt/dd/register_connector.py (make register-connector); not worker settings.
+      PG_DEBEZIUM_PASSWORD: ${PG_DEBEZIUM_PASSWORD:?PG_DEBEZIUM_PASSWORD missing (run make secrets)}
+      # restock layer sink (empty until `make secrets` adds it; register_connector.py fails loudly if the layer needs it)
+      PROCUREMENT_HOST: procurement-db
+      PROCUREMENT_DATABASE: procurement
+      PROCUREMENT_USER: procurement
+      PROCUREMENT_PASSWORD: ${PG_PROCUREMENT_PASSWORD:-}
+      SR_URL: ${SR_URL:?SR_URL missing}
+      SR_API_KEY: ${CONNECT_SR_API_KEY:?CONNECT_SR_API_KEY missing (.env.cloud or dev.env)}
+      SR_API_SECRET: ${CONNECT_SR_API_SECRET:?CONNECT_SR_API_SECRET missing}
+      REDIS_URI: redis://redis:6379
+    healthcheck:
+      # The image has no curl; python3 is there.
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8083/connectors', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 60s
+    cpus: 1.0
+    mem_limit: 1536m
+    labels:
+      com.datadoghq.tags.env: dd-demo-${STACK}
+      com.datadoghq.tags.project: dd-demo
+      com.datadoghq.tags.stack: ${STACK}
+      com.datadoghq.tags.layer: core
+      com.datadoghq.tags.service: kafka-connect
+      com.datadoghq.tags.version: "8.3.2"
+      com.datadoghq.ad.logs: '[{"source":"kafka-connect","service":"kafka-connect","log_processing_rules":[{"type":"multi_line","name":"java_stack","pattern":"\\[\\d{4}-\\d{2}-\\d{2}"}]}]'
+
+  stock-projector:
+    <<: *restart
+    build:
+      context: ..
+      dockerfile: stock-projector/Dockerfile
+    image: dd-stock-projector:${IMAGE_TAG:-dev}
+    pull_policy: never
+    depends_on:
+      redis: {condition: service_healthy}
+      datadog-agent: {condition: service_started}
+    environment:
+      <<: [*dd-env, *store-hosts]
+      DD_SERVICE: stock-projector
+      DD_TAGS: "project:dd-demo stack:${STACK} layer:core"
+      DD_VERSION: ${PROJECTOR_VERSION:-1.0.0}
+      DD_DATA_STREAMS_ENABLED: "true"
+      KAFKA_BOOTSTRAP: ${KAFKA_BOOTSTRAP:?KAFKA_BOOTSTRAP missing (.env.cloud or dev.env)}
+      KAFKA_API_KEY: ${PROJECTOR_KAFKA_API_KEY:?PROJECTOR_KAFKA_API_KEY missing (.env.cloud or dev.env)}
+      KAFKA_API_SECRET: ${PROJECTOR_KAFKA_API_SECRET:?PROJECTOR_KAFKA_API_SECRET missing}
+      SR_URL: ${SR_URL:?SR_URL missing}
+      SR_API_KEY: ${PROJECTOR_SR_API_KEY:?PROJECTOR_SR_API_KEY missing}
+      SR_API_SECRET: ${PROJECTOR_SR_API_SECRET:?PROJECTOR_SR_API_SECRET missing}
+      KAFKA_GROUP_ID: ${PROJECTOR_GROUP_ID:-stock-projector}
+      MOVEMENTS_TOPIC: stock.movements
+      # PLAINTEXT (dev.env) drops sasl.* and the API key/secret requirement; SASL_SSL (default) requires all four credentials.
+      KAFKA_SECURITY_PROTOCOL: ${KAFKA_SECURITY_PROTOCOL:-SASL_SSL}
+      REDIS_URL: redis://redis:6379/0
+    # No HTTP port: this only proves PID 1 is alive. Real health = stock.serving.ready metric and the watchdog.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os; os.kill(1, 0)"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+    cpus: 0.5
+    mem_limit: 384m
+    labels:
+      com.datadoghq.tags.env: dd-demo-${STACK}
+      com.datadoghq.tags.project: dd-demo
+      com.datadoghq.tags.stack: ${STACK}
+      com.datadoghq.tags.layer: core
+      com.datadoghq.tags.service: stock-projector
+      com.datadoghq.tags.version: ${PROJECTOR_VERSION:-1.0.0}
+      com.datadoghq.ad.logs: '[{"source":"python","service":"stock-projector"}]'
+
+  inventory-api-100:
+    <<: *inventory-api
+    build:
+      context: ..
+      dockerfile: inventory-api/Dockerfile
+      args:
+        CATALOGUE_PRODUCTS: ${CATALOGUE_PRODUCTS:-3500}
+    environment:
+      <<: *inventory-api-env
+      DD_VERSION: 1.0.0
+      CATALOGUE_MODE: none
+      DD_TAGS: "project:dd-demo stack:${STACK} layer:core"
+    labels:
+      com.datadoghq.tags.env: dd-demo-${STACK}
+      com.datadoghq.tags.project: dd-demo
+      com.datadoghq.tags.stack: ${STACK}
+      com.datadoghq.tags.layer: core
+      com.datadoghq.tags.service: inventory-api
+      com.datadoghq.tags.version: 1.0.0
+      com.datadoghq.ad.logs: '[{"source":"python","service":"inventory-api"}]'
+
+  inventory-api-110:
+    <<: *inventory-api
+    profiles: ["releases"]
+    environment:
+      <<: *inventory-api-env
+      DD_VERSION: 1.1.0
+      CATALOGUE_MODE: per_request
+      DD_TAGS: "project:dd-demo stack:${STACK} layer:releases"
+    labels:
+      com.datadoghq.tags.env: dd-demo-${STACK}
+      com.datadoghq.tags.project: dd-demo
+      com.datadoghq.tags.stack: ${STACK}
+      com.datadoghq.tags.layer: releases
+      com.datadoghq.tags.service: inventory-api
+      com.datadoghq.tags.version: 1.1.0
+      com.datadoghq.ad.logs: '[{"source":"python","service":"inventory-api"}]'
+
+  inventory-api-120:
+    <<: *inventory-api
+    profiles: ["releases"]
+    environment:
+      <<: *inventory-api-env
+      DD_VERSION: 1.2.0
+      CATALOGUE_MODE: startup
+      DD_TAGS: "project:dd-demo stack:${STACK} layer:releases"
+    labels:
+      com.datadoghq.tags.env: dd-demo-${STACK}
+      com.datadoghq.tags.project: dd-demo
+      com.datadoghq.tags.stack: ${STACK}
+      com.datadoghq.tags.layer: releases
+      com.datadoghq.tags.service: inventory-api
+      com.datadoghq.tags.version: 1.2.0
+      com.datadoghq.ad.logs: '[{"source":"python","service":"inventory-api"}]'
+
+  storefront:
+    <<: *restart
+    build:
+      context: ..
+      dockerfile: storefront/Dockerfile
+    image: dd-storefront:${IMAGE_TAG:-dev}
+    pull_policy: never
+    depends_on:
+      redis: {condition: service_healthy}
+      datadog-agent: {condition: service_started}
+    environment:
+      <<: *dd-env
+      DD_SERVICE: storefront
+      DD_TAGS: "project:dd-demo stack:${STACK} layer:core"
+      DD_VERSION: ${STOREFRONT_VERSION:-1.0.0}
+      DD_DATA_STREAMS_ENABLED: "true"
+      KAFKA_BOOTSTRAP: ${KAFKA_BOOTSTRAP:?KAFKA_BOOTSTRAP missing (.env.cloud or dev.env)}
+      KAFKA_API_KEY: ${STOREFRONT_KAFKA_API_KEY:?STOREFRONT_KAFKA_API_KEY missing (.env.cloud or dev.env)}
+      KAFKA_API_SECRET: ${STOREFRONT_KAFKA_API_SECRET:?STOREFRONT_KAFKA_API_SECRET missing}
+      SR_URL: ${SR_URL:?SR_URL missing}
+      SR_API_KEY: ${STOREFRONT_SR_API_KEY:?STOREFRONT_SR_API_KEY missing}
+      SR_API_SECRET: ${STOREFRONT_SR_API_SECRET:?STOREFRONT_SR_API_SECRET missing}
+      KAFKA_SECURITY_PROTOCOL: ${KAFKA_SECURITY_PROTOCOL:-SASL_SSL}
+      REDIS_URL: redis://redis:6379/0
+      # Offers need the offer-worker/Flink lane (optional); keep the cart/stock UI independent of them by default.
+      # layer.sh writes OFFERS_ENABLED=true to .state/layers-<stack>.env while the offers layer runs (and recreates storefront).
+      OFFERS_ENABLED: ${OFFERS_ENABLED:-false}
+      # Layer dd-rum: both set (from `terraform -chdir=terraform/datadog output -raw env_file`, written by stack.sh into
+      # the stack's .env.cloud-<stack>) turns Browser RUM on; both empty = off; exactly one set fails at startup.
+      DD_RUM_APPLICATION_ID: ${DD_RUM_APPLICATION_ID:-}
+      DD_RUM_CLIENT_TOKEN: ${DD_RUM_CLIENT_TOKEN:-}
+      DD_SITE: ${DD_SITE:-datadoghq.eu}
+      STACK: ${STACK}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    cpus: 0.5
+    mem_limit: 512m
+    labels:
+      com.datadoghq.tags.env: dd-demo-${STACK}
+      com.datadoghq.tags.project: dd-demo
+      com.datadoghq.tags.stack: ${STACK}
+      com.datadoghq.tags.layer: core
+      com.datadoghq.tags.service: storefront
+      com.datadoghq.tags.version: ${STOREFRONT_VERSION:-1.0.0}
+      com.datadoghq.ad.logs: '[{"source":"python","service":"storefront"}]'
+
+  nginx:
+    <<: *restart
+    image: nginx:1.30.5-alpine@sha256:0985e772fb9f729e6fa0980da05fca5d9c468e870eed43071545afa9d2e27d94
+    # routing.conf lives in a volume so `make route-*` can replace it at runtime; the default is 100/0/0.
+    command:
+      - sh
+      - -c
+      - '[ -f /etc/nginx/routing/routing.conf ] || cp /etc/nginx/routing-default.conf /etc/nginx/routing/routing.conf; exec nginx -g "daemon off;"'
+    configs:
+      - source: nginx_conf
+        target: /etc/nginx/nginx.conf
+      - source: nginx_routing_default
+        target: /etc/nginx/routing-default.conf
+    volumes:
+      - nginx-routing:/etc/nginx/routing
+    ports:
+      - "127.0.0.1:${INGRESS_PORT:-8080}:80"   # the ONLY published port (cloud variant: 80)
+    depends_on:
+      inventory-api-100: {condition: service_healthy}
+      storefront: {condition: service_healthy}
+      demo-control: {condition: service_healthy}   # nginx resolves upstream names at start
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:80/nginx-health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    cpus: 0.5
+    mem_limit: 128m
+    labels:
+      com.datadoghq.tags.env: dd-demo-${STACK}
+      com.datadoghq.tags.project: dd-demo
+      com.datadoghq.tags.stack: ${STACK}
+      com.datadoghq.tags.layer: core
+      com.datadoghq.tags.service: nginx
+      com.datadoghq.tags.version: "1.30.5"
+      com.datadoghq.ad.logs: '[{"source":"nginx","service":"nginx"}]'
+
+  watchdog:
+    <<: *restart
+    build:
+      context: ..
+      dockerfile: watchdog/Dockerfile
+    image: dd-watchdog:${IMAGE_TAG:-dev}
+    pull_policy: never
+    depends_on:
+      store-s01: {condition: service_healthy}
+      store-s02: {condition: service_healthy}
+      store-s03: {condition: service_healthy}
+      store-s04: {condition: service_healthy}
+      store-s05: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      datadog-agent: {condition: service_started}
+    environment:
+      <<: [*dd-env, *pg-client, *store-hosts]
+      DD_SERVICE: watchdog
+      DD_TAGS: "project:dd-demo stack:${STACK} layer:core"
+      DD_VERSION: ${WATCHDOG_VERSION:-1.0.0}
+      PG_WRITER_USER: stock_writer
+      PG_WRITER_PASSWORD: ${PG_WRITER_PASSWORD:?PG_WRITER_PASSWORD missing (run make secrets)}
+      REDIS_URL: redis://redis:6379/0
+      CONNECT_URL: http://connect:8083
+      # Connectors polled for stock.connect.task_running: inventory-s01..s05 (from STORE_HOSTS) and sellable-redis.
+      SELLABLE_CONNECTOR: sellable-redis
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os; os.kill(1, 0)"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+    cpus: 0.25
+    mem_limit: 128m
+    labels:
+      com.datadoghq.tags.env: dd-demo-${STACK}
+      com.datadoghq.tags.project: dd-demo
+      com.datadoghq.tags.stack: ${STACK}
+      com.datadoghq.tags.layer: core
+      com.datadoghq.tags.service: watchdog
+      com.datadoghq.tags.version: ${WATCHDOG_VERSION:-1.0.0}
+      com.datadoghq.ad.logs: '[{"source":"python","service":"watchdog"}]'
+
+  # Real-time cost estimate and Confluent bill per vendor. Off EC2 (dev) the AWS lines are not sent;
+  # without COST_METER_API_KEY (account Terraform output, read-only BillingAdmin + MetricsViewer key) the Confluent lines are not sent.
+  cost-meter:
+    <<: *restart
+    build:
+      context: ..
+      dockerfile: cost-meter/Dockerfile
+    image: dd-cost-meter:${IMAGE_TAG:-dev}
+    pull_policy: never
+    depends_on:
+      redis: {condition: service_healthy}
+      datadog-agent: {condition: service_started}
+    environment:
+      <<: *dd-env
+      DD_SERVICE: cost-meter
+      STACK: ${STACK}
+      REDIS_URL: redis://redis:6379/0
+      COST_EC2_INSTANCE_TYPE: ${COST_EC2_INSTANCE_TYPE:-}
+      COST_EBS_GB: ${COST_EBS_GB:-}
+      COST_METER_API_KEY: ${COST_METER_API_KEY:-}
+      COST_METER_API_SECRET: ${COST_METER_API_SECRET:-}
+      CONFLUENT_ENVIRONMENT_ID: ${CONFLUENT_ENVIRONMENT_ID:-}
+      KAFKA_CLUSTER_ID: ${KAFKA_CLUSTER_ID:-}
+      FLINK_COMPUTE_POOL_ID: ${FLINK_COMPUTE_POOL_ID:-}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os; os.kill(1, 0)"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+    cpus: 0.25
+    mem_limit: 128m
+    labels:
+      com.datadoghq.tags.env: dd-demo-${STACK}
+      com.datadoghq.tags.project: dd-demo
+      com.datadoghq.tags.stack: ${STACK}
+      com.datadoghq.tags.layer: core
+      com.datadoghq.tags.service: cost-meter
+      com.datadoghq.ad.logs: '[{"source":"python","service":"cost-meter"}]'
+
+  # Control panel (contracts section 12): page /control/ through nginx, basic auth with CONTROL_PASSWORD (.env.secrets).
+  # procurement-db is always configured; while the restock layer is off the host does not resolve and the panel shows those parameters as layer off.
+  demo-control:
+    <<: *restart
+    build:
+      context: ..
+      dockerfile: demo-control/Dockerfile
+    image: dd-demo-control:${IMAGE_TAG:-dev}
+    pull_policy: never
+    depends_on:
+      store-s01: {condition: service_healthy}
+      store-s02: {condition: service_healthy}
+      store-s03: {condition: service_healthy}
+      store-s04: {condition: service_healthy}
+      store-s05: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      datadog-agent: {condition: service_started}
+    environment:
+      <<: [*dd-env, *pg-client, *store-hosts]
+      DD_SERVICE: demo-control
+      DD_TAGS: "project:dd-demo stack:${STACK} layer:core"
+      DD_VERSION: ${DEMO_CONTROL_VERSION:-1.0.0}
+      STACK: ${STACK}
+      CONTROL_PASSWORD: ${CONTROL_PASSWORD:?CONTROL_PASSWORD missing (run make secrets)}
+      REDIS_URL: redis://redis:6379/0
+      KAFKA_BOOTSTRAP: ${KAFKA_BOOTSTRAP:?KAFKA_BOOTSTRAP missing (.env.cloud or dev.env)}
+      KAFKA_API_KEY: ${DEMO_CONTROL_KAFKA_API_KEY:?DEMO_CONTROL_KAFKA_API_KEY missing (.env.cloud or dev.env)}
+      KAFKA_API_SECRET: ${DEMO_CONTROL_KAFKA_API_SECRET:?DEMO_CONTROL_KAFKA_API_SECRET missing}
+      SR_URL: ${SR_URL:?SR_URL missing}
+      SR_API_KEY: ${DEMO_CONTROL_SR_API_KEY:?DEMO_CONTROL_SR_API_KEY missing}
+      SR_API_SECRET: ${DEMO_CONTROL_SR_API_SECRET:?DEMO_CONTROL_SR_API_SECRET missing}
+      KAFKA_SECURITY_PROTOCOL: ${KAFKA_SECURITY_PROTOCOL:-SASL_SSL}
+      CONFIG_TOPIC: demo.config
+      PG_WRITER_USER: stock_writer
+      PG_WRITER_PASSWORD: ${PG_WRITER_PASSWORD:?PG_WRITER_PASSWORD missing (run make secrets)}
+      PROCUREMENT_HOST: procurement-db
+      PROCUREMENT_DATABASE: procurement
+      PROCUREMENT_USER: procurement
+      PROCUREMENT_PASSWORD: ${PG_PROCUREMENT_PASSWORD:?PG_PROCUREMENT_PASSWORD missing (run make secrets)}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/control/healthz', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    cpus: 0.25
+    mem_limit: 256m
+    labels:
+      com.datadoghq.tags.env: dd-demo-${STACK}
+      com.datadoghq.tags.project: dd-demo
+      com.datadoghq.tags.stack: ${STACK}
+      com.datadoghq.tags.layer: core
+      com.datadoghq.tags.service: demo-control
+      com.datadoghq.tags.version: ${DEMO_CONTROL_VERSION:-1.0.0}
+      com.datadoghq.ad.logs: '[{"source":"python","service":"demo-control"}]'
+
+  datadog-agent:
+    <<: *restart
+    image: gcr.io/datadoghq/agent:7.83.3@sha256:c5bf5ec9be0c51d3d2d47bdadbb82680b5c83ceb9cae8457fe44aa736a1784ad
+    environment:
+      DD_API_KEY: ${DD_API_KEY:?DD_API_KEY missing (.env)}
+      DD_SITE: ${DD_SITE:-datadoghq.eu}
+      DD_ENV: dd-demo-${STACK:?STACK missing}
+      DD_TAGS: "project:dd-demo stack:${STACK}"
+      # Container labels become tags on that container's metrics and logs.
+      DD_CONTAINER_LABELS_AS_TAGS: '{"com.datadoghq.tags.project":"project","com.datadoghq.tags.stack":"stack","com.datadoghq.tags.layer":"layer"}'
+      DD_HOSTNAME: ${DD_HOSTNAME:-dd-demo-host}
+      DD_APM_ENABLED: "true"
+      DD_APM_NON_LOCAL_TRAFFIC: "true"
+      DD_DOGSTATSD_NON_LOCAL_TRAFFIC: "true"
+      DD_LOGS_ENABLED: "true"
+      DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL: "true"
+      DD_CONTAINER_EXCLUDE: "name:datadog-agent"
+      # Our conf.d/redisdb.yaml is the only Redis check; the Agent's auto-config for the redis image would duplicate it.
+      DD_IGNORE_AUTOCONF: "redisdb"
+      DD_PROCESS_AGENT_ENABLED: "false"
+      DD_PROCESS_CONFIG_PROCESS_COLLECTION_ENABLED: "false"
+      DD_PROCESS_CONFIG_CONTAINER_COLLECTION_ENABLED: "true"
+      # Read by the postgres check config (%%env_PG_DATADOG_PASSWORD%%).
+      PG_DATADOG_PASSWORD: ${PG_DATADOG_PASSWORD:?PG_DATADOG_PASSWORD missing (run make secrets)}
+    configs:
+      - source: dd_redisdb
+        target: /etc/datadog-agent/conf.d/redisdb.d/conf.yaml
+      - source: dd_postgres
+        target: /etc/datadog-agent/conf.d/postgres.d/conf.yaml
+      - source: dd_nginx
+        target: /etc/datadog-agent/conf.d/nginx.d/conf.yaml
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - agent-run:/opt/datadog-agent/run:rw
+    healthcheck:
+      test: ["CMD", "agent", "health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    cpus: 1.0
+    mem_limit: 1024m
+
+  # --- tools (profile `tools`): run with `docker compose run --rm scenario <command>` (see Makefile) ---
+  scenario:
+    profiles: ["tools"]
+    build:
+      context: ..
+      dockerfile: scenario/Dockerfile
+    image: dd-scenario:${IMAGE_TAG:-dev}
+    pull_policy: never
+    environment:
+      <<: [*pg-client, *store-hosts]
+      PG_WRITER_USER: stock_writer
+      PG_WRITER_PASSWORD: ${PG_WRITER_PASSWORD:?PG_WRITER_PASSWORD missing (run make secrets)}
+      REDIS_URL: redis://redis:6379/0
+      CONNECT_URL: http://connect:8083
+      SELLABLE_CONNECTOR: sellable-redis
+      BASE_URL: http://nginx:80
+      # restock layer: `make lead-time` writes procurement_config (empty password until `make secrets`; the command fails loudly then)
+      PROCUREMENT_HOST: ${PROCUREMENT_HOST:-}
+      PROCUREMENT_DATABASE: procurement
+      PROCUREMENT_USER: procurement
+      PROCUREMENT_PASSWORD: ${PG_PROCUREMENT_PASSWORD:-}
+    # Load summaries persist here between `make load` and `make canary-check` (each run is a fresh --rm container).
+    volumes:
+      - scenario-out:/out
+    depends_on:
+      nginx: {condition: service_healthy}
+    cpus: 1.0
+    mem_limit: 512m
+
+  # Smoke test of the running stack (browser + API + Connect + control panel): `make smoke`. Changes no demo state except an optional cart event.
+  smoke:
+    profiles: ["tools"]
+    build:
+      context: ..
+      dockerfile: smoke/Dockerfile
+    image: dd-smoke:${IMAGE_TAG:-dev}
+    pull_policy: never
+    environment:
+      BASE_URL: http://nginx:80
+      CONNECT_URL: http://connect:8083
+      CONTROL_PASSWORD: ${CONTROL_PASSWORD:?CONTROL_PASSWORD missing (run make secrets)}
+    # Screenshots (smoke-home.png, smoke-product.png) and --json-out land in the same volume as the scenario summaries.
+    volumes:
+      - scenario-out:/out
+    depends_on:
+      nginx: {condition: service_healthy}
+    cpus: 1.0
+    mem_limit: 1024m
+    shm_size: 512m
+
+  # --- synthetic background sales (profile `jr`): one jr per store source, built from vendor/jr ---
+  jr-sales-s01:
+    <<: *jr-sales
+    depends_on:
+      store-s01: {condition: service_healthy}
+    environment:
+      <<: *jr-sales-env
+      PG_HOST: store-s01
+    command:
+      - run
+      - --embedded
+      - '{"store_id":"S01","product_id":"P{{printf "%04d" (integer 1 201)}}","qty":1}'
+      - --output
+      - postgres
+      - --sqlConfig
+      - /home/jr/sales.json
+      - --seed
+      - "43"
+      - --frequency
+      - ${JR_SALES_FREQUENCY:-250ms}
+      - --num
+      - "1"
+    labels:
+      com.datadoghq.tags.env: dd-demo-${STACK}
+      com.datadoghq.tags.project: dd-demo
+      com.datadoghq.tags.stack: ${STACK}
+      com.datadoghq.tags.layer: core
+      com.datadoghq.tags.service: jr-sales
+      com.datadoghq.ad.logs: '[{"source":"go","service":"jr-sales","tags":["store:S01"]}]'
+
+  jr-sales-s02:
+    <<: *jr-sales
+    depends_on:
+      store-s02: {condition: service_healthy}
+    environment:
+      <<: *jr-sales-env
+      PG_HOST: store-s02
+    command:
+      - run
+      - --embedded
+      - '{"store_id":"S02","product_id":"P{{printf "%04d" (integer 1 201)}}","qty":1}'
+      - --output
+      - postgres
+      - --sqlConfig
+      - /home/jr/sales.json
+      - --seed
+      - "44"
+      - --frequency
+      - ${JR_SALES_FREQUENCY:-250ms}
+      - --num
+      - "1"
+    labels:
+      com.datadoghq.tags.env: dd-demo-${STACK}
+      com.datadoghq.tags.project: dd-demo
+      com.datadoghq.tags.stack: ${STACK}
+      com.datadoghq.tags.layer: core
+      com.datadoghq.tags.service: jr-sales
+      com.datadoghq.ad.logs: '[{"source":"go","service":"jr-sales","tags":["store:S02"]}]'
+
+  jr-sales-s03:
+    <<: *jr-sales
+    depends_on:
+      store-s03: {condition: service_healthy}
+    environment:
+      <<: *jr-sales-env
+      PG_HOST: store-s03
+    command:
+      - run
+      - --embedded
+      - '{"store_id":"S03","product_id":"P{{printf "%04d" (integer 1 201)}}","qty":1}'
+      - --output
+      - postgres
+      - --sqlConfig
+      - /home/jr/sales.json
+      - --seed
+      - "45"
+      - --frequency
+      - ${JR_SALES_FREQUENCY:-250ms}
+      - --num
+      - "1"
+    labels:
+      com.datadoghq.tags.env: dd-demo-${STACK}
+      com.datadoghq.tags.project: dd-demo
+      com.datadoghq.tags.stack: ${STACK}
+      com.datadoghq.tags.layer: core
+      com.datadoghq.tags.service: jr-sales
+      com.datadoghq.ad.logs: '[{"source":"go","service":"jr-sales","tags":["store:S03"]}]'
+
+  jr-sales-s04:
+    <<: *jr-sales
+    depends_on:
+      store-s04: {condition: service_healthy}
+    environment:
+      <<: *jr-sales-env
+      PG_HOST: store-s04
+    command:
+      - run
+      - --embedded
+      - '{"store_id":"S04","product_id":"P{{printf "%04d" (integer 1 201)}}","qty":1}'
+      - --output
+      - postgres
+      - --sqlConfig
+      - /home/jr/sales.json
+      - --seed
+      - "46"
+      - --frequency
+      - ${JR_SALES_FREQUENCY:-250ms}
+      - --num
+      - "1"
+    labels:
+      com.datadoghq.tags.env: dd-demo-${STACK}
+      com.datadoghq.tags.project: dd-demo
+      com.datadoghq.tags.stack: ${STACK}
+      com.datadoghq.tags.layer: core
+      com.datadoghq.tags.service: jr-sales
+      com.datadoghq.ad.logs: '[{"source":"go","service":"jr-sales","tags":["store:S04"]}]'
+
+  jr-sales-s05:
+    <<: *jr-sales
+    depends_on:
+      store-s05: {condition: service_healthy}
+    environment:
+      <<: *jr-sales-env
+      PG_HOST: store-s05
+    command:
+      - run
+      - --embedded
+      - '{"store_id":"S05","product_id":"P{{printf "%04d" (integer 1 201)}}","qty":1}'
+      - --output
+      - postgres
+      - --sqlConfig
+      - /home/jr/sales.json
+      - --seed
+      - "47"
+      - --frequency
+      - ${JR_SALES_FREQUENCY:-250ms}
+      - --num
+      - "1"
+    labels:
+      com.datadoghq.tags.env: dd-demo-${STACK}
+      com.datadoghq.tags.project: dd-demo
+      com.datadoghq.tags.stack: ${STACK}
+      com.datadoghq.tags.layer: core
+      com.datadoghq.tags.service: jr-sales
+      com.datadoghq.ad.logs: '[{"source":"go","service":"jr-sales","tags":["store:S05"]}]'
+
+  # --- optional offers lane (profile `offers`), following the two-lane policy. Off by default. ---
+  offer-worker:
+    <<: *restart
+    profiles: ["offers"]
+    build:
+      context: ..
+      dockerfile: offer-worker/Dockerfile
+    image: dd-offer-worker:${IMAGE_TAG:-dev}
+    pull_policy: never
+    depends_on:
+      redis: {condition: service_healthy}
+      datadog-agent: {condition: service_started}
+    environment:
+      <<: [*dd-env, *store-hosts]
+      DD_SERVICE: offer-worker
+      DD_TAGS: "project:dd-demo stack:${STACK} layer:offers"
+      DD_VERSION: ${OFFER_WORKER_VERSION:-1.0.0}
+      DD_DATA_STREAMS_ENABLED: "true"
+      KAFKA_BOOTSTRAP: ${KAFKA_BOOTSTRAP:?KAFKA_BOOTSTRAP missing (.env.cloud or dev.env)}
+      KAFKA_API_KEY: ${OFFERS_KAFKA_API_KEY:?OFFERS_KAFKA_API_KEY missing (.env.cloud or dev.env)}
+      KAFKA_API_SECRET: ${OFFERS_KAFKA_API_SECRET:?OFFERS_KAFKA_API_SECRET missing}
+      SR_URL: ${SR_URL:?SR_URL missing}
+      SR_API_KEY: ${OFFERS_SR_API_KEY:?OFFERS_SR_API_KEY missing}
+      SR_API_SECRET: ${OFFERS_SR_API_SECRET:?OFFERS_SR_API_SECRET missing}
+      KAFKA_GROUP_ID: ${OFFERS_GROUP_ID:-offer-worker}
+      KAFKA_SECURITY_PROTOCOL: ${KAFKA_SECURITY_PROTOCOL:-SASL_SSL}
+      REDIS_URL: redis://redis:6379/0
+      # Empty JEV_API_KEY = rule default only (no Jev call); Bedrock and the kill switch are off unless enabled.
+      JEV_API_KEY: ${JEV_API_KEY:-}
+      JEV_URL: ${JEV_URL:-}
+      BEDROCK_ENABLED: ${BEDROCK_ENABLED:-false}
+      BEDROCK_MODEL_ID: ${BEDROCK_MODEL_ID:-}
+      AWS_REGION: ${AWS_REGION:-eu-west-1}
+      OFFERS_KILL_SWITCH: ${OFFERS_KILL_SWITCH:-false}
+    cpus: 0.5
+    mem_limit: 384m
+    labels:
+      com.datadoghq.tags.env: dd-demo-${STACK}
+      com.datadoghq.tags.project: dd-demo
+      com.datadoghq.tags.stack: ${STACK}
+      com.datadoghq.tags.layer: offers
+      com.datadoghq.tags.service: offer-worker
+      com.datadoghq.tags.version: ${OFFER_WORKER_VERSION:-1.0.0}
+      com.datadoghq.ad.logs: '[{"source":"python","service":"offer-worker"}]'
+
+  # --- restock layer (profile `restock`), contract section 10 ---
+  procurement-db:
+    <<: *restart
+    profiles: ["restock"]
+    image: postgres:17.11-trixie@sha256:d74eeac9a635390a49bc21bd49fccd973de707e2a53a76ac49b552b8712ec46f
+    environment:
+      # Superuser is `postgres`; 001 creates the application role `procurement`, 002 sets its password from the env below.
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${PG_SUPERUSER_PASSWORD:?PG_SUPERUSER_PASSWORD missing (run make secrets)}
+      POSTGRES_DB: procurement
+      PG_PROCUREMENT_PASSWORD: ${PG_PROCUREMENT_PASSWORD:?PG_PROCUREMENT_PASSWORD missing (run make secrets)}
+      PG_DEBEZIUM_PASSWORD: ${PG_DEBEZIUM_PASSWORD:?PG_DEBEZIUM_PASSWORD missing (run make secrets)}
+    # Same server config as the store sources: wal_level=logical for the Debezium connector procurement-orders.
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
+    configs:
+      - source: pg_conf
+        target: /etc/postgresql/postgresql.conf
+      - source: pg_init_procurement
+        target: /docker-entrypoint-initdb.d/001_procurement.sql
+      - source: pg_init_procurement_password
+        target: /docker-entrypoint-initdb.d/002_password.sh   # not executable: the entrypoint sources it
+      - source: pg_init_procurement_cdc
+        target: /docker-entrypoint-initdb.d/003_cdc.sh        # role debezium, publication, pg_hba replication entry
+    volumes:
+      - pgdata-procurement:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d procurement"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 20s
+    cpus: 0.25
+    mem_limit: 256m
+    labels:
+      com.datadoghq.tags.env: dd-demo-${STACK}
+      com.datadoghq.tags.project: dd-demo
+      com.datadoghq.tags.stack: ${STACK}
+      com.datadoghq.tags.layer: restock
+      com.datadoghq.tags.service: procurement-db
+      com.datadoghq.tags.version: "17.11"
+      com.datadoghq.ad.logs: '[{"source":"postgresql","service":"procurement-db"}]'
+
+  supplier-sim:
+    <<: *restart
+    profiles: ["restock"]
+    build:
+      context: ..
+      dockerfile: supplier-sim/Dockerfile
+    image: dd-supplier-sim:${IMAGE_TAG:-dev}
+    pull_policy: never
+    depends_on:
+      procurement-db: {condition: service_healthy}
+      store-s01: {condition: service_healthy}
+      store-s02: {condition: service_healthy}
+      store-s03: {condition: service_healthy}
+      store-s04: {condition: service_healthy}
+      store-s05: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      datadog-agent: {condition: service_started}
+    environment:
+      <<: [*dd-env, *pg-client, *store-hosts]
+      DD_SERVICE: supplier-sim
+      DD_TAGS: "project:dd-demo stack:${STACK} layer:restock"
+      DD_VERSION: ${SUPPLIER_SIM_VERSION:-1.0.0}
+      PG_WRITER_USER: stock_writer
+      PG_WRITER_PASSWORD: ${PG_WRITER_PASSWORD:?PG_WRITER_PASSWORD missing (run make secrets)}
+      PROCUREMENT_HOST: procurement-db
+      PROCUREMENT_DATABASE: procurement
+      PROCUREMENT_USER: procurement
+      PROCUREMENT_PASSWORD: ${PG_PROCUREMENT_PASSWORD:?PG_PROCUREMENT_PASSWORD missing (run make secrets)}
+      REDIS_URL: redis://redis:6379/0
+      DEFAULT_LEAD_TIME_S: ${DEFAULT_LEAD_TIME_S:-172800}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os; os.kill(1, 0)"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+    cpus: 0.25
+    mem_limit: 128m
+    labels:
+      com.datadoghq.tags.env: dd-demo-${STACK}
+      com.datadoghq.tags.project: dd-demo
+      com.datadoghq.tags.stack: ${STACK}
+      com.datadoghq.tags.layer: restock
+      com.datadoghq.tags.service: supplier-sim
+      com.datadoghq.tags.version: ${SUPPLIER_SIM_VERSION:-1.0.0}
+      com.datadoghq.ad.logs: '[{"source":"python","service":"supplier-sim"}]'
+
+configs:
+  pg_conf:
+    file: ../postgres/postgresql.conf
+  pg_init_schema:
+    file: ../contracts/source/001_inventory.sql
+  pg_init_roles:
+    file: ../contracts/source/002_roles.sql
+  pg_init_demo:
+    file: ../contracts/source/003_demo.sql
+  pg_init_procurement_cdc:
+    file: ../postgres/003_procurement_cdc.sh
+  pg_init_procurement:
+    file: ../contracts/procurement/001_procurement.sql
+  pg_init_procurement_password:
+    file: ../contracts/procurement/002_password.sh
+  pg_init_passwords:
+    file: ../postgres/003_passwords.sh
+  nginx_conf:
+    file: ../nginx/nginx.conf
+  nginx_routing_default:
+    file: ../nginx/routing-default.conf
+  dd_redisdb:
+    file: ../datadog/agent/conf.d/redisdb.yaml
+  dd_postgres:
+    file: ../datadog/agent/conf.d/postgres.yaml
+  dd_nginx:
+    file: ../datadog/agent/conf.d/nginx.yaml
+  jr_sales:
+    file: ../jr/sales.json
+
+volumes:
+  pgdata-s01:
+  pgdata-s02:
+  pgdata-s03:
+  pgdata-s04:
+  pgdata-s05:
+  pgdata-procurement:
+  redisdata:
+  nginx-routing:
+  agent-run:
+  scenario-out:

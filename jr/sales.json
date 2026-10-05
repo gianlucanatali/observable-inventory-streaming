@@ -1,0 +1,8 @@
+{
+  "driver": "pgx",
+  "dsn": "postgres://${PG_WRITER_USER}:${PG_WRITER_PASSWORD}@${PG_HOST}:${PG_PORT}/${PG_DATABASE}?sslmode=disable",
+  "statement": "SELECT * FROM sell(:store_id::text, CASE WHEN :product_id::text = 'P0042' THEN '__never__' WHEN random() < (SELECT value FROM demo_setting WHERE key = 'sales_per_min_per_store') / 240 * COALESCE((SELECT weight FROM product_weight WHERE product_id = :product_id::text), 0) THEN :product_id::text ELSE '__never__' END, :qty::integer)",
+  "timeout": "5s",
+  "maxOpenConns": 2,
+  "onError": "fatal"
+}

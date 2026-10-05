@@ -1,0 +1,23 @@
+[project]
+name = "offer-worker"
+version = "0.1.0"
+description = "Turns carts.at-risk events into offers: Jev picks among permitted candidates (or the rule default), Bedrock writes descriptive copy (or a template)"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "confluent-kafka[avro,schemaregistry]==2.15.1",
+  "redis==8.1.0",
+  "ddtrace==4.15.3",
+  "datadog==0.55.0",
+  "httpx==0.28.1",
+  "boto3==1.43.108",
+]
+
+[dependency-groups]
+dev = ["pytest==9.1.1", "fakeredis==2.39.0"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

@@ -1,0 +1,15 @@
+{
+  "type": "record", "name": "StockMovement", "namespace": "urbanstreet.inventory",
+  "doc": "Value of stock.movements: one applied quantity change of a stock position (append-only), published by stock-projector after inventory.state. Plain longs, no logical types (Flink reads them as BIGINT).",
+  "fields": [
+    {"name": "store_id", "type": "string"},
+    {"name": "product_id", "type": "string"},
+    {"name": "qty_before", "type": "int", "doc": "Quantity before the change; 0 for a position first seen."},
+    {"name": "qty_after", "type": "int"},
+    {"name": "delta", "type": "int", "doc": "qty_after - qty_before; never 0 (zero deltas are not published)."},
+    {"name": "kind", "type": {"type": "enum", "name": "MovementKind", "symbols": ["SALE", "RESTOCK", "ADJUST"]},
+     "doc": "ADJUST for snapshot/create records and for source change_reason reset/seed; SALE/RESTOCK from change_reason, else the delta sign."},
+    {"name": "revision", "type": "long"},
+    {"name": "changed_at_ms", "type": "long", "doc": "Source mutation time, epoch ms."}
+  ]
+}

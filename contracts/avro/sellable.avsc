@@ -1,0 +1,10 @@
+{
+  "type": "record", "name": "Sellable", "namespace": "urbanstreet.inventory",
+  "doc": "Value of stock.sellable: sellable stock of one product across all stores. Plain longs only (the Redis sink stringifies fields).",
+  "fields": [
+    {"name": "product_id", "type": "string"},
+    {"name": "sellable", "type": "long", "doc": "Sum of quantity over non-deleted positions."},
+    {"name": "stores_reporting", "type": "int", "doc": "Count of non-deleted positions."},
+    {"name": "last_changed_at_ms", "type": "long", "doc": "Max changed_at over all positions of the product, epoch milliseconds."}
+  ]
+}

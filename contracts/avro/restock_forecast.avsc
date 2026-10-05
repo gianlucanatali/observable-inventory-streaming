@@ -1,0 +1,11 @@
+{
+  "type": "record", "name": "RestockForecast", "namespace": "urbanstreet.inventory",
+  "doc": "Value of restock.forecast: observed supplier lead time and quantity still on order. Plain int/double only.",
+  "fields": [
+    {"name": "store_id", "type": "string"},
+    {"name": "product_id", "type": "string"},
+    {"name": "lead_time_s", "type": "double", "doc": "Average request-to-delivery seconds of the last 5 deliveries, 0 when deliveries = 0 (unknown)."},
+    {"name": "on_order", "type": "int", "doc": "Sum of quantity_requested of orders neither delivered nor cancelled."},
+    {"name": "deliveries", "type": "int", "doc": "Number of delivered orders of the key."}
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "type": "record", "name": "DemoConfigKey", "namespace": "urbanstreet.demo",
+  "doc": "Key of demo.config (compacted): the parameter name from demo-params.json.",
+  "fields": [
+    {"name": "key", "type": "string"}
+  ]
+}

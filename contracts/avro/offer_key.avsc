@@ -1,0 +1,4 @@
+{
+  "type": "record", "name": "OfferKey", "namespace": "urbanstreet.offers",
+  "fields": [{"name": "offer_id", "type": "string"}]
+}

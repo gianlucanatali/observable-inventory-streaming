@@ -1,0 +1,45 @@
+{
+  "_comment": "Unit list prices used by cost-meter. USD. Each entry names its primary source and the date it was read. Refresh before a new region or instance type.",
+  "aws": {
+    "region": "eu-west-1",
+    "ec2_usd_per_hour": {
+      "t4g.xlarge": 0.1472,
+      "_source": "AWS Pricing API get-products AmazonEC2, regionCode eu-west-1, Linux, Shared, On Demand, 2026-10-04"
+    },
+    "ebs_gp3_usd_per_gb_month": 0.088,
+    "_ebs_source": "AWS Pricing API AmazonEC2 volumeApiName gp3, eu-west-1, 2026-10-04",
+    "public_ipv4_usd_per_hour": 0.005,
+    "_ipv4_source": "AWS Pricing API AmazonVPC group VPCPublicIPv4Address, EU-PublicIPv4:InUseAddress, 2026-10-04",
+    "cpu_credit_usd_per_vcpu_hour": 0.04,
+    "_cpu_credit_source": "AWS Pricing API AmazonEC2 usagetype EU-CPUCredits:t4g, 2026-10-04",
+    "burstable_baseline_fraction": {
+      "t4g.xlarge": 0.4,
+      "_source": "AWS docs, burstable performance instances, baseline utilization per vCPU for t4g.xlarge (40 %)"
+    },
+    "hours_per_month": 730,
+    "fargate_arm_vcpu_usd_per_hour": 0.03238,
+    "fargate_arm_gb_usd_per_hour": 0.00356,
+    "_fargate_source": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonECS/current/eu-west-1/index.json ; 2026-10-04; ARM Linux OnDemand SKUs KXC9CEUQGJQPNZPY / MGJ5EB5GSHR8QZDF; task allocation includes Agent sidecar",
+    "alb_usd_per_hour": 0.0252,
+    "alb_lcu_usd_per_hour": 0.008,
+    "_alb_source": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AWSELB/current/eu-west-1/index.json ; 2026-10-04; regional Application OnDemand SKUs T29JAP5UEZ7HXAM7 / YE8QE7GMG9794PDX; base hourly line excludes variable LCU usage",
+    "elasticache_t4g_small_usd_per_hour": 0.034,
+    "_elasticache_source": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonElastiCache/current/eu-west-1/index.json ; 2026-10-04; Redis OnDemand SKU Q8MBFSX7FCA3HNJW; excludes extended support"
+  },
+  "confluent": {
+    "region": "aws eu-west-1",
+    "basic_ecku_usd_per_hour": 0.1485,
+    "kafka_write_usd_per_gb": 0.055,
+    "kafka_read_usd_per_gb": 0.055,
+    "kafka_storage_usd_per_gb_hour": 0.00012055,
+    "_kafka_source": "confluent billing price list --cloud aws --region eu-west-1 (Basic, Internet), 2026-10-04",
+    "flink_usd_per_cfu_hour": 0.21,
+    "_flink_source": "docs.confluent.io/cloud/current/flink/concepts/flink-billing.html, '$0.21/CFU-hour, calculated by the minute', 2026-10-04. 'Prices vary by cloud region': eu-west-1 multiplier is assumed to be 1.0; confirm before using another region.",
+    "bytes_per_gb": 1000000000,
+    "_bytes_per_gb_note": "Decimal GB is assumed; confirm whether Confluent bills GB or GiB before using this estimate (difference about 7 %)."
+  },
+  "datadog": {
+    "plan": "not_estimated",
+    "_note": "Datadog subscription charges are not estimated here; check the current plan or trial before relying on a zero-cost assumption."
+  }
+}

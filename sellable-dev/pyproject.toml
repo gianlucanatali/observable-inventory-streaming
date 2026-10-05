@@ -1,0 +1,19 @@
+[project]
+name = "sellable-dev"
+version = "0.1.0"
+description = "Local-mode stand-in for overlay/flink/sellable.sql: aggregates inventory.state into stock.sellable"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "confluent-kafka[avro,schemaregistry]==2.15.1",
+  "ddtrace==4.15.3",
+]
+
+[dependency-groups]
+dev = ["pytest==9.1.1"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

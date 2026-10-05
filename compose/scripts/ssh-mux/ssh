@@ -1,0 +1,6 @@
+#!/bin/sh
+# Put first in PATH for docker over SSH (Makefile, MODE=cloud): docker compose opens one ssh per API call and per image;
+# dozens of parallel handshakes time out ("Connection timed out during banner exchange"). This multiplexes them over one
+# TCP connection. Only affects commands run through the Makefile's cloud DOCKER; ~/.ssh/config is untouched.
+exec /usr/bin/ssh -o ControlMaster=auto -o "ControlPath=$HOME/.ssh/cm-dd-demo-%C" -o ControlPersist=15m \
+  -o ServerAliveInterval=15 "$@"

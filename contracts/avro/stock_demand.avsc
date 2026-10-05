@@ -1,0 +1,10 @@
+{
+  "type": "record", "name": "StockDemand", "namespace": "urbanstreet.inventory",
+  "doc": "Value of stock.demand: units sold per hour over the last demand window. Plain double/long only (no logical types).",
+  "fields": [
+    {"name": "store_id", "type": "string"},
+    {"name": "product_id", "type": "string"},
+    {"name": "units_per_hour", "type": "double", "doc": "SUM(-delta) of SALE movements in the HOP window (10 min, slide 1 min) times 6."},
+    {"name": "window_end_ms", "type": "long", "doc": "End of the window, epoch milliseconds."}
+  ]
+}

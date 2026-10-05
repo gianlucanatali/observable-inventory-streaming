@@ -1,0 +1,145 @@
+# Hybrid cloud stack (STACK=hybrid).
+#
+# This compose project is the on-prem VM lane only. The online lane is supplied
+# by W1/W4 (ECS/ALB/ElastiCache); the two explicit contracts below are emitted
+# into the stack env file and must never contain credentials:
+#   ELASTICACHE_REDIS_URL=redis://<endpoint>:6379[/db]
+#   HYBRID_ONLINE_URL=https://<alb-host> (the ALB base URL for VM tools)
+#
+# Services kept in this file are deliberate: five source stores, optional
+# procurement/supplier, Connect, watchdog, jr sales and scenario/smoke tools.
+# The cloud-online profile is not activated by Make, so cloud services from the
+# base file do not accidentally run on the VM.
+# Database ports below are the private VM ingress used by the ECS demo-control
+# service. The AWS security group is the network boundary; do not treat a
+# loopback-only bind as the access-control mechanism.
+services:
+  store-s01:
+    ports: ["15431:5432"]
+  store-s02:
+    ports: ["15432:5432"]
+  store-s03:
+    ports: ["15433:5432"]
+  store-s04:
+    ports: ["15434:5432"]
+  store-s05:
+    ports: ["15435:5432"]
+  procurement-db:
+    ports: ["15436:5432"]
+
+  redis:
+    profiles: !override ["cloud-online"]
+  stock-projector:
+    profiles: !override ["cloud-online"]
+    depends_on: !reset []
+  inventory-api-100:
+    profiles: !override ["cloud-online"]
+    depends_on: !reset []
+  inventory-api-110:
+    profiles: !override ["cloud-online"]
+    depends_on: !reset []
+  inventory-api-120:
+    profiles: !override ["cloud-online"]
+    depends_on: !reset []
+  storefront:
+    profiles: !override ["cloud-online"]
+    depends_on: !reset []
+  nginx:
+    profiles: !override ["cloud-online"]
+    depends_on: !reset []
+  offer-worker:
+    profiles: !override ["cloud-online"]
+    depends_on: !reset []
+  demo-control:
+    profiles: !override ["cloud-online"]
+    depends_on: !reset []
+  cost-meter:
+    profiles: !override ["cloud-online"]
+    depends_on: !reset []
+  datadog-agent:
+    profiles: !reset []
+    configs: !override
+      - source: dd_postgres
+        target: /etc/datadog-agent/conf.d/postgres.d/conf.yaml
+
+  connect:
+    depends_on: !override
+      store-s01: {condition: service_healthy}
+      store-s02: {condition: service_healthy}
+      store-s03: {condition: service_healthy}
+      store-s04: {condition: service_healthy}
+      store-s05: {condition: service_healthy}
+    environment:
+      REDIS_URI: ${ELASTICACHE_REDIS_URL:?ELASTICACHE_REDIS_URL missing (W1 ElastiCache output)}
+
+  # Control Center (Legacy) 7.9 is a hybrid-only optional UI. It uses the
+  # Cloud cluster for storage; do not add a local Kafka broker, Replicator, or C3 2.x.
+  control-center:
+    profiles: ["control-center"]
+    image: confluentinc/cp-enterprise-control-center:7.9.0
+    ports: ["9021:9021"]
+    depends_on:
+      connect: {condition: service_healthy}
+    environment:
+      CONTROL_CENTER_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP:?KAFKA_BOOTSTRAP missing (.env.cloud)}
+      CONTROL_CENTER_MODE_ENABLE: management
+      CONTROL_CENTER_REPLICATION_FACTOR: "3"
+      CONTROL_CENTER_STREAMS_SECURITY_PROTOCOL: SASL_SSL
+      CONTROL_CENTER_STREAMS_SASL_MECHANISM: PLAIN
+      CONTROL_CENTER_STREAMS_SASL_JAAS_CONFIG: 'org.apache.kafka.common.security.plain.PlainLoginModule required username="${CONTROL_CENTER_KAFKA_API_KEY:?CONTROL_CENTER_KAFKA_API_KEY missing (.env.cloud)}" password="${CONTROL_CENTER_KAFKA_API_SECRET:?CONTROL_CENTER_KAFKA_API_SECRET missing}";'
+      CONTROL_CENTER_STREAMS_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: https
+      CONTROL_CENTER_METRICS_TOPIC_MAX_MESSAGE_BYTES: "8388608"
+      CONTROL_CENTER_CONNECT_connect_CLUSTER: http://connect:8083
+      CONTROL_CENTER_SCHEMA_REGISTRY_URL: ${SR_URL:?SR_URL missing (.env.cloud)}:443
+      CONTROL_CENTER_SCHEMA_REGISTRY_BASIC_AUTH_CREDENTIALS_SOURCE: USER_INFO
+      CONTROL_CENTER_SCHEMA_REGISTRY_BASIC_AUTH_USER_INFO: ${CONTROL_CENTER_SR_API_KEY:?CONTROL_CENTER_SR_API_KEY missing (.env.cloud)}:${CONTROL_CENTER_SR_API_SECRET:?CONTROL_CENTER_SR_API_SECRET missing}
+      # Blank selects Confluent's documented 30-day trial; a live entitlement remains a deploy-time check.
+      CONTROL_CENTER_LICENSE: ${CONTROL_CENTER_LICENSE:-}
+      KAFKA_HEAP_OPTS: -Xms1g -Xmx4g
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9021/2.0/health >/dev/null"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 90s
+    cpus: 2.0
+    mem_limit: 6g
+    labels:
+      com.datadoghq.tags.env: dd-demo-${STACK}
+      com.datadoghq.tags.project: dd-demo
+      com.datadoghq.tags.stack: ${STACK}
+      com.datadoghq.tags.layer: control-center
+      com.datadoghq.tags.service: control-center
+      com.datadoghq.tags.version: "7.9.0"
+
+  watchdog:
+    depends_on: !override
+      store-s01: {condition: service_healthy}
+      store-s02: {condition: service_healthy}
+      store-s03: {condition: service_healthy}
+      store-s04: {condition: service_healthy}
+      store-s05: {condition: service_healthy}
+    environment:
+      REDIS_URL: ${ELASTICACHE_REDIS_URL:?ELASTICACHE_REDIS_URL missing (W1 ElastiCache output)}
+
+  supplier-sim:
+    depends_on: !override
+      procurement-db: {condition: service_healthy}
+      store-s01: {condition: service_healthy}
+      store-s02: {condition: service_healthy}
+      store-s03: {condition: service_healthy}
+      store-s04: {condition: service_healthy}
+      store-s05: {condition: service_healthy}
+    environment:
+      REDIS_URL: ${ELASTICACHE_REDIS_URL:?ELASTICACHE_REDIS_URL missing (W1 ElastiCache output)}
+  scenario:
+    depends_on: !reset []
+    environment:
+      BASE_URL: ${HYBRID_ONLINE_URL:?HYBRID_ONLINE_URL missing (W4 ALB output)}
+      CONNECT_URL: http://connect:8083
+      REDIS_URL: ${ELASTICACHE_REDIS_URL:?ELASTICACHE_REDIS_URL missing (W1 ElastiCache output)}
+  smoke:
+    depends_on: !reset []
+    environment:
+      BASE_URL: ${HYBRID_ONLINE_URL:?HYBRID_ONLINE_URL missing (W4 ALB output)}
+      CONNECT_URL: http://connect:8083

@@ -1,0 +1,23 @@
+# Local configuration and generated lifecycle secrets
+.env*
+demo.yaml
+.state/
+
+# Explicit destructive account teardown override
+terraform/account/account-down_override.tf.json
+
+# Terraform state, plans and provider caches
+**/.terraform/
+*.tfstate*
+*.tfplan
+*.plan
+crash.log
+
+# Generated dependencies and logs
+node_modules/
+logs/
+*.log
+
+# Keep tracked examples and locks visible
+!.env.example
+!.terraform.lock.hcl

@@ -1,0 +1,314 @@
+{
+ "doc": "Demo control parameters (contracts section 12). The demo-control service is the only writer. 'store' says where the value lives; consumers read it on every cycle unless apply is 'restart'.",
+ "params": [
+  {
+   "key": "time_compression",
+   "label": "Demo clock (business hours per real hour)",
+   "unit": "x",
+   "default": 60,
+   "min": 1,
+   "max": 3600,
+   "store": "kafka_config,redis",
+   "consumers": [
+    "flink restock.sql",
+    "sellable-dev",
+    "supplier-sim",
+    "storefront"
+   ],
+   "apply": "live",
+   "layer": "restock",
+   "doc": "Restock planning runs on compressed business time: 60 = one real minute is one business hour. Lead time, coverage, demand and ETAs are shown in business time."
+  },
+  {
+   "key": "lead_time_s",
+   "label": "Supplier lead time (base)",
+   "unit": "s",
+   "default": 172800,
+   "min": 5,
+   "max": 1209600,
+   "store": "procurement_db,kafka_config",
+   "consumers": [
+    "supplier-sim",
+    "flink restock.sql",
+    "sellable-dev"
+   ],
+   "apply": "live",
+   "layer": "restock",
+   "doc": "Base purchase-order-to-stock time; each product has its own factor (0.5-2x) plus jitter. Applies to open orders."
+  },
+  {
+   "key": "min_order_qty",
+   "label": "Minimum order quantity",
+   "unit": "units",
+   "default": 5,
+   "min": 1,
+   "max": 100,
+   "store": "kafka_config",
+   "consumers": [
+    "flink restock.sql",
+    "sellable-dev"
+   ],
+   "apply": "live",
+   "layer": "restock",
+   "doc": "Smallest restock request; the rule orders more when demand \u00d7 (lead time + coverage) needs it."
+  },
+  {
+   "key": "sales_per_min_per_store",
+   "label": "Background sales per store",
+   "unit": "sales/min",
+   "default": 24,
+   "min": 0,
+   "max": 240,
+   "store": "store_dbs",
+   "consumers": [
+    "jr-sales-s01..s05"
+   ],
+   "apply": "live",
+   "layer": "core",
+   "doc": "jr ticks every 250 ms per store; each tick sells with probability rate/240."
+  },
+  {
+   "key": "sell_out_gap_s",
+   "label": "Sell-out gap between stores",
+   "unit": "s",
+   "default": 1.5,
+   "min": 0,
+   "max": 30,
+   "store": "redis",
+   "consumers": [
+    "scenario sell-out"
+   ],
+   "apply": "next run",
+   "layer": "core",
+   "doc": "Pause between stores in make sell-out (when --gap-s is not given)."
+  },
+  {
+   "key": "probe_interval_s",
+   "label": "Freshness probe interval",
+   "unit": "s",
+   "default": 5,
+   "min": 1,
+   "max": 60,
+   "store": "redis",
+   "consumers": [
+    "watchdog"
+   ],
+   "apply": "live",
+   "layer": "core",
+   "doc": "How often each store's probe position is written."
+  },
+  {
+   "key": "stale_after_s",
+   "label": "Stale after",
+   "unit": "s",
+   "default": 15,
+   "min": 2,
+   "max": 600,
+   "store": "redis",
+   "consumers": [
+    "watchdog"
+   ],
+   "apply": "live",
+   "layer": "core",
+   "doc": "A store's feed is stale when its newest probe is not visible in Redis within this time."
+  },
+  {
+   "key": "poll_ms",
+   "label": "Shop refresh interval",
+   "unit": "ms",
+   "default": 1000,
+   "min": 250,
+   "max": 10000,
+   "store": "redis",
+   "consumers": [
+    "storefront"
+   ],
+   "apply": "page reload",
+   "layer": "core",
+   "doc": "How often the product page asks for availability."
+  },
+  {
+   "key": "exposure_budget_ms",
+   "label": "Exposure latency budget",
+   "unit": "ms",
+   "default": 800,
+   "min": 50,
+   "max": 10000,
+   "store": "redis",
+   "consumers": [
+    "storefront (RUM)"
+   ],
+   "apply": "page reload",
+   "layer": "dd-rum",
+   "doc": "A lookup slower than this counts the session as an exposed journey."
+  },
+  {
+   "key": "jev_timeout_ms",
+   "label": "Jev timeout",
+   "unit": "ms",
+   "default": 800,
+   "min": 100,
+   "max": 10000,
+   "store": "redis",
+   "consumers": [
+    "offer-worker"
+   ],
+   "apply": "live",
+   "layer": "offers",
+   "doc": "Past this the rule default is used."
+  },
+  {
+   "key": "jev_min_confidence",
+   "label": "Jev minimum confidence",
+   "unit": "0-1",
+   "default": 0.8,
+   "min": 0,
+   "max": 1,
+   "store": "redis",
+   "consumers": [
+    "offer-worker"
+   ],
+   "apply": "live",
+   "layer": "offers",
+   "doc": "Lower-confidence choices take the rule default."
+  },
+  {
+   "key": "offers_kill_switch",
+   "label": "AI kill switch",
+   "unit": "bool",
+   "default": 0,
+   "min": 0,
+   "max": 1,
+   "store": "redis",
+   "consumers": [
+    "offer-worker"
+   ],
+   "apply": "live",
+   "layer": "offers",
+   "doc": "1 = never call Jev; rule default only. Same key the worker already reads (offers:kill_switch)."
+  },
+  {
+   "key": "max_risk_age_s",
+   "label": "Max cart-at-risk age",
+   "unit": "s",
+   "default": 300,
+   "min": 10,
+   "max": 3600,
+   "store": "redis",
+   "consumers": [
+    "offer-worker"
+   ],
+   "apply": "live",
+   "layer": "offers",
+   "doc": "Older cart-at-risk events are skipped."
+  },
+  {
+   "key": "cart_active_window_min",
+   "label": "Active cart window",
+   "unit": "min",
+   "default": 30,
+   "min": 1,
+   "max": 240,
+   "store": "flink_statement",
+   "consumers": [
+    "flink cart_at_risk.sql"
+   ],
+   "apply": "restart",
+   "layer": "offers",
+   "doc": "Shown read-only: changing it means re-applying the Flink statement (Terraform)."
+  },
+  {
+   "key": "safety_factor",
+   "label": "Safety factor",
+   "unit": "x",
+   "default": 1.2,
+   "min": 0.5,
+   "max": 5,
+   "store": "kafka_config",
+   "consumers": [
+    "flink restock.sql",
+    "sellable-dev"
+   ],
+   "apply": "live",
+   "layer": "restock",
+   "doc": "Reorder point = demand \u00d7 lead time \u00d7 this."
+  },
+  {
+   "key": "coverage_h",
+   "label": "Coverage after delivery",
+   "unit": "h",
+   "default": 24,
+   "min": 0,
+   "max": 720,
+   "store": "kafka_config",
+   "consumers": [
+    "flink restock.sql",
+    "sellable-dev"
+   ],
+   "apply": "live",
+   "layer": "restock",
+   "doc": "Order enough to cover the lead time plus this many hours of demand."
+  },
+  {
+   "key": "default_demand_per_hour",
+   "label": "Default demand (no data yet)",
+   "unit": "units/h",
+   "default": 0.1,
+   "min": 0,
+   "max": 100,
+   "store": "kafka_config",
+   "consumers": [
+    "flink restock.sql",
+    "sellable-dev"
+   ],
+   "apply": "live",
+   "layer": "restock",
+   "doc": "Used until Flink has learned a product's demand. 0.1/business hour \u2248 the default sales rate per product; higher values make every product reorder at start."
+  },
+  {
+   "key": "lead_time_jitter_pct",
+   "label": "Lead time jitter",
+   "unit": "%",
+   "default": 20,
+   "min": 0,
+   "max": 100,
+   "store": "procurement_db",
+   "consumers": [
+    "supplier-sim"
+   ],
+   "apply": "live",
+   "layer": "restock",
+   "doc": "Each order's lead time varies by up to this much around base \u00d7 product factor."
+  },
+  {
+   "key": "demand_skew",
+   "label": "Demand skew between products",
+   "unit": "x",
+   "default": 1.0,
+   "min": 0,
+   "max": 3,
+   "store": "redis",
+   "consumers": [
+    "scenario seed/reset (writes product_weight)"
+   ],
+   "apply": "next reset",
+   "layer": "core",
+   "doc": "0 = every product sells equally; higher = a few products sell much faster."
+  },
+  {
+   "key": "demand_window_min",
+   "label": "Demand window",
+   "unit": "min",
+   "default": 10,
+   "min": 1,
+   "max": 1440,
+   "store": "flink_statement",
+   "consumers": [
+    "flink demand.sql"
+   ],
+   "apply": "restart",
+   "layer": "restock",
+   "doc": "Read-only: sliding window Flink uses to learn demand."
+  }
+ ]
+}

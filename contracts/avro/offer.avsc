@@ -1,0 +1,28 @@
+{
+  "type": "record", "name": "Offer", "namespace": "urbanstreet.offers",
+  "doc": "Value of offers (compacted). offer_id is derived from risk_id. Structured fields own every fact; headline/body are descriptive wording only.",
+  "fields": [
+    {"name": "offer_id", "type": "string"},
+    {"name": "risk_id", "type": "string"},
+    {"name": "scenario_id", "type": "string"},
+    {"name": "cart_id", "type": "string"},
+    {"name": "original_store_id", "type": "string"},
+    {"name": "original_product_id", "type": "string"},
+    {"name": "offer_type", "type": {"type": "enum", "name": "OfferType", "symbols": ["SAME_PRODUCT_OTHER_STORE", "ALTERNATIVE_PRODUCT", "NOTIFY_ME"]}},
+    {"name": "store_id", "type": ["null", "string"], "default": null},
+    {"name": "product_id", "type": ["null", "string"], "default": null},
+    {"name": "discount_pct", "type": "int", "doc": "Set by policy only, 0..max allowed."},
+    {"name": "headline", "type": "string"},
+    {"name": "body", "type": "string"},
+    {"name": "decision_route", "type": {"type": "enum", "name": "DecisionRoute", "symbols": ["JEV", "RULE_DEFAULT"]}},
+    {"name": "decision_reason", "type": "string", "doc": "Bounded label: accepted, low_confidence, invalid_choice, timeout, error, rate_limited, kill_switch, disabled, no_choice."},
+    {"name": "jev_choice", "type": ["null", "string"], "default": null, "doc": "Bounded Jev choice identifier, absent when Jev did not return one."},
+    {"name": "jev_confidence", "type": ["null", "double"], "default": null, "doc": "Jev confidence in 0..1, absent when Jev did not return one."},
+    {"name": "min_confidence", "type": ["null", "double"], "default": null, "doc": "Applied Jev confidence threshold in 0..1."},
+    {"name": "rule_choice", "type": ["null", "string"], "default": null, "doc": "Bounded safe-rule candidate identifier."},
+    {"name": "chosen_choice", "type": ["null", "string"], "default": null, "doc": "Bounded final candidate identifier after revalidation."},
+    {"name": "text_route", "type": {"type": "enum", "name": "TextRoute", "symbols": ["BEDROCK", "TEMPLATE"]}},
+    {"name": "text_reason", "type": "string", "doc": "Bounded label: accepted, invalid_text, timeout, error, disabled."},
+    {"name": "created_at", "type": {"type": "long", "logicalType": "timestamp-millis"}}
+  ]
+}

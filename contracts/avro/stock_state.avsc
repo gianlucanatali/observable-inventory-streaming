@@ -1,0 +1,15 @@
+{
+  "type": "record", "name": "StockState", "namespace": "urbanstreet.inventory",
+  "doc": "Value of inventory.state: the accepted current state of one stock position, published by stock-projector after Redis accepted it. Compacted topic; never a delta.",
+  "fields": [
+    {"name": "store_id", "type": "string"},
+    {"name": "product_id", "type": "string"},
+    {"name": "quantity", "type": "int"},
+    {"name": "revision", "type": "long", "doc": "Source revision; newer always wins."},
+    {"name": "deleted", "type": "boolean"},
+    {"name": "is_probe", "type": "boolean", "doc": "True for the synthetic probe position. Consumers other than the watchdog ignore it."},
+    {"name": "changed_at", "type": {"type": "long", "logicalType": "timestamp-millis"}, "doc": "Source mutation time."},
+    {"name": "applied_at", "type": {"type": "long", "logicalType": "timestamp-millis"}, "doc": "Time the projector accepted it into Redis (or re-published it on redelivery)."},
+    {"name": "source_op", "type": {"type": "enum", "name": "SourceOp", "symbols": ["SNAPSHOT", "CREATE", "UPDATE"]}}
+  ]
+}
