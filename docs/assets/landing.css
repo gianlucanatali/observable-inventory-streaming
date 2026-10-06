@@ -149,3 +149,6 @@ body.is-preload #banner .hero-actions { opacity: 0; transform: translateY(0.5em)
 #wrapper > #start.wrapper:before, #wrapper > #start.wrapper:after { background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpolygon points='0,100 100,0 100,100' style='fill:%23361764%3B' /%3E%3C/svg%3E"); }
 #wrapper > #start.wrapper:before { box-shadow: inset 0 -1px 0 0 #361764, 0 1px 0 0 #361764; }
 #wrapper > #start.wrapper:after { box-shadow: inset 0 1px 0 0 #361764, 0 -1px 0 0 #361764; }
+
+/* Keep the top of the wall screen (the Datadog header) in view when the photo is cropped. */
+#observe .image.photo img { object-position: center top; }
