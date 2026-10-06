@@ -36,3 +36,48 @@ def test_link_text_is_escaped_and_thumbs_need_auth(client, parts):
     assert "&lt;b&gt;x&lt;/b&gt;" in client.get("/control/", headers=auth()).get_data(as_text=True)
     assert client.get("/control/thumbs/shop.jpg").status_code == 401
     assert client.get("/control/thumbs/..%2Fapp.py", headers=auth()).status_code == 404
+
+
+STACK = {"version": 1, "stack": "hybrid", "env": "dd-demo-hybrid", "alb": "http://alb.example", "vm_public_ip": "203.0.113.7",
+         "confluent_env": "env-abc", "kafka_cluster": "lkc-xyz"}
+
+
+def test_guide_json_joins_stack_and_links_and_the_button_carries_it(client, parts):
+    parts["redis"].set("demo:links", json.dumps(LINKS))
+    parts["redis"].set("demo:stack", json.dumps({**STACK, "alb": "http://alb.example/"}))  # trailing slash is dropped
+    got = client.get("/control/api/guide-json", headers=auth()).get_json()
+    assert got == {**STACK, "links": {"control": "http://alb.example/control/", "shop": "http://alb.example/#/product/P0042",
+                                      "stock-dashboard": "https://app.datadoghq.eu/dashboard/abc", "no-such-thumb": "https://example.org/x"}}
+    html = client.get("/control/", headers=auth()).get_data(as_text=True)
+    assert 'id="guide-copy">Copy for the workshop guide</button>' in html and "section 4.4" in html
+    assert "&#34;kafka_cluster&#34;: &#34;lkc-xyz&#34;" in html and 'id="guide-copy" disabled' not in html
+    assert "execCommand" in html and "navigator.clipboard" in html
+
+
+def test_guide_json_needs_both_keys_and_the_page_still_loads(client, parts):
+    r = client.get("/control/api/guide-json", headers=auth())
+    assert r.status_code == 503 and "demo:stack" in r.get_json()["error"]
+    html = client.get("/control/", headers=auth()).get_data(as_text=True)
+    assert 'id="guide-copy" disabled' in html and "Copy unavailable: No demo:stack published" in html
+    parts["redis"].set("demo:stack", json.dumps(STACK))  # stack alone: links missing
+    r = client.get("/control/api/guide-json", headers=auth())
+    assert r.status_code == 503 and "No links published" in r.get_json()["error"]
+    assert client.get("/control/api/guide-json").status_code == 401
+
+
+def test_malformed_stack_is_a_clear_503(client, parts):
+    parts["redis"].set("demo:links", json.dumps(LINKS))
+    for bad, why in [("not json", "not JSON"), ("[]", "JSON object"), (json.dumps({**STACK, "alb": ""}), "['alb']"),
+                     (json.dumps({**STACK, "version": 2}), "version must be 1"),
+                     (json.dumps({**STACK, "alb": "javascript:x"}), "http(s)")]:
+        parts["redis"].set("demo:stack", bad)
+        r = client.get("/control/api/guide-json", headers=auth())
+        assert r.status_code == 503 and why in r.get_json()["error"], (bad, r.get_json())
+        assert client.get("/control/", headers=auth()).status_code == 200
+
+
+def test_guide_json_is_escaped_in_the_page(client, parts):
+    parts["redis"].set("demo:links", json.dumps(LINKS))
+    parts["redis"].set("demo:stack", json.dumps({**STACK, "stack": "</textarea><script>alert(1)</script>"}))
+    html = client.get("/control/", headers=auth()).get_data(as_text=True)
+    assert "</textarea><script>alert(1)" not in html and "&lt;/textarea&gt;" in html

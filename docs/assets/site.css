@@ -408,5 +408,35 @@ html[data-path-mode="panel"] .code-both { display: inline; }
   .code-cmd { background: #F7F6F9; color: #000; box-shadow: none; border: 1px solid #ccc; }
 }
 
+/* ---------- connect your stack ---------- */
+.stack-badge { display: none; margin-left: 6px; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; border: 1px solid rgba(255,255,255,.28); color: #fff; text-decoration: none; font: 600 12px/1 var(--sans); white-space: nowrap; }
+.stack-badge:not([hidden]) { display: inline-flex; }
+.stack-badge:hover { background: rgba(255,255,255,.12); color: #fff; }
+.stack-dot { width: 8px; height: 8px; border-radius: 50%; background: #5CC495; flex: none; }
+.stack-badge + .topbar-links { margin-left: 6px; }
+.connect-box { display: none; margin: 18px 0 26px; padding: 16px 18px; border: 1px solid var(--accent-line); border-left: 4px solid var(--accent); border-radius: 10px; background: var(--bg-alt); }
+.js .connect-box { display: block; }
+.connect-box.connected { border-left-color: var(--tip); }
+.doc .connect-box p { margin: 0 0 10px; }
+.doc .connect-box .connect-title { font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--accent-strong); }
+.connect-label { display: block; margin-bottom: 4px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.connect-box textarea { display: block; width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); font: 13px/1.5 var(--mono); resize: vertical; }
+.connect-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.connect-buttons button { padding: 8px 16px; border-radius: 8px; border: 2px solid var(--accent); background: var(--accent); color: #fff; font: 600 14px/1.2 var(--sans); cursor: pointer; }
+.connect-buttons button:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
+.connect-buttons .connect-forget { background: var(--bg); color: var(--accent-strong); border-color: var(--accent-line); }
+.connect-buttons .connect-forget:hover { background: var(--accent-soft); border-color: var(--accent); }
+.connect-buttons button[hidden] { display: none; }
+.doc .connect-box .connect-status { min-height: 1.4em; font-weight: 600; color: var(--tip); }
+.doc .connect-box .connect-status.connect-bad { color: var(--caution); }
+.doc .connect-box .connect-note { margin-bottom: 0; font-size: 14px; color: var(--muted); }
+/* Values taken from the reader's stack, and "open the X" links that go to the reader's own pages. */
+.stk { background: rgba(180, 140, 242, .22); border-radius: 3px; box-shadow: 0 0 0 2px rgba(180, 140, 242, .22); }
+a.stk { text-decoration-style: dotted; }
+.doc a.stk-on { text-decoration-style: solid; font-weight: 600; }
+.doc a.stk-on::after { content: "\2197"; margin-left: 2px; font-size: .8em; }
+@media (max-width: 600px) { .stack-badge { padding: 6px 8px; } .stack-badge-name { display: none; } }
+@media print { .connect-box { display: none !important; } }
+
 /* Text meant only for readers of the Markdown on GitHub (the site has the path chooser instead). */
 .doc .gh-only { display: none; }

@@ -436,7 +436,7 @@ If a stage fails, the script stops with `stack.sh: step '<stage>' FAILED (comman
 
 ### 4.4 Open the shop, the control panel and Datadog
 
-You use three windows in the labs: the Online shop, the control panel and the Datadog stock dashboard. Open them now and keep them open.
+You use three windows in the labs: the [Online shop](#1-open-the-online-shop "stack-link:shop-home"), the [control panel](#2-open-the-control-panel "stack-link:control") and the Datadog [stock dashboard](#4-open-the-datadog-stock-dashboard "stack-link:stock-dashboard"). Open them now and keep them open.
 
 #### 1. Open the Online shop
 
@@ -487,7 +487,16 @@ The panel shows five cards at the top and the demo's settings below them. You do
 
 </div>
 
-#### 3. Open the Datadog stock dashboard
+#### 3. Connect this guide to your stack
+
+On the website version of this guide you can paste your stack's addresses once. The guide then writes your values in place of placeholders such as `<alb-dns-name>`, and "open the stock dashboard" becomes a link to your own dashboard. It is optional, and the values stay in your browser. On GitHub, read each placeholder as the value in your `./demo status` output.
+
+1. Get the JSON. Control panel path: on the panel's **Links** card press **Copy for the workshop guide**. Terminal path: run `make links-json` and copy the output.
+2. Paste it in the box below and press **Connect**.
+
+<!-- connect-box -->
+
+#### 4. Open the Datadog stock dashboard
 
 ```sh
 ./demo links
@@ -507,12 +516,12 @@ control-center: http://<vm-public-ip>:9021
 
 ![Stack-status and links output](img/build-02-status-and-links.png)
 
-Open the `stock dashboard:` link, "UrbanStreet stock service [dd-demo-hybrid]". Its charts fill up over the next minutes; you read them from Lab 1 on.
+Open the [`stock dashboard:` link](#4-open-the-datadog-stock-dashboard "stack-link:stock-dashboard"), "UrbanStreet stock service [dd-demo-hybrid]". Its charts fill up over the next minutes; you read them from Lab 1 on.
 
 <details>
 <summary>Optional: see what the build created in AWS</summary>
 
-Open the AWS console in `eu-west-1` (Ireland). The ECS cluster lists the running services, including the three `inventory-api` releases side by side. On the load balancer, the listener rule for `/api/availability/*` sends traffic to three <abbr title="The set of containers that receives one release's share of the traffic.">target groups</abbr>, one per release, and the weight on each group sets its share. ElastiCache runs the Redis serving view.
+Open the [ECS cluster](#2-open-the-control-panel "stack-link:ecs") in the AWS console in `eu-west-1` (Ireland). It lists the running services, including the three `inventory-api` releases side by side. On the load balancer, the listener rule for `/api/availability/*` sends traffic to three <abbr title="The set of containers that receives one release's share of the traffic.">target groups</abbr>, one per release, and the weight on each group sets its share. ElastiCache runs the Redis serving view.
 
 ![ECS cluster services list](img/build-07-aws-ecs-services.png)
 
@@ -566,7 +575,7 @@ Background sales stay off until you turn them on; the labs do not need them. Dat
 ### 4.6 Checkpoint
 
 - [ ] The build ended with `smoke: 9 passed, 0 failed`.
-- [ ] The Online shop, the control panel and the Datadog stock dashboard are open.
+- [ ] The [Online shop](#1-open-the-online-shop "stack-link:shop-home"), the [control panel](#2-open-the-control-panel "stack-link:control") and the Datadog [stock dashboard](#4-open-the-datadog-stock-dashboard "stack-link:stock-dashboard") are open.
 
 <div data-path="panel" markdown="1">
 
@@ -621,7 +630,7 @@ You follow product P0042, the Alpenpace Trailrunner GTX in Forest green, size EU
 
 **With the control panel**
 
-Press **Full reset** on the **Background sales** card of the control panel ([how to open it](#2-open-the-control-panel)) and confirm. Wait until the card reads `full-reset succeeded`. Background sales are now off.
+Press **Full reset** on the **Background sales** card of the control panel ([how to open it](#2-open-the-control-panel "stack-link:control")) and confirm. Wait until the card reads `full-reset succeeded`. Background sales are now off.
 
 </div>
 
@@ -703,7 +712,7 @@ The connectors run on a self-managed Kafka Connect worker on the VM, so Confluen
 
 **With the control panel**
 
-The **Store feed** card lists the five Debezium connectors, `S01` to `S05`. Each should read `RUNNING` with `tasks RUNNING`; press **Refresh state** to read them again. To see the Redis sink connector too, open the stock dashboard from `./demo links` and look at `stock.connect.task_running by connector` in the **Pipeline** group: all six connectors, `inventory-s01` … `inventory-s05` and `sellable-redis`, should be at 1.
+The **Store feed** card lists the five Debezium connectors, `S01` to `S05`. Each should read `RUNNING` with `tasks RUNNING`; press **Refresh state** to read them again. To see the Redis sink connector too, open the [stock dashboard](#4-open-the-datadog-stock-dashboard "stack-link:stock-dashboard") from `./demo links` and look at `stock.connect.task_running by connector` in the **Pipeline** group: all six connectors, `inventory-s01` … `inventory-s05` and `sellable-redis`, should be at 1.
 
 </div>
 
@@ -723,7 +732,7 @@ The last section prints one status document per connector. Every connector and t
 
 #### 5. Check freshness in Datadog
 
-Open the stock dashboard from `./demo links` ("UrbanStreet stock service [dd-demo-hybrid]"), leave `env` set to `dd-demo-hybrid`, and scroll to the **Freshness** group. These widgets use the <abbr title="A test stock row in each store that changes every 5 s.">probe</abbr>:
+Open the [stock dashboard](#4-open-the-datadog-stock-dashboard "stack-link:stock-dashboard") from `./demo links` ("UrbanStreet stock service [dd-demo-hybrid]"), leave `env` set to `dd-demo-hybrid`, and scroll to the **Freshness** group. These widgets use the <abbr title="A test stock row in each store that changes every 5 s.">probe</abbr>:
 
 - `stock.probe.age per store`: five series, usually a few seconds each.
 - `stock.feed.state per store`: 1 means ok, 0 means stale, -1 means unknown.
@@ -737,7 +746,7 @@ Open the stock dashboard from `./demo links` ("UrbanStreet stock service [dd-dem
 
 #### 6. Look at the stream in Data Streams Monitoring
 
-Open the `DSM map:` link. <abbr title="Data Streams Monitoring: Datadog's map of which services write to and read from which Kafka topics.">DSM</abbr> should show `stock-projector` consuming `inventory.cdc` and producing to "2 queues" (`inventory.state` and `stock.movements`), plus the edges of `storefront` (the Online shop's service) and `offer-worker`. Kafka Connect and Flink do not run a Datadog tracer, so they appear only through their topics.
+Open the [`DSM map:` link](#4-open-the-datadog-stock-dashboard "stack-link:dsm"). <abbr title="Data Streams Monitoring: Datadog's map of which services write to and read from which Kafka topics.">DSM</abbr> should show `stock-projector` consuming `inventory.cdc` and producing to "2 queues" (`inventory.state` and `stock.movements`), plus the edges of `storefront` (the Online shop's service) and `offer-worker`. Kafka Connect and Flink do not run a Datadog tracer, so they appear only through their topics.
 
 ![DSM map for dd-demo-hybrid](img/lab1-08-dsm-map.png)
 
@@ -771,7 +780,7 @@ The one number in the Online shop comes from five separate databases through one
 
 #### 1. See the change event in Confluent Cloud
 
-In the Confluent Cloud console open Environments > `dd-demo-hybrid` > the cluster > Topics > `inventory.cdc` > Messages. The probe writes about one message per second, so scrolling will not help. Type `P0042` in the **Search** box above the message list.
+In the [Confluent Cloud console](#2-open-the-control-panel "stack-link:confluent") open Environments > `dd-demo-hybrid` > the cluster > Topics > `inventory.cdc` > Messages. The probe writes about one message per second, so scrolling will not help. Type `P0042` in the **Search** box above the message list.
 
 You should see five sell-out records for `P0042`, one per store. In the record for store `S05`, `after.quantity` is `0` and `after.revision` holds the new revision. `before` is `null`, because the store table keeps PostgreSQL's default <abbr title="What PostgreSQL logs about the old row on an update. The default logs no old values, so Debezium sends no before image.">replica identity</abbr>.
 
@@ -787,7 +796,7 @@ In the same environment, open <abbr title="Confluent Cloud's graph of who writes
 
 #### 3. Open Control Center on the VM
 
-*Confluent Control Center* (Legacy 7.9) runs on the VM as a web UI for the self-managed Connect worker. It does not add a Kafka cluster. Confluent documents that this version can monitor Confluent Cloud, with some limitations ([Confluent docs](https://docs.confluent.io/cloud/current/cp-component/c3-cloud-config.html)). Find its address in the `control-center:` line of `./demo links`:
+*Confluent Control Center* (Legacy 7.9) runs on the VM as a web UI for the self-managed Connect worker. It does not add a Kafka cluster. Confluent documents that this version can monitor Confluent Cloud, with some limitations ([Confluent docs](https://docs.confluent.io/cloud/current/cp-component/c3-cloud-config.html)). Open [Control Center](#2-open-the-control-panel "stack-link:control-center") from the `control-center:` line of `./demo links`:
 
 ```text
 control-center: http://<vm-public-ip>:9021
@@ -847,7 +856,7 @@ flowchart TB
 
 **With the control panel**
 
-Press **Full reset** on the **Background sales** card of the control panel ([how to open it](#2-open-the-control-panel)) and confirm. Wait until the card reads `full-reset succeeded`. Background sales are now off.
+Press **Full reset** on the **Background sales** card of the control panel ([how to open it](#2-open-the-control-panel "stack-link:control")) and confirm. Wait until the card reads `full-reset succeeded`. Background sales are now off.
 
 </div>
 
@@ -911,7 +920,7 @@ In the JSON, look for `"at_least": true` and an S03 entry whose feed is not `ok`
 
 #### 5. Find the store in Datadog
 
-On the stock dashboard, in the **Freshness** group, `stock.probe.age per store` rises for S03 only, and `stock.feed.state per store` drops to 0 for S03 while the other stores stay at 1. Within a minute or two the <abbr title="A Datadog alert rule on a metric.">monitor</abbr> "[dd-demo-hybrid] stock.feed.state below 1 on store S03" goes to Alert. You find it under Monitors > Manage Monitors by searching `stack:hybrid`.
+On the [stock dashboard](#4-open-the-datadog-stock-dashboard "stack-link:stock-dashboard"), in the **Freshness** group, `stock.probe.age per store` rises for S03 only, and `stock.feed.state per store` drops to 0 for S03 while the other stores stay at 1. Within a minute or two the <abbr title="A Datadog alert rule on a metric.">monitor</abbr> "[dd-demo-hybrid] stock.feed.state below 1 on store S03" goes to Alert. You find it under Monitors > Manage Monitors by searching `stack:hybrid`.
 
 ![Feed state per store with S03 stale](img/lab2-02-feed-state-s03.png)
 
@@ -1074,7 +1083,7 @@ You should see one JSON line per 10 s window with both releases, then a summary.
 
 About one lookup in ten goes to 1.1.0, so expect about 60 samples of it in two minutes.
 
-While the load runs, open the product page. Most stock updates come from 1.0.0. When one goes to 1.1.0, it takes visibly longer and the footer says "Serving release 1.1.0". The page's own lookups, including the size checks from [Lab 1](#3-sell-it-out-one-store-at-a-time), go through the same split.
+While the load runs, open the [product page](#2-open-the-product-page "stack-link:shop"). Most stock updates come from 1.0.0. When one goes to 1.1.0, it takes visibly longer and the footer says "Serving release 1.1.0". The page's own lookups, including the size checks from [Lab 1](#3-sell-it-out-one-store-at-a-time), go through the same split.
 
 ![Product page with a lookup served by release 1.1.0](img/lab3-01-shop-on-release-110.png)
 
@@ -1150,7 +1159,7 @@ Only the 10% of lookups that went to 1.1.0 during the canary were slow. The othe
 
 #### 6. Compare releases in APM
 
-Open the `APM inventory-api 1.1.0:` link, or APM > `inventory-api` with environment `dd-demo-hybrid`, past 15 minutes, operation `flask.request`. During the canary, 1.1.0 is far above 1.0.0 at p95: around a second or more, against under ten milliseconds. In our run (2026-10-06, every release on 0.5 vCPU) the load script measured a client-side p95 of about 1.5 s for 1.1.0 and about 10 ms for 1.0.0 at 90 / 10 / 0. Your numbers will differ.
+Open the [`APM inventory-api 1.1.0:` link](#4-open-the-datadog-stock-dashboard "stack-link:apm"), or APM > `inventory-api` with environment `dd-demo-hybrid`, past 15 minutes, operation `flask.request`. During the canary, 1.1.0 is far above 1.0.0 at p95: around a second or more, against under ten milliseconds. In our run (2026-10-06, every release on 0.5 vCPU) the load script measured a client-side p95 of about 1.5 s for 1.1.0 and about 10 ms for 1.0.0 at 90 / 10 / 0. Your numbers will differ.
 
 You can read the comparison in three places:
 
@@ -1193,7 +1202,7 @@ Optional, with the `dd-rum` layer on: the Online shop's <abbr title="Real User M
 
 #### 8. Rule out the stream
 
-On the stock dashboard the **Freshness** group has not changed, and the **Service objective** group shows `inventory-api p95 latency by version` rising for 1.1.0 only. The DSM map shows the same healthy edges as in Lab 1. The monitor "[dd-demo-hybrid] inventory-api p95 latency above 0.2s on 1.1.0" can go to Alert after its evaluation window, depending on how many 1.1.0 samples fell into that window.
+On the [stock dashboard](#4-open-the-datadog-stock-dashboard "stack-link:stock-dashboard") the **Freshness** group has not changed, and the **Service objective** group shows `inventory-api p95 latency by version` rising for 1.1.0 only. The [DSM map](#4-open-the-datadog-stock-dashboard "stack-link:dsm") shows the same healthy edges as in Lab 1. The monitor "[dd-demo-hybrid] inventory-api p95 latency above 0.2s on 1.1.0" can go to Alert after its evaluation window, depending on how many 1.1.0 samples fell into that window.
 
 ![P95 monitor in Alert for version 1.1.0](img/lab3-04-p95-monitor.png)
 
@@ -1546,7 +1555,7 @@ This is the loop that just ran:
 
 #### 3. Open the control panel
 
-Open the control panel in both paths ([how to open it](#2-open-the-control-panel)) and scroll below the cards to the `restock` settings. You should see the restock parameters: supplier lead time, lead time jitter, safety factor, coverage after delivery, minimum order quantity, demand window and the demo clock (`time_compression`, 60 by default). Each change you save is also sent to Datadog as an event.
+Open the [control panel](#2-open-the-control-panel "stack-link:control") in both paths ([how to open it](#2-open-the-control-panel "stack-link:control")) and scroll below the cards to the `restock` settings. You should see the restock parameters: supplier lead time, lead time jitter, safety factor, coverage after delivery, minimum order quantity, demand window and the demo clock (`time_compression`, 60 by default). Each change you save is also sent to Datadog as an event.
 
 ![Control panel restock parameters](img/lab5-03-control-panel.png)
 
@@ -1588,7 +1597,7 @@ After about a minute (the exact time depends on the product), the supplier calls
 
 #### 6. See it in Datadog
 
-On the stock dashboard, open the **Restock** group. `restock.orders.open` rises after the sell-out and falls at delivery. Next to it are `restock.orders.delivered by store` and `restock.lead_time`. If you saved the lead-time change in the panel, it shows as an event marker on `restock.orders.open` and as a `demo config: lead_time_s = 7200` entry in the **Demo panel: config changes and actions** list. That list also shows each panel action, such as a sell-out or a reset, as `demo action: <name> started`, then `succeeded` or `failed`. These events have the tags `project:dd-demo`, `stack:hybrid` and `demo_event:config` or `demo_event:action`, so you can also find them in the Events Explorer.
+On the [stock dashboard](#4-open-the-datadog-stock-dashboard "stack-link:stock-dashboard"), open the **Restock** group. `restock.orders.open` rises after the sell-out and falls at delivery. Next to it are `restock.orders.delivered by store` and `restock.lead_time`. If you saved the lead-time change in the panel, it shows as an event marker on `restock.orders.open` and as a `demo config: lead_time_s = 7200` entry in the **Demo panel: config changes and actions** list. That list also shows each panel action, such as a sell-out or a reset, as `demo action: <name> started`, then `succeeded` or `failed`. These events have the tags `project:dd-demo`, `stack:hybrid` and `demo_event:config` or `demo_event:action`, so you can also find them in the Events Explorer.
 
 ![Restock group with the lead-time event](img/lab5-04-restock-group.png)
 
@@ -1691,7 +1700,7 @@ The same request also appears in APM (service `offer-worker`, span `offer.proces
 
 #### 4. Lower the threshold, live
 
-This setting exists only in the control panel, so you use the panel in both paths ([how to open it](#2-open-the-control-panel)). In the `offers` settings, set **Jev minimum confidence** (`jev_min_confidence`) to `0.7` and press **Save**. Then reset, reload the page, add P0042 to the cart again, and sell it out.
+This setting exists only in the control panel, so you use the panel in both paths ([how to open it](#2-open-the-control-panel "stack-link:control")). In the `offers` settings, set **Jev minimum confidence** (`jev_min_confidence`) to `0.7` and press **Save**. Then reset, reload the page, add P0042 to the cart again, and sell it out.
 
 <div data-path="panel" markdown="1">
 
@@ -1718,7 +1727,7 @@ The reset expires the carts from the previous run, so each sell-out produces exa
 
 #### 5. Use the kill switch
 
-In the control panel, set **AI kill switch** (`offers_kill_switch`) to `1` and press **Save**. This <abbr title="A setting that stops all calls to Jev, so every offer uses the rule default.">kill switch</abbr> takes effect on the next offer. Then repeat the reset, add to cart and sell-out. The decision line in the Online shop reads "safe rule — AI did not return a decision", the reason on the dashboard is `kill_switch`, and the worker makes no Jev call. On the stock dashboard, in the **Offers** group, `offer.decision by route and reason` shows each of your runs.
+In the [control panel](#2-open-the-control-panel "stack-link:control"), set **AI kill switch** (`offers_kill_switch`) to `1` and press **Save**. This <abbr title="A setting that stops all calls to Jev, so every offer uses the rule default.">kill switch</abbr> takes effect on the next offer. Then repeat the reset, add to cart and sell-out. The decision line in the Online shop reads "safe rule — AI did not return a decision", the reason on the dashboard is `kill_switch`, and the worker makes no Jev call. On the stock dashboard, in the **Offers** group, `offer.decision by route and reason` shows each of your runs.
 
 ![Offers group by route and reason](img/lab6-04-offers-group.png)
 
@@ -1765,7 +1774,7 @@ The shop does not depend on the AI. Fixed rules decide what may be offered, the 
 
 **With the control panel**
 
-Open Control Center from the `control-center:` line of `./demo links` and choose **Connect**. You should see the six core connectors plus `restock-procurement` and `procurement-orders`, all Running. On the stock dashboard, the **Pipeline** group shows the six core connectors in `stock.connect.task_running by connector`. The header of the control panel shows the running layers and the canary routing.
+Open [Control Center](#2-open-the-control-panel "stack-link:control-center") from the `control-center:` line of `./demo links` and choose **Connect**. You should see the six core connectors plus `restock-procurement` and `procurement-orders`, all Running. On the stock dashboard, the **Pipeline** group shows the six core connectors in `stock.connect.task_running by connector`. The header of the control panel shows the running layers and the canary routing.
 
 </div>
 
@@ -1785,13 +1794,13 @@ This is where you check connectors. DSM shows the data flow, but it does not sho
 
 #### 2. AWS-native online dashboard
 
-Open the `online dashboard:` link ("UrbanStreet AWS-native online [dd-demo-hybrid]"). It shows Fargate CPU and memory by service and version, ElastiCache memory and CPU, and ALB unhealthy targets, next to `inventory-api` p95 by version. If you ran Lab 3, you can see the CPU peak of release 1.1.0.
+Open the [`online dashboard:` link](#4-open-the-datadog-stock-dashboard "stack-link:online-dashboard") ("UrbanStreet AWS-native online [dd-demo-hybrid]"). It shows Fargate CPU and memory by service and version, ElastiCache memory and CPU, and ALB unhealthy targets, next to `inventory-api` p95 by version. If you ran Lab 3, you can see the CPU peak of release 1.1.0.
 
 ![AWS-native online dashboard](img/lab7-01-aws-online-dashboard.png)
 
 #### 3. Confluent Cloud integration
 
-On the stock dashboard, in the **Pipeline** group, the chart "Confluent Cloud consumer lag (offsets) by group" comes from the Confluent <abbr title="Datadog reading metrics from another provider's account, here Confluent Cloud.">integration</abbr> (the `dd-streams` layer). <abbr title="The number of messages a consumer group has not read yet.">Consumer lag</abbr> for `stock-projector` and `connect-sellable-redis` should stay near zero, which agrees with the probe. A short spike after a burst of records, like the one in the screenshot, is normal; the lag should fall back to near zero.
+On the [stock dashboard](#4-open-the-datadog-stock-dashboard "stack-link:stock-dashboard"), in the **Pipeline** group, the chart "Confluent Cloud consumer lag (offsets) by group" comes from the Confluent <abbr title="Datadog reading metrics from another provider's account, here Confluent Cloud.">integration</abbr> (the `dd-streams` layer). <abbr title="The number of messages a consumer group has not read yet.">Consumer lag</abbr> for `stock-projector` and `connect-sellable-redis` should stay near zero, which agrees with the probe. A short spike after a burst of records, like the one in the screenshot, is normal; the lag should fall back to near zero.
 
 ![Consumer lag by group](img/lab7-02-consumer-lag.png)
 
@@ -1823,7 +1832,7 @@ Then open Events > Explorer and search `demo config`. You should see the setting
 
 #### 6. Cost
 
-Open the `account-cost dashboard:` link and set `stack` to `hybrid`. The `cost-meter` service estimates the hourly cost of the AWS pieces from list prices and reads Confluent usage. The billed AWS cost arrives later: AWS writes it to the <abbr title="AWS's detailed billing export, delivered to an S3 bucket.">Cost and Usage Report</abbr>, and Datadog Cloud Cost Management reads it from there, typically 48 to 72 hours after the first complete report.
+Open the [`account-cost dashboard:` link](#4-open-the-datadog-stock-dashboard "stack-link:cost-dashboard") and set `stack` to `hybrid`. The `cost-meter` service estimates the hourly cost of the AWS pieces from list prices and reads Confluent usage. The billed AWS cost arrives later: AWS writes it to the <abbr title="AWS's detailed billing export, delivered to an S3 bucket.">Cost and Usage Report</abbr>, and Datadog Cloud Cost Management reads it from there, typically 48 to 72 hours after the first complete report.
 
 Fargate bills each task by its vCPU and memory size, so the cost estimate follows the task size set in `service_sizing` (`terraform/aws/variables.tf`). All three releases use the same size (0.5 vCPU / 1 GB). The fix therefore does not change the hourly price of a task. It changes how much traffic one task can handle (see the CPU comparison in [Lab 4](#5-prove-it-latency-cpu-and-cost)).
 
@@ -1890,6 +1899,7 @@ When a step fails, read the last lines before the failure. Every script prints t
 | `readiness timeout after 300s for table/topic: <topic>` | An input topic never received its first record, usually because of a connector. Check: `make status` | Fix the producer, then run `./demo create` again. Existing Flink statements are kept |
 | `after 5 minutes only N sellable:P* keys in Redis (expected 200)` | The Flink `sellable` statement or the `sellable-redis` connector is not running | Fix that piece, then run `./demo create` again |
 | `ECS service ... did not reach steady state` | A task does not start. Check: AWS console > ECS > `dd-demo-hybrid` > service > Events | Fix the cause shown there, then run `./demo create` again |
+| `AWS login expired during apply of terraform/...`, or `ExpiredToken: The security token included in the request is expired` during `./demo create` | Your AWS login session ended during the build, often while Terraform waited for ElastiCache or the load balancer. A login lasts at most 12 hours, and the script cannot read how much is left | `aws login --profile dd-demo`, then `./demo create` again. Resources that were being created when it failed are rebuilt, which costs extra minutes (we have not measured how many). To prevent it, sign in again right before a long build |
 | You changed a table in `flink/*.sql` and nothing changed | Output tables use `CREATE TABLE IF NOT EXISTS`, so an existing table is not replaced | Change the schema in a compatible way, or tear down and rebuild |
 
 **Labs**

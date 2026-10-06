@@ -26,7 +26,7 @@
 })();
 </script>
 <link rel="stylesheet" href="assets/fonts.css?v=471d416a0c">
-<link rel="stylesheet" href="assets/site.css?v=bc23722acf">
+<link rel="stylesheet" href="assets/site.css?v=3dcd495e93">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23632CA6'/%3E%3Cpath d='M8 21h4v-6H8zm6 0h4V10h-4zm6 0h4v-9h-4z' fill='white'/%3E%3C/svg%3E">
 </head>
 <body>
@@ -41,6 +41,7 @@
     <button type="button" data-set-path="panel" aria-pressed="true" title="Show the control panel steps">Panel</button>
     <button type="button" data-set-path="terminal" aria-pressed="false" title="Show the terminal (make) steps">Terminal</button>
   </div>
+  <a class="stack-badge" id="stack-badge" href="#connect-box" hidden title="Your stack is connected to this guide. Open the Connect box."><span class="stack-dot" aria-hidden="true"></span><span class="stack-badge-text">Connected<span class="stack-badge-name"></span></span></a>
   <nav class="topbar-links" aria-label="Site">
     <a class="topbar-home" href="index.html">Home</a>
     <a class="topbar-current" href="#top" aria-current="page">Workshop</a>
@@ -623,7 +624,7 @@ stack hybrid, core always on; optional layers:
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Stack-up success"><img src="img/build-01-stack-up-success.png" alt="Stack-up success" width="2600" height="1622" loading="lazy" decoding="async"></button><figcaption>Stack-up success</figcaption></figure>
 <p>If a stage fails, the script stops with <code>stack.sh: step '&lt;stage&gt;' FAILED (command: ...)</code>. Read the lines above it, check <a href="#6-troubleshooting">Troubleshooting</a>, and keep the log. If you run <code>./demo create</code> again, it updates the existing stack to match the configuration instead of starting from zero. We have not measured how long a rerun after a partial failure takes.</p>
 <h3 id="44-open-the-shop-the-control-panel-and-datadog">4.4 Open the shop, the control panel and Datadog <a class="header-anchor" href="#44-open-the-shop-the-control-panel-and-datadog">#</a></h3>
-<p>You use three windows in the labs: the Online shop, the control panel and the Datadog stock dashboard. Open them now and keep them open.</p>
+<p>You use three windows in the labs: the <a href="#1-open-the-online-shop" data-stack-link="shop-home">Online shop</a>, the <a href="#2-open-the-control-panel" data-stack-link="control">control panel</a> and the Datadog <a href="#4-open-the-datadog-stock-dashboard" data-stack-link="stock-dashboard">stock dashboard</a>. Open them now and keep them open.</p>
 <h4 id="1-open-the-online-shop">1. Open the Online shop <a class="header-anchor" href="#1-open-the-online-shop">#</a></h4>
 <p>Print the stack's addresses:</p>
 <div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>./demo<span class="w"> </span>status
@@ -683,7 +684,25 @@ stack hybrid, core always on; optional layers:
 </table></div>
 <p><a href="#h-the-control-panel-button-by-button">Reference H</a> describes every button, for when you want the details.</p>
 </div>
-<h4 id="3-open-the-datadog-stock-dashboard">3. Open the Datadog stock dashboard <a class="header-anchor" href="#3-open-the-datadog-stock-dashboard">#</a></h4>
+<h4 id="3-connect-this-guide-to-your-stack">3. Connect this guide to your stack <a class="header-anchor" href="#3-connect-this-guide-to-your-stack">#</a></h4>
+<p>On the website version of this guide you can paste your stack's addresses once. The guide then writes your values in place of placeholders such as <code>&lt;alb-dns-name&gt;</code>, and &quot;open the stock dashboard&quot; becomes a link to your own dashboard. It is optional, and the values stay in your browser. On GitHub, read each placeholder as the value in your <code>./demo status</code> output.</p>
+<ol>
+<li>Get the JSON. Control panel path: on the panel's <strong>Links</strong> card press <strong>Copy for the workshop guide</strong>. Terminal path: run <code>make links-json</code> and copy the output.</li>
+<li>Paste it in the box below and press <strong>Connect</strong>.</li>
+</ol>
+<div class="connect-box" id="connect-box">
+<p class="connect-title">Connect your stack</p>
+<p class="connect-lead">Paste the JSON from your control panel or from <code>make links-json</code>.</p>
+<label class="connect-label" for="connect-json">Stack JSON</label>
+<textarea id="connect-json" rows="6" spellcheck="false" autocomplete="off" placeholder='{"version":1,"stack":"hybrid","env":"dd-demo-hybrid", ...}'></textarea>
+<div class="connect-buttons">
+<button type="button" class="connect-go">Connect</button>
+<button type="button" class="connect-forget" hidden>Forget my stack</button>
+</div>
+<p class="connect-status" role="status" aria-live="polite"></p>
+<p class="connect-note">The JSON holds your addresses and ids, no passwords. It stays in this browser (local storage) and is never sent anywhere. The guide uses it to fill in placeholders and to link to your pages.</p>
+</div>
+<h4 id="4-open-the-datadog-stock-dashboard">4. Open the Datadog stock dashboard <a class="header-anchor" href="#4-open-the-datadog-stock-dashboard">#</a></h4>
 <div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>./demo<span class="w"> </span>links
 </code></pre></div>
 <p>It prints the Datadog links for this stack:</p>
@@ -696,10 +715,10 @@ DSM map: https://app.datadoghq.eu/data-streams?env=dd-demo-hybrid
 control-center: http://&lt;vm-public-ip&gt;:9021
 </code></pre></div>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Stack-status and links output"><img src="img/build-02-status-and-links.png" alt="Stack-status and links output" width="2600" height="1573" loading="lazy" decoding="async"></button><figcaption>Stack-status and links output</figcaption></figure>
-<p>Open the <code>stock dashboard:</code> link, &quot;UrbanStreet stock service [dd-demo-hybrid]&quot;. Its charts fill up over the next minutes; you read them from Lab 1 on.</p>
+<p>Open the <a href="#4-open-the-datadog-stock-dashboard" data-stack-link="stock-dashboard"><code>stock dashboard:</code> link</a>, &quot;UrbanStreet stock service [dd-demo-hybrid]&quot;. Its charts fill up over the next minutes; you read them from Lab 1 on.</p>
 <details>
 <summary>Optional: see what the build created in AWS</summary>
-<p>Open the AWS console in <code>eu-west-1</code> (Ireland). The ECS cluster lists the running services, including the three <code>inventory-api</code> releases side by side. On the load balancer, the listener rule for <code>/api/availability/*</code> sends traffic to three <abbr title="The set of containers that receives one release's share of the traffic.">target groups</abbr>, one per release, and the weight on each group sets its share. ElastiCache runs the Redis serving view.</p>
+<p>Open the <a href="#2-open-the-control-panel" data-stack-link="ecs">ECS cluster</a> in the AWS console in <code>eu-west-1</code> (Ireland). It lists the running services, including the three <code>inventory-api</code> releases side by side. On the load balancer, the listener rule for <code>/api/availability/*</code> sends traffic to three <abbr title="The set of containers that receives one release's share of the traffic.">target groups</abbr>, one per release, and the weight on each group sets its share. ElastiCache runs the Redis serving view.</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: ECS cluster services list"><img src="img/build-07-aws-ecs-services.png" alt="ECS cluster services list" width="2880" height="2000" loading="lazy" decoding="async"></button><figcaption>ECS cluster services list</figcaption></figure>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: ALB listener rule with the three weighted target groups"><img src="img/build-08-aws-alb-weights.png" alt="ALB listener rule with the three weighted target groups" width="4200" height="2000" loading="lazy" decoding="async"></button><figcaption>ALB listener rule with the three weighted target groups</figcaption></figure>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: ElastiCache cluster overview"><img src="img/build-09-aws-elasticache.png" alt="ElastiCache cluster overview" width="2880" height="2000" loading="lazy" decoding="async"></button><figcaption>ElastiCache cluster overview</figcaption></figure>
@@ -732,7 +751,7 @@ reset ok: scenario &lt;id&gt;, &lt;n&gt; positions at baseline, sellable caught 
 <h3 id="46-checkpoint">4.6 Checkpoint <a class="header-anchor" href="#46-checkpoint">#</a></h3>
 <ul class="contains-task-list">
 <li class="task-list-item enabled"><input class="task-list-item-checkbox"  type="checkbox"> The build ended with <code>smoke: 9 passed, 0 failed</code>.</li>
-<li class="task-list-item enabled"><input class="task-list-item-checkbox"  type="checkbox"> The Online shop, the control panel and the Datadog stock dashboard are open.</li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"  type="checkbox"> The <a href="#1-open-the-online-shop" data-stack-link="shop-home">Online shop</a>, the <a href="#2-open-the-control-panel" data-stack-link="control">control panel</a> and the Datadog <a href="#4-open-the-datadog-stock-dashboard" data-stack-link="stock-dashboard">stock dashboard</a> are open.</li>
 </ul>
 <div data-path="panel" markdown="1">
 <p><strong>With the control panel</strong></p>
@@ -810,7 +829,7 @@ reset ok: scenario &lt;id&gt;, &lt;n&gt; positions at baseline, sellable caught 
 <p>You follow product P0042, the Alpenpace Trailrunner GTX in Forest green, size EU 42. Its seeded quantities in the five stores are 2, 1, 3, 1 and 2, so 9 in total.</p>
 <div data-path="panel" markdown="1">
 <p><strong>With the control panel</strong></p>
-<p>Press <strong>Full reset</strong> on the <strong>Background sales</strong> card of the control panel (<a href="#2-open-the-control-panel">how to open it</a>) and confirm. Wait until the card reads <code>full-reset succeeded</code>. Background sales are now off.</p>
+<p>Press <strong>Full reset</strong> on the <strong>Background sales</strong> card of the control panel (<a href="#2-open-the-control-panel" data-stack-link="control">how to open it</a>) and confirm. Wait until the card reads <code>full-reset succeeded</code>. Background sales are now off.</p>
 </div>
 <div data-path="terminal" markdown="1">
 <p><strong>With the terminal</strong></p>
@@ -853,7 +872,7 @@ reset ok: scenario &lt;id&gt;, &lt;n&gt; positions at baseline, sellable caught 
 <p>The connectors run on a self-managed Kafka Connect worker on the VM, so Confluent Cloud's managed Connectors page does not list them.</p>
 <div data-path="panel" markdown="1">
 <p><strong>With the control panel</strong></p>
-<p>The <strong>Store feed</strong> card lists the five Debezium connectors, <code>S01</code> to <code>S05</code>. Each should read <code>RUNNING</code> with <code>tasks RUNNING</code>; press <strong>Refresh state</strong> to read them again. To see the Redis sink connector too, open the stock dashboard from <code>./demo links</code> and look at <code>stock.connect.task_running by connector</code> in the <strong>Pipeline</strong> group: all six connectors, <code>inventory-s01</code> … <code>inventory-s05</code> and <code>sellable-redis</code>, should be at 1.</p>
+<p>The <strong>Store feed</strong> card lists the five Debezium connectors, <code>S01</code> to <code>S05</code>. Each should read <code>RUNNING</code> with <code>tasks RUNNING</code>; press <strong>Refresh state</strong> to read them again. To see the Redis sink connector too, open the <a href="#4-open-the-datadog-stock-dashboard" data-stack-link="stock-dashboard">stock dashboard</a> from <code>./demo links</code> and look at <code>stock.connect.task_running by connector</code> in the <strong>Pipeline</strong> group: all six connectors, <code>inventory-s01</code> … <code>inventory-s05</code> and <code>sellable-redis</code>, should be at 1.</p>
 </div>
 <div data-path="terminal" markdown="1">
 <p><strong>With the terminal</strong></p>
@@ -863,7 +882,7 @@ reset ok: scenario &lt;id&gt;, &lt;n&gt; positions at baseline, sellable caught 
 <p>The last section prints one status document per connector. Every connector and task should be in state <code>RUNNING</code>, starting with <code>inventory-s01</code> … <code>inventory-s05</code> and <code>sellable-redis</code>.</p>
 </div>
 <h4 id="5-check-freshness-in-datadog">5. Check freshness in Datadog <a class="header-anchor" href="#5-check-freshness-in-datadog">#</a></h4>
-<p>Open the stock dashboard from <code>./demo links</code> (&quot;UrbanStreet stock service [dd-demo-hybrid]&quot;), leave <code>env</code> set to <code>dd-demo-hybrid</code>, and scroll to the <strong>Freshness</strong> group. These widgets use the <abbr title="A test stock row in each store that changes every 5 s.">probe</abbr>:</p>
+<p>Open the <a href="#4-open-the-datadog-stock-dashboard" data-stack-link="stock-dashboard">stock dashboard</a> from <code>./demo links</code> (&quot;UrbanStreet stock service [dd-demo-hybrid]&quot;), leave <code>env</code> set to <code>dd-demo-hybrid</code>, and scroll to the <strong>Freshness</strong> group. These widgets use the <abbr title="A test stock row in each store that changes every 5 s.">probe</abbr>:</p>
 <ul>
 <li><code>stock.probe.age per store</code>: five series, usually a few seconds each.</li>
 <li><code>stock.feed.state per store</code>: 1 means ok, 0 means stale, -1 means unknown.</li>
@@ -874,7 +893,7 @@ reset ok: scenario &lt;id&gt;, &lt;n&gt; positions at baseline, sellable caught 
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Freshness group of the stock dashboard"><img src="img/lab1-07-freshness-group.png" alt="Freshness group of the stock dashboard" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>Freshness group of the stock dashboard</figcaption></figure>
 <p><em>What just happened:</em> <code>watchdog</code> changes a probe row in every store every 5 s and measures when the change reaches Redis. A stopped feed therefore shows up even when there are no sales.</p>
 <h4 id="6-look-at-the-stream-in-data-streams-monitoring">6. Look at the stream in Data Streams Monitoring <a class="header-anchor" href="#6-look-at-the-stream-in-data-streams-monitoring">#</a></h4>
-<p>Open the <code>DSM map:</code> link. <abbr title="Data Streams Monitoring: Datadog's map of which services write to and read from which Kafka topics.">DSM</abbr> should show <code>stock-projector</code> consuming <code>inventory.cdc</code> and producing to &quot;2 queues&quot; (<code>inventory.state</code> and <code>stock.movements</code>), plus the edges of <code>storefront</code> (the Online shop's service) and <code>offer-worker</code>. Kafka Connect and Flink do not run a Datadog tracer, so they appear only through their topics.</p>
+<p>Open the <a href="#4-open-the-datadog-stock-dashboard" data-stack-link="dsm"><code>DSM map:</code> link</a>. <abbr title="Data Streams Monitoring: Datadog's map of which services write to and read from which Kafka topics.">DSM</abbr> should show <code>stock-projector</code> consuming <code>inventory.cdc</code> and producing to &quot;2 queues&quot; (<code>inventory.state</code> and <code>stock.movements</code>), plus the edges of <code>storefront</code> (the Online shop's service) and <code>offer-worker</code>. Kafka Connect and Flink do not run a Datadog tracer, so they appear only through their topics.</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: DSM map for dd-demo-hybrid"><img src="img/lab1-08-dsm-map.png" alt="DSM map for dd-demo-hybrid" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>DSM map for dd-demo-hybrid</figcaption></figure>
 <h4 id="checkpoint" class="checkpoint">Checkpoint <a class="header-anchor" href="#checkpoint">#</a></h4>
 <div data-path="panel" markdown="1">
@@ -898,7 +917,7 @@ reset ok: scenario &lt;id&gt;, &lt;n&gt; positions at baseline, sellable caught 
 <h3 id="lab-1b-optional-look-inside-confluent" class="lab">Lab 1b (optional): Look inside Confluent <a class="header-anchor" href="#lab-1b-optional-look-inside-confluent">#</a></h3>
 <p><em>About 10 minutes.</em> You follow the same sale in the Confluent Cloud console and in Control Center on the VM. This lab changes nothing in the stack, so you can skip it if you have little time.</p>
 <h4 id="1-see-the-change-event-in-confluent-cloud">1. See the change event in Confluent Cloud <a class="header-anchor" href="#1-see-the-change-event-in-confluent-cloud">#</a></h4>
-<p>In the Confluent Cloud console open Environments &gt; <code>dd-demo-hybrid</code> &gt; the cluster &gt; Topics &gt; <code>inventory.cdc</code> &gt; Messages. The probe writes about one message per second, so scrolling will not help. Type <code>P0042</code> in the <strong>Search</strong> box above the message list.</p>
+<p>In the <a href="#2-open-the-control-panel" data-stack-link="confluent">Confluent Cloud console</a> open Environments &gt; <code>dd-demo-hybrid</code> &gt; the cluster &gt; Topics &gt; <code>inventory.cdc</code> &gt; Messages. The probe writes about one message per second, so scrolling will not help. Type <code>P0042</code> in the <strong>Search</strong> box above the message list.</p>
 <p>You should see five sell-out records for <code>P0042</code>, one per store. In the record for store <code>S05</code>, <code>after.quantity</code> is <code>0</code> and <code>after.revision</code> holds the new revision. <code>before</code> is <code>null</code>, because the store table keeps PostgreSQL's default <abbr title="What PostgreSQL logs about the old row on an update. The default logs no old values, so Debezium sends no before image.">replica identity</abbr>.</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Inventory.cdc message for P0042 in Confluent Cloud"><img src="img/lab1-03-confluent-inventory-cdc.png" alt="Inventory.cdc message for P0042 in Confluent Cloud" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>Inventory.cdc message for P0042 in Confluent Cloud</figcaption></figure>
 <p><em>What just happened:</em> the Debezium connector on the VM wrote this record directly into the Confluent Cloud cluster over TLS. The VM has no Kafka cluster, and no data is copied between clusters.</p>
@@ -906,7 +925,7 @@ reset ok: scenario &lt;id&gt;, &lt;n&gt; positions at baseline, sellable caught 
 <p>In the same environment, open <abbr title="Confluent Cloud's graph of who writes to and reads from each topic.">Stream Lineage</abbr> for <code>inventory.cdc</code>. You should see the Connect worker's client producing into <code>inventory.cdc</code>, <code>stock-projector</code> reading it and producing <code>inventory.state</code>, the Flink <code>sellable</code> statement producing <code>stock.sellable</code>, and the Redis sink reading that topic. Self-managed connectors appear as clients, not as connector boxes.</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Stream Lineage from inventory.cdc"><img src="img/lab1-04-stream-lineage.png" alt="Stream Lineage from inventory.cdc" width="2840" height="680" loading="lazy" decoding="async"></button><figcaption>Stream Lineage from inventory.cdc</figcaption></figure>
 <h4 id="3-open-control-center-on-the-vm">3. Open Control Center on the VM <a class="header-anchor" href="#3-open-control-center-on-the-vm">#</a></h4>
-<p><em>Confluent Control Center</em> (Legacy 7.9) runs on the VM as a web UI for the self-managed Connect worker. It does not add a Kafka cluster. Confluent documents that this version can monitor Confluent Cloud, with some limitations (<a href="https://docs.confluent.io/cloud/current/cp-component/c3-cloud-config.html" rel="noopener" target="_blank">Confluent docs</a>). Find its address in the <code>control-center:</code> line of <code>./demo links</code>:</p>
+<p><em>Confluent Control Center</em> (Legacy 7.9) runs on the VM as a web UI for the self-managed Connect worker. It does not add a Kafka cluster. Confluent documents that this version can monitor Confluent Cloud, with some limitations (<a href="https://docs.confluent.io/cloud/current/cp-component/c3-cloud-config.html" rel="noopener" target="_blank">Confluent docs</a>). Open <a href="#2-open-the-control-panel" data-stack-link="control-center">Control Center</a> from the <code>control-center:</code> line of <code>./demo links</code>:</p>
 <div class="code code-out" data-lang="text"><div class="code-bar"><span class="code-label">Expected output</span></div><pre tabindex="0"><code>control-center: http://&lt;vm-public-ip&gt;:9021
 </code></pre></div>
 <p>Open it. Port 9021 accepts connections only from <code>allowed_cidr</code>. Under <strong>Connect</strong> you should see eight connectors in state Running: <code>inventory-s01</code> … <code>inventory-s05</code>, <code>sellable-redis</code>, and, with the restock layer, <code>restock-procurement</code> and <code>procurement-orders</code>. Open one Debezium connector to see its configuration, then open the topic <code>inventory.cdc</code> and its latest messages.</p>
@@ -928,7 +947,7 @@ reset ok: scenario &lt;id&gt;, &lt;n&gt; positions at baseline, sellable caught 
 <h4 id="1-reset-and-open-the-page">1. Reset and open the page <a class="header-anchor" href="#1-reset-and-open-the-page">#</a></h4>
 <div data-path="panel" markdown="1">
 <p><strong>With the control panel</strong></p>
-<p>Press <strong>Full reset</strong> on the <strong>Background sales</strong> card of the control panel (<a href="#2-open-the-control-panel">how to open it</a>) and confirm. Wait until the card reads <code>full-reset succeeded</code>. Background sales are now off.</p>
+<p>Press <strong>Full reset</strong> on the <strong>Background sales</strong> card of the control panel (<a href="#2-open-the-control-panel" data-stack-link="control">how to open it</a>) and confirm. Wait until the card reads <code>full-reset succeeded</code>. Background sales are now off.</p>
 </div>
 <div data-path="terminal" markdown="1">
 <p><strong>With the terminal</strong></p>
@@ -960,7 +979,7 @@ reset ok: scenario &lt;id&gt;, &lt;n&gt; positions at baseline, sellable caught 
 </code></pre></div>
 <p>In the JSON, look for <code>&quot;at_least&quot;: true</code> and an S03 entry whose feed is not <code>ok</code>.</p>
 <h4 id="5-find-the-store-in-datadog">5. Find the store in Datadog <a class="header-anchor" href="#5-find-the-store-in-datadog">#</a></h4>
-<p>On the stock dashboard, in the <strong>Freshness</strong> group, <code>stock.probe.age per store</code> rises for S03 only, and <code>stock.feed.state per store</code> drops to 0 for S03 while the other stores stay at 1. Within a minute or two the <abbr title="A Datadog alert rule on a metric.">monitor</abbr> &quot;[dd-demo-hybrid] stock.feed.state below 1 on store S03&quot; goes to Alert. You find it under Monitors &gt; Manage Monitors by searching <code>stack:hybrid</code>.</p>
+<p>On the <a href="#4-open-the-datadog-stock-dashboard" data-stack-link="stock-dashboard">stock dashboard</a>, in the <strong>Freshness</strong> group, <code>stock.probe.age per store</code> rises for S03 only, and <code>stock.feed.state per store</code> drops to 0 for S03 while the other stores stay at 1. Within a minute or two the <abbr title="A Datadog alert rule on a metric.">monitor</abbr> &quot;[dd-demo-hybrid] stock.feed.state below 1 on store S03&quot; goes to Alert. You find it under Monitors &gt; Manage Monitors by searching <code>stack:hybrid</code>.</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Feed state per store with S03 stale"><img src="img/lab2-02-feed-state-s03.png" alt="Feed state per store with S03 stale" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>Feed state per store with S03 stale</figcaption></figure>
 <h4 id="6-resume-the-store">6. Resume the store <a class="header-anchor" href="#6-resume-the-store">#</a></h4>
 <div data-path="panel" markdown="1">
@@ -1054,7 +1073,7 @@ current=90 10 0 previous=100 0 0
 </code></pre></div>
 </div>
 <p>About one lookup in ten goes to 1.1.0, so expect about 60 samples of it in two minutes.</p>
-<p>While the load runs, open the product page. Most stock updates come from 1.0.0. When one goes to 1.1.0, it takes visibly longer and the footer says &quot;Serving release 1.1.0&quot;. The page's own lookups, including the size checks from <a href="#3-sell-it-out-one-store-at-a-time">Lab 1</a>, go through the same split.</p>
+<p>While the load runs, open the <a href="#2-open-the-product-page" data-stack-link="shop">product page</a>. Most stock updates come from 1.0.0. When one goes to 1.1.0, it takes visibly longer and the footer says &quot;Serving release 1.1.0&quot;. The page's own lookups, including the size checks from <a href="#3-sell-it-out-one-store-at-a-time">Lab 1</a>, go through the same split.</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Product page with a lookup served by release 1.1.0"><img src="img/lab3-01-shop-on-release-110.png" alt="Product page with a lookup served by release 1.1.0" width="2880" height="2300" loading="lazy" decoding="async"></button><figcaption>Product page with a lookup served by release 1.1.0</figcaption></figure>
 <h4 id="4-run-the-gate-it-fails">4. Run the gate: it fails <a class="header-anchor" href="#4-run-the-gate-it-fails">#</a></h4>
 <p>The gate compares the canary (1.1.0) with the release it would replace (1.0.0). It requires at least 30 samples of each, no errors, a canary p95 of 200 ms or less, and a passing verify. The default minimum is 100 samples, but a 10% share gives only about 60 in two minutes, so at 10% the gate lowers it to 30.</p>
@@ -1099,7 +1118,7 @@ current=100 0 0 previous=90 10 0
 </div>
 <p>Only the 10% of lookups that went to 1.1.0 during the canary were slow. The other 90% never reached it. The canary's traces stay in Datadog, so you can now look for the cause while shoppers use the healthy release.</p>
 <h4 id="6-compare-releases-in-apm">6. Compare releases in APM <a class="header-anchor" href="#6-compare-releases-in-apm">#</a></h4>
-<p>Open the <code>APM inventory-api 1.1.0:</code> link, or APM &gt; <code>inventory-api</code> with environment <code>dd-demo-hybrid</code>, past 15 minutes, operation <code>flask.request</code>. During the canary, 1.1.0 is far above 1.0.0 at p95: around a second or more, against under ten milliseconds. In our run (2026-10-06, every release on 0.5 vCPU) the load script measured a client-side p95 of about 1.5 s for 1.1.0 and about 10 ms for 1.0.0 at 90 / 10 / 0. Your numbers will differ.</p>
+<p>Open the <a href="#4-open-the-datadog-stock-dashboard" data-stack-link="apm"><code>APM inventory-api 1.1.0:</code> link</a>, or APM &gt; <code>inventory-api</code> with environment <code>dd-demo-hybrid</code>, past 15 minutes, operation <code>flask.request</code>. During the canary, 1.1.0 is far above 1.0.0 at p95: around a second or more, against under ten milliseconds. In our run (2026-10-06, every release on 0.5 vCPU) the load script measured a client-side p95 of about 1.5 s for 1.1.0 and about 10 ms for 1.0.0 at 90 / 10 / 0. Your numbers will differ.</p>
 <p>You can read the comparison in three places:</p>
 <ol>
 <li>
@@ -1130,7 +1149,7 @@ current=100 0 0 previous=90 10 0
 <p>Optional, with the <code>dd-rum</code> layer on: the Online shop's <abbr title="Real User Monitoring: Datadog's record of what real browser sessions do.">RUM</abbr> SDK adds trace headers to its own <code>/api/</code> calls, so you can also start from the shopper's side. In RUM, open a session of your product page from the canary window, choose a slow <code>/api/availability/...</code> resource and open its trace. It opens the same <code>inventory-api</code> trace with <code>catalogue.prepare</code>.</p>
 <p><em>What just happened:</em> every span carries the <em>unified service tags</em> <code>env</code>, <code>service</code> and <code>version</code>, so APM can compare releases directly, even when one of them got only a tenth of the traffic. The catalogue work uses CPU and runs again in every request, so latency grows with load, while the Redis read stays fast.</p>
 <h4 id="8-rule-out-the-stream">8. Rule out the stream <a class="header-anchor" href="#8-rule-out-the-stream">#</a></h4>
-<p>On the stock dashboard the <strong>Freshness</strong> group has not changed, and the <strong>Service objective</strong> group shows <code>inventory-api p95 latency by version</code> rising for 1.1.0 only. The DSM map shows the same healthy edges as in Lab 1. The monitor &quot;[dd-demo-hybrid] inventory-api p95 latency above 0.2s on 1.1.0&quot; can go to Alert after its evaluation window, depending on how many 1.1.0 samples fell into that window.</p>
+<p>On the <a href="#4-open-the-datadog-stock-dashboard" data-stack-link="stock-dashboard">stock dashboard</a> the <strong>Freshness</strong> group has not changed, and the <strong>Service objective</strong> group shows <code>inventory-api p95 latency by version</code> rising for 1.1.0 only. The <a href="#4-open-the-datadog-stock-dashboard" data-stack-link="dsm">DSM map</a> shows the same healthy edges as in Lab 1. The monitor &quot;[dd-demo-hybrid] inventory-api p95 latency above 0.2s on 1.1.0&quot; can go to Alert after its evaluation window, depending on how many 1.1.0 samples fell into that window.</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: P95 monitor in Alert for version 1.1.0"><img src="img/lab3-04-p95-monitor.png" alt="P95 monitor in Alert for version 1.1.0" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>P95 monitor in Alert for version 1.1.0</figcaption></figure>
 <h4 id="9-optional-see-what-skipping-the-gate-would-have-done">9. Optional: see what skipping the gate would have done <a class="header-anchor" href="#9-optional-see-what-skipping-the-gate-would-have-done">#</a></h4>
 <p>To see the effect without a canary, send all traffic to 1.1.0 once, send load for about 2 minutes, then switch back to the healthy release.</p>
@@ -1395,7 +1414,7 @@ make<span class="w"> </span>sell-out<span class="w"> </span><span class="nv">PRO
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Order flow: Flink turns demand and lead time into restock requests; Order sync (JDBC + CDC) upserts purchase orders into the procurement database; Supplier sim reads orders to ship and calls restock() in the five store databases"><img src="img/arch-b11-order-flow.png" alt="Order flow: Flink turns demand and lead time into restock requests; Order sync (JDBC + CDC) upserts purchase orders into the procurement database; Supplier sim reads orders to ship and calls restock() in the five store databases" width="3420" height="1660" loading="lazy" decoding="async"></button><figcaption>Order flow: Flink turns demand and lead time into restock requests; Order sync (JDBC + CDC) upserts purchase orders into the procurement database; Supplier sim reads orders to ship and calls restock() in the five store databases</figcaption></figure>
 <p><em>What just happened:</em> Flink emitted one restock request per store. A <abbr title="A Kafka Connect connector that copies Kafka records into a database table.">JDBC sink connector</abbr> wrote each request into the procurement database as a purchase order, and Debezium streamed the orders back into Kafka. That is how Flink knows the stock is on order and does not order it twice. The supplier simulator (<code>supplier-sim</code>) wrote the earliest due time to Redis, and the page shows it as the ETA.</p>
 <h4 id="3-open-the-control-panel">3. Open the control panel <a class="header-anchor" href="#3-open-the-control-panel">#</a></h4>
-<p>Open the control panel in both paths (<a href="#2-open-the-control-panel">how to open it</a>) and scroll below the cards to the <code>restock</code> settings. You should see the restock parameters: supplier lead time, lead time jitter, safety factor, coverage after delivery, minimum order quantity, demand window and the demo clock (<code>time_compression</code>, 60 by default). Each change you save is also sent to Datadog as an event.</p>
+<p>Open the <a href="#2-open-the-control-panel" data-stack-link="control">control panel</a> in both paths (<a href="#2-open-the-control-panel" data-stack-link="control">how to open it</a>) and scroll below the cards to the <code>restock</code> settings. You should see the restock parameters: supplier lead time, lead time jitter, safety factor, coverage after delivery, minimum order quantity, demand window and the demo clock (<code>time_compression</code>, 60 by default). Each change you save is also sent to Datadog as an event.</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Control panel restock parameters"><img src="img/lab5-03-control-panel.png" alt="Control panel restock parameters" width="2328" height="2387" loading="lazy" decoding="async"></button><figcaption>Control panel restock parameters</figcaption></figure>
 <h4 id="4-shorten-the-lead-time">4. Shorten the lead time <a class="header-anchor" href="#4-shorten-the-lead-time">#</a></h4>
 <p>Set the supplier lead time to 2 business hours, which is 2 real minutes with the default clock.</p>
@@ -1416,7 +1435,7 @@ make<span class="w"> </span>sell-out<span class="w"> </span><span class="nv">PRO
 <p>After about a minute (the exact time depends on the product), the supplier calls <code>restock()</code> in each store's database. That is an ordinary stock update, like a sale but marked <code>restock</code>, so it travels the same path and the page goes back to &quot;N available online&quot;. N depends on the demand Flink has learned and on the coverage setting.</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Product page back in stock after the supplier delivery"><img src="img/lab5-02-back-in-stock.png" alt="Product page back in stock after the supplier delivery" width="2880" height="2300" loading="lazy" decoding="async"></button><figcaption>Product page back in stock after the supplier delivery</figcaption></figure>
 <h4 id="6-see-it-in-datadog">6. See it in Datadog <a class="header-anchor" href="#6-see-it-in-datadog">#</a></h4>
-<p>On the stock dashboard, open the <strong>Restock</strong> group. <code>restock.orders.open</code> rises after the sell-out and falls at delivery. Next to it are <code>restock.orders.delivered by store</code> and <code>restock.lead_time</code>. If you saved the lead-time change in the panel, it shows as an event marker on <code>restock.orders.open</code> and as a <code>demo config: lead_time_s = 7200</code> entry in the <strong>Demo panel: config changes and actions</strong> list. That list also shows each panel action, such as a sell-out or a reset, as <code>demo action: &lt;name&gt; started</code>, then <code>succeeded</code> or <code>failed</code>. These events have the tags <code>project:dd-demo</code>, <code>stack:hybrid</code> and <code>demo_event:config</code> or <code>demo_event:action</code>, so you can also find them in the Events Explorer.</p>
+<p>On the <a href="#4-open-the-datadog-stock-dashboard" data-stack-link="stock-dashboard">stock dashboard</a>, open the <strong>Restock</strong> group. <code>restock.orders.open</code> rises after the sell-out and falls at delivery. Next to it are <code>restock.orders.delivered by store</code> and <code>restock.lead_time</code>. If you saved the lead-time change in the panel, it shows as an event marker on <code>restock.orders.open</code> and as a <code>demo config: lead_time_s = 7200</code> entry in the <strong>Demo panel: config changes and actions</strong> list. That list also shows each panel action, such as a sell-out or a reset, as <code>demo action: &lt;name&gt; started</code>, then <code>succeeded</code> or <code>failed</code>. These events have the tags <code>project:dd-demo</code>, <code>stack:hybrid</code> and <code>demo_event:config</code> or <code>demo_event:action</code>, so you can also find them in the Events Explorer.</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Restock group with the lead-time event"><img src="img/lab5-04-restock-group.png" alt="Restock group with the lead-time event" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>Restock group with the lead-time event</figcaption></figure>
 <p>Optional: in the Confluent Cloud console, open the environment's Flink section. It lists the <abbr title="SQL queries that run continuously on the stream.">Flink statements</abbr> <code>dd-demo-hybrid-*</code>. The <code>-0</code> statements create the output tables. The <code>-1</code> statements are the long-running inserts (<code>sellable-1</code>, <code>demand-1</code>, <code>procurement-1</code>, <code>restock-1</code>, <code>offers-1</code>).</p>
 <h4 id="checkpoint-5" class="checkpoint">Checkpoint <a class="header-anchor" href="#checkpoint-5">#</a></h4>
@@ -1475,7 +1494,7 @@ make<span class="w"> </span>sell-out<span class="w"> </span><span class="nv">PRO
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Offer.jev.call span input and output"><img src="img/lab6-03-llmobs-span-io.png" alt="Offer.jev.call span input and output" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>Offer.jev.call span input and output</figcaption></figure>
 <p>The same request also appears in APM (service <code>offer-worker</code>, span <code>offer.process</code>). Its linked logs state the decision, for example route <code>RULE_DEFAULT</code> with reason <code>low_confidence</code>.</p>
 <h4 id="4-lower-the-threshold-live">4. Lower the threshold, live <a class="header-anchor" href="#4-lower-the-threshold-live">#</a></h4>
-<p>This setting exists only in the control panel, so you use the panel in both paths (<a href="#2-open-the-control-panel">how to open it</a>). In the <code>offers</code> settings, set <strong>Jev minimum confidence</strong> (<code>jev_min_confidence</code>) to <code>0.7</code> and press <strong>Save</strong>. Then reset, reload the page, add P0042 to the cart again, and sell it out.</p>
+<p>This setting exists only in the control panel, so you use the panel in both paths (<a href="#2-open-the-control-panel" data-stack-link="control">how to open it</a>). In the <code>offers</code> settings, set <strong>Jev minimum confidence</strong> (<code>jev_min_confidence</code>) to <code>0.7</code> and press <strong>Save</strong>. Then reset, reload the page, add P0042 to the cart again, and sell it out.</p>
 <div data-path="panel" markdown="1">
 <p><strong>With the control panel</strong></p>
 <p>Press <strong>Full reset</strong>, reload the product page, click <strong>Add to cart</strong>, then press <strong>Sell out product</strong> with <code>P0042</code>.</p>
@@ -1489,7 +1508,7 @@ make<span class="w"> </span>sell-out<span class="w"> </span><span class="nv">PRO
 </div>
 <p>The reset expires the carts from the previous run, so each sell-out produces exactly one offer, and it cancels the purchase orders left from Lab 5. With the lower threshold, some runs use the AI choice and some still use the rule default.</p>
 <h4 id="5-use-the-kill-switch">5. Use the kill switch <a class="header-anchor" href="#5-use-the-kill-switch">#</a></h4>
-<p>In the control panel, set <strong>AI kill switch</strong> (<code>offers_kill_switch</code>) to <code>1</code> and press <strong>Save</strong>. This <abbr title="A setting that stops all calls to Jev, so every offer uses the rule default.">kill switch</abbr> takes effect on the next offer. Then repeat the reset, add to cart and sell-out. The decision line in the Online shop reads &quot;safe rule — AI did not return a decision&quot;, the reason on the dashboard is <code>kill_switch</code>, and the worker makes no Jev call. On the stock dashboard, in the <strong>Offers</strong> group, <code>offer.decision by route and reason</code> shows each of your runs.</p>
+<p>In the <a href="#2-open-the-control-panel" data-stack-link="control">control panel</a>, set <strong>AI kill switch</strong> (<code>offers_kill_switch</code>) to <code>1</code> and press <strong>Save</strong>. This <abbr title="A setting that stops all calls to Jev, so every offer uses the rule default.">kill switch</abbr> takes effect on the next offer. Then repeat the reset, add to cart and sell-out. The decision line in the Online shop reads &quot;safe rule — AI did not return a decision&quot;, the reason on the dashboard is <code>kill_switch</code>, and the worker makes no Jev call. On the stock dashboard, in the <strong>Offers</strong> group, <code>offer.decision by route and reason</code> shows each of your runs.</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Offers group by route and reason"><img src="img/lab6-04-offers-group.png" alt="Offers group by route and reason" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>Offers group by route and reason</figcaption></figure>
 <h4 id="6-restore-the-defaults">6. Restore the defaults <a class="header-anchor" href="#6-restore-the-defaults">#</a></h4>
 <p>In the control panel, set <code>jev_min_confidence</code> back to <code>0.8</code> and <code>offers_kill_switch</code> back to <code>0</code> (or press <strong>Reset to default</strong> on each), then reset.</p>
@@ -1515,7 +1534,7 @@ make<span class="w"> </span>sell-out<span class="w"> </span><span class="nv">PRO
 <h4 id="1-read-back-the-stack">1. Read back the stack <a class="header-anchor" href="#1-read-back-the-stack">#</a></h4>
 <div data-path="panel" markdown="1">
 <p><strong>With the control panel</strong></p>
-<p>Open Control Center from the <code>control-center:</code> line of <code>./demo links</code> and choose <strong>Connect</strong>. You should see the six core connectors plus <code>restock-procurement</code> and <code>procurement-orders</code>, all Running. On the stock dashboard, the <strong>Pipeline</strong> group shows the six core connectors in <code>stock.connect.task_running by connector</code>. The header of the control panel shows the running layers and the canary routing.</p>
+<p>Open <a href="#2-open-the-control-panel" data-stack-link="control-center">Control Center</a> from the <code>control-center:</code> line of <code>./demo links</code> and choose <strong>Connect</strong>. You should see the six core connectors plus <code>restock-procurement</code> and <code>procurement-orders</code>, all Running. On the stock dashboard, the <strong>Pipeline</strong> group shows the six core connectors in <code>stock.connect.task_running by connector</code>. The header of the control panel shows the running layers and the canary routing.</p>
 </div>
 <div data-path="terminal" markdown="1">
 <p><strong>With the terminal</strong></p>
@@ -1525,10 +1544,10 @@ make<span class="w"> </span>sell-out<span class="w"> </span><span class="nv">PRO
 </div>
 <p>This is where you check connectors. DSM shows the data flow, but it does not show connector status.</p>
 <h4 id="2-aws-native-online-dashboard">2. AWS-native online dashboard <a class="header-anchor" href="#2-aws-native-online-dashboard">#</a></h4>
-<p>Open the <code>online dashboard:</code> link (&quot;UrbanStreet AWS-native online [dd-demo-hybrid]&quot;). It shows Fargate CPU and memory by service and version, ElastiCache memory and CPU, and ALB unhealthy targets, next to <code>inventory-api</code> p95 by version. If you ran Lab 3, you can see the CPU peak of release 1.1.0.</p>
+<p>Open the <a href="#4-open-the-datadog-stock-dashboard" data-stack-link="online-dashboard"><code>online dashboard:</code> link</a> (&quot;UrbanStreet AWS-native online [dd-demo-hybrid]&quot;). It shows Fargate CPU and memory by service and version, ElastiCache memory and CPU, and ALB unhealthy targets, next to <code>inventory-api</code> p95 by version. If you ran Lab 3, you can see the CPU peak of release 1.1.0.</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: AWS-native online dashboard"><img src="img/lab7-01-aws-online-dashboard.png" alt="AWS-native online dashboard" width="2880" height="2300" loading="lazy" decoding="async"></button><figcaption>AWS-native online dashboard</figcaption></figure>
 <h4 id="3-confluent-cloud-integration">3. Confluent Cloud integration <a class="header-anchor" href="#3-confluent-cloud-integration">#</a></h4>
-<p>On the stock dashboard, in the <strong>Pipeline</strong> group, the chart &quot;Confluent Cloud consumer lag (offsets) by group&quot; comes from the Confluent <abbr title="Datadog reading metrics from another provider's account, here Confluent Cloud.">integration</abbr> (the <code>dd-streams</code> layer). <abbr title="The number of messages a consumer group has not read yet.">Consumer lag</abbr> for <code>stock-projector</code> and <code>connect-sellable-redis</code> should stay near zero, which agrees with the probe. A short spike after a burst of records, like the one in the screenshot, is normal; the lag should fall back to near zero.</p>
+<p>On the <a href="#4-open-the-datadog-stock-dashboard" data-stack-link="stock-dashboard">stock dashboard</a>, in the <strong>Pipeline</strong> group, the chart &quot;Confluent Cloud consumer lag (offsets) by group&quot; comes from the Confluent <abbr title="Datadog reading metrics from another provider's account, here Confluent Cloud.">integration</abbr> (the <code>dd-streams</code> layer). <abbr title="The number of messages a consumer group has not read yet.">Consumer lag</abbr> for <code>stock-projector</code> and <code>connect-sellable-redis</code> should stay near zero, which agrees with the probe. A short spike after a burst of records, like the one in the screenshot, is normal; the lag should fall back to near zero.</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Consumer lag by group"><img src="img/lab7-02-consumer-lag.png" alt="Consumer lag by group" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>Consumer lag by group</figcaption></figure>
 <h4 id="4-synthetics">4. Synthetics <a class="header-anchor" href="#4-synthetics">#</a></h4>
 <p>Open Synthetic Monitoring &gt; Tests and search <code>dd-demo-hybrid</code>. You should see two <abbr title="Requests that Datadog sends to your Online shop on a schedule from its own locations, like a shopper on the internet.">synthetic tests</abbr> that run from <code>aws:eu-central-1</code> against your ALB: an API test of <code>GET /api/availability/P0042</code> every 60 s, and a browser test of the product page every 300 s.</p>
@@ -1544,7 +1563,7 @@ make<span class="w"> </span>sell-out<span class="w"> </span><span class="nv">PRO
 <p>Then open Events &gt; Explorer and search <code>demo config</code>. You should see the settings you saved in the panel in Labs 5 and 6. The make commands post no events, so your routing changes from the terminal do not appear here.</p>
 </div>
 <h4 id="6-cost">6. Cost <a class="header-anchor" href="#6-cost">#</a></h4>
-<p>Open the <code>account-cost dashboard:</code> link and set <code>stack</code> to <code>hybrid</code>. The <code>cost-meter</code> service estimates the hourly cost of the AWS pieces from list prices and reads Confluent usage. The billed AWS cost arrives later: AWS writes it to the <abbr title="AWS's detailed billing export, delivered to an S3 bucket.">Cost and Usage Report</abbr>, and Datadog Cloud Cost Management reads it from there, typically 48 to 72 hours after the first complete report.</p>
+<p>Open the <a href="#4-open-the-datadog-stock-dashboard" data-stack-link="cost-dashboard"><code>account-cost dashboard:</code> link</a> and set <code>stack</code> to <code>hybrid</code>. The <code>cost-meter</code> service estimates the hourly cost of the AWS pieces from list prices and reads Confluent usage. The billed AWS cost arrives later: AWS writes it to the <abbr title="AWS's detailed billing export, delivered to an S3 bucket.">Cost and Usage Report</abbr>, and Datadog Cloud Cost Management reads it from there, typically 48 to 72 hours after the first complete report.</p>
 <p>Fargate bills each task by its vCPU and memory size, so the cost estimate follows the task size set in <code>service_sizing</code> (<code>terraform/aws/variables.tf</code>). All three releases use the same size (0.5 vCPU / 1 GB). The fix therefore does not change the hourly price of a task. It changes how much traffic one task can handle (see the CPU comparison in <a href="#5-prove-it-latency-cpu-and-cost">Lab 4</a>).</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Account cost dashboard"><img src="img/lab7-04-cost-dashboard.png" alt="Account cost dashboard" width="2880" height="2520" loading="lazy" decoding="async"></button><figcaption>Account cost dashboard</figcaption></figure>
 <h4 id="7-check-rum-on-your-run">7. Check RUM on your run <a class="header-anchor" href="#7-check-rum-on-your-run">#</a></h4>
@@ -1650,6 +1669,11 @@ make<span class="w"> </span>sell-out<span class="w"> </span><span class="nv">PRO
 <td><code>ECS service ... did not reach steady state</code></td>
 <td>A task does not start. Check: AWS console &gt; ECS &gt; <code>dd-demo-hybrid</code> &gt; service &gt; Events</td>
 <td>Fix the cause shown there, then run <code>./demo create</code> again</td>
+</tr>
+<tr>
+<td><code>AWS login expired during apply of terraform/...</code>, or <code>ExpiredToken: The security token included in the request is expired</code> during <code>./demo create</code></td>
+<td>Your AWS login session ended during the build, often while Terraform waited for ElastiCache or the load balancer. A login lasts at most 12 hours, and the script cannot read how much is left</td>
+<td><code>aws login --profile dd-demo</code>, then <code>./demo create</code> again. Resources that were being created when it failed are rebuilt, which costs extra minutes (we have not measured how many). To prevent it, sign in again right before a long build</td>
 </tr>
 <tr>
 <td>You changed a table in <code>flink/*.sql</code> and nothing changed</td>
@@ -2886,6 +2910,6 @@ aws<span class="w"> </span>ecs<span class="w"> </span>list-clusters<span class="
   </div>
 </dialog>
 <div class="sr-only" aria-live="polite" id="live"></div>
-<script src="assets/site.js?v=8d9b1a7997" defer></script>
+<script src="assets/site.js?v=6bff4c6cd5" defer></script>
 </body>
 </html>

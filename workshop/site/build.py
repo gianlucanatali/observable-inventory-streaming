@@ -98,6 +98,27 @@ PATH_CHOOSER = """<div class="path-chooser" role="group" aria-labelledby="path-c
 </div>"""
 
 
+# A guide link written as [stock dashboard](#4-open-the-datadog-stock-dashboard "stack-link:stock-dashboard") is
+# an "open the X" reference. On GitHub it is an ordinary link to the step that explains X. On the site, site.js
+# points it to the reader's own resource once they pasted their stack JSON (see CONNECT_BOX), else to the box.
+STACK_LINK_PREFIX = "stack-link:"
+STACK_LINK_KEYS = ("shop", "shop-home", "control", "stock-dashboard", "online-dashboard", "apm", "dsm",
+                   "cost-dashboard", "confluent", "control-center", "ecs")
+CONNECT_MARKER = "<!-- connect-box -->"
+CONNECT_BOX = """<div class="connect-box" id="connect-box">
+<p class="connect-title">Connect your stack</p>
+<p class="connect-lead">Paste the JSON from your control panel or from <code>make links-json</code>.</p>
+<label class="connect-label" for="connect-json">Stack JSON</label>
+<textarea id="connect-json" rows="6" spellcheck="false" autocomplete="off" placeholder='{"version":1,"stack":"hybrid","env":"dd-demo-hybrid", ...}'></textarea>
+<div class="connect-buttons">
+<button type="button" class="connect-go">Connect</button>
+<button type="button" class="connect-forget" hidden>Forget my stack</button>
+</div>
+<p class="connect-status" role="status" aria-live="polite"></p>
+<p class="connect-note">The JSON holds your addresses and ids, no passwords. It stays in this browser (local storage) and is never sent anywhere. The guide uses it to fill in placeholders and to link to your pages.</p>
+</div>"""
+
+
 def die(msg: str) -> None:
     print(f"build.py: ERROR: {msg}", file=sys.stderr)
     sys.exit(1)
@@ -243,7 +264,7 @@ def core_figures(state) -> None:
                 toks[i + 2].meta["figure_close"] = alt
 
 
-def add_rules(md: MarkdownIt, diagrams: dict[str, str], links_seen: list[str]) -> None:
+def add_rules(md: MarkdownIt, diagrams: dict[str, str], links_seen: list[str], stack_links: list[str]) -> None:
     md.core.ruler.push("alerts", core_alerts)
     md.core.ruler.push("figures", core_figures)
     default_render = md.renderer.renderToken
@@ -303,6 +324,14 @@ def add_rules(md: MarkdownIt, diagrams: dict[str, str], links_seen: list[str]) -
     def link_open(self, tokens, idx, options, env):
         tok = tokens[idx]
         href = tok.attrGet("href") or ""
+        title = tok.attrGet("title") or ""
+        if title.startswith(STACK_LINK_PREFIX):
+            key = title[len(STACK_LINK_PREFIX):]
+            if key not in STACK_LINK_KEYS:
+                die(f"link {href!r} has unknown stack link {key!r}; known: {', '.join(STACK_LINK_KEYS)}")
+            tok.attrs.pop("title")
+            tok.attrSet("data-stack-link", key)
+            stack_links.append(key)
         if href.startswith("#"):
             links_seen.append(href[1:])
         elif not re.match(r"^[a-z][a-z0-9+.-]*:", href, re.I):
@@ -493,13 +522,14 @@ def main() -> None:
 
     diagrams: dict[str, str] = {}
     links_seen: list[str] = []
+    stack_links: list[str] = []
     md = (MarkdownIt("commonmark", {"html": True, "typographer": False})
           .enable(["table", "strikethrough"])
           .use(footnote_plugin)
           .use(tasklists_plugin, enabled=True)
           .use(anchors_plugin, min_level=1, max_level=6, slug_func=github_slug,
                permalink=True, permalinkSymbol="#", permalinkBefore=False))
-    add_rules(md, diagrams, links_seen)
+    add_rules(md, diagrams, links_seen, stack_links)
 
     env: dict = {}
     tokens = md.parse(md_text, env)
@@ -518,6 +548,11 @@ def main() -> None:
     if body.count(PATH_MARKER) != 1:
         die(f"expected exactly one {PATH_MARKER} marker in {SRC}, found {body.count(PATH_MARKER)}")
     body = body.replace(PATH_MARKER, PATH_CHOOSER)
+    if body.count(CONNECT_MARKER) != 1:
+        die(f"expected exactly one {CONNECT_MARKER} marker in {SRC}, found {body.count(CONNECT_MARKER)}")
+    body = body.replace(CONNECT_MARKER, CONNECT_BOX)
+    if not stack_links:
+        die(f"{SRC} has no stack-link: links, so connecting a stack would change nothing")
     for path in ("panel", "terminal"):
         n = body.count(f'<div data-path="{path}"')
         if not n:
@@ -567,7 +602,7 @@ def main() -> None:
     for rel in used:
         shutil.copy2(WORKSHOP / rel, OUT / rel)
     print(f"build.py: wrote {OUT / GUIDE_PAGE} ({len(diagrams)} diagrams, {len(ids)} anchors, "
-          f"{len(links_seen)} in-page links checked) and {OUT / LANDING_PAGE} ({len(landing_imgs)} images); "
+          f"{len(links_seen)} in-page links checked, {len(stack_links)} stack links) and {OUT / LANDING_PAGE} ({len(landing_imgs)} images); "
           f"{len(used)} images in {OUT / 'img'}")
 
 

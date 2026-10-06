@@ -145,6 +145,9 @@ resource "datadog_dashboard_json" "cost" {
     title       = "dd-demo cost [all stacks]"
     description = "Durable account-wide pre-tax estimates and actual billed costs per vendor and item, including a selected-stack AWS estimate versus CCM actual-billed comparison. Managed by terraform/account."
     layout_type = "ordered"
+    # Datadog returns "notify_list": null on every read; the provider only normalises id/url/author/time
+    # fields, so declaring it keeps the stored JSON equal to this config (no perpetual in-place update).
+    notify_list = null
     template_variables = [{
       name    = "stack"
       prefix  = "stack"

@@ -280,6 +280,10 @@ confirm() { # confirm <question>
   [ "$a" = yes ] || { echo "stack.sh: not confirmed: $1" >&2; return 1; }
 }
 
+apply_log_has_expired_token() { # apply_log_has_expired_token <terraform stderr file> : true when AWS rejected an expired token
+  grep -q 'ExpiredToken' "$1"
+}
+
 tf_apply() { # tf_apply <dir> [destroy] [attempt]
   local dir="$1" mode="${2:-}" attempt="${3:-1}" plan="$STATE_DIR/$STACK-$1.tfplan" vars=() v
   local err="$STATE_DIR/$STACK-$1-attempt-$attempt.err"
@@ -318,6 +322,10 @@ tf_apply() { # tf_apply <dir> [destroy] [attempt]
       sleep 20
       tf_apply "$dir" "$mode" "$((attempt + 1))"
       return
+    fi
+    if apply_log_has_expired_token "$err"; then
+      rm -f "$plan" "$err"
+      die "AWS login expired during apply of terraform/$dir: run aws login --profile $AWS_SOURCE_PROFILE, then ./demo create again (stack-down: rerun stack-down); resources being created when it failed are left tainted and are rebuilt, which costs extra minutes"
     fi
     rm -f "$plan" "$err"
     die "terraform apply failed in terraform/$dir"
@@ -697,10 +705,33 @@ recreate_storefront() { # compose re-reads .env.cloud-<stack> (RUM ids)
 }
 
 # --- commands -------------------------------------------------------------------------------------------------
+# How long does the `aws login` session last, and can we read what is left of it?
+#  - Documented: the CLI refreshes the cached credentials every 15 minutes; "the overall session will be valid for up to
+#    the set session duration of the IAM principal (maximum of 12 hours), after which you must run aws login again".
+#    https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sign-in.html
+#  - NOT observable: the `Expiration` that `aws configure export-credentials --format process` prints is the expiry of the
+#    15-minute credentials it just minted (schema: https://docs.aws.amazon.com/sdkref/latest/guide/feature-process-credentials.html,
+#    command: https://docs.aws.amazon.com/cli/latest/reference/configure/export-credentials.html). It does not say when the
+#    login session ends. The session metadata sits in ~/.aws/login/cache, whose format is not documented, so we do not parse it.
+#  So we cannot fail early on "too little session left". We state the documented upper bound and fail loudly when it ends
+#  (aws_session_ready here, apply_log_has_expired_token during an apply). The real mitigation is `aws login` right before a build.
+# Notes: ../../../notes/2026-10-05-aws-login-credentials.md
+AWS_LOGIN_MAX_HOURS=12   # documented maximum session duration (URL above); the real limit can be lower (IAM principal setting)
+
+credential_expiration() { # credential_expiration : reads the JSON on stdin, prints ONLY the Expiration field (never key material)
+  jq -er '.Expiration // empty' || return 1
+}
+
 aws_session_ready() {
+  local exp
   aws sts get-caller-identity --profile "$AWS_PROFILE" --query Arn --output text >/dev/null 2>&1 \
     || die "AWS login session unavailable; run: aws login --profile $AWS_SOURCE_PROFILE"
   echo "   AWS login session via refresh profile $AWS_PROFILE: ok"
+  # Informational only: this is the short-credential expiry, not the end of the login session.
+  if command -v jq >/dev/null && exp="$(env -u AWS_CONFIG_FILE -u AWS_PROFILE aws configure export-credentials --profile "$AWS_SOURCE_PROFILE" --format process 2>/dev/null | credential_expiration)"; then
+    echo "   short-lived credentials valid until $exp (refreshed automatically; this is not the end of the login session)"
+  fi
+  echo "   AWS login session: it cannot be read how much is left. A login lasts at most $AWS_LOGIN_MAX_HOURS hours (AWS docs); if yours is older than that, or you are not sure, run: aws login --profile $AWS_SOURCE_PROFILE. A long build that outlives it fails with ExpiredToken."
 }
 
 preflight() {

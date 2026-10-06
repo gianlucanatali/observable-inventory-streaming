@@ -22,4 +22,4 @@ Common style for every prompt: photorealistic editorial photo, modern sportswear
 |---|---|---|
 | spot-stock.jpg | Online shop product page, mobile layout (P0042, 9 available online) | Storefront screenshot at phone width, captured for this project |
 | spot-canary.jpg | Online shop product page, desktop layout | Storefront screenshot at desktop width, captured for this project |
-| spot-dashboard.jpg | Datadog stock dashboard, Freshness group | `workshop/img/lab1-07-freshness-group.png` (already redacted), guide annotation boxes removed |
+| spot-dashboard.jpg | Full Datadog UI (left navigation, top bar with title, filter and time picker, stock dashboard widgets) | live capture with `tools/guide-shots` (`wall-ui-full`, 1920x1080, org and user redacted by the tool), no annotation boxes (2026-10-06) |

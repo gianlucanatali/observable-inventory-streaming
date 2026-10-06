@@ -1,4 +1,4 @@
-// Workshop site behaviour: lab path (control panel or terminal), copy buttons, table of contents, term tooltips, image zoom.
+// Workshop site behaviour: lab path (control panel or terminal), connected stack, copy buttons, table of contents, term tooltips, image zoom.
 // Source: workshop/site/site.js (copied to docs/assets by build.py). No dependencies, no tracking.
 (function () {
   "use strict";
@@ -246,6 +246,247 @@
     window.addEventListener("resize", function () { if (shown) place(shown); });
     // A hover tooltip goes away when the page scrolls under the pointer; a tapped or focused one stays with its term.
     window.addEventListener("scroll", function () { if (shown && !pinned && shown !== document.activeElement) hide(); }, { passive: true });
+  }
+
+  // ---------- connect your stack ----------
+  // The reader pastes the JSON from the control panel (or `make links-json`). It is validated, kept only in
+  // localStorage, and then (1) placeholders such as <alb-dns-name> are replaced by the reader's values and
+  // (2) the "open the X" links (data-stack-link) go to the reader's own pages. Without a stack, or without
+  // localStorage, the guide reads as before and those links go to the Connect box.
+  var STACK_KEY = "workshop-stack";
+  var STACK_MAX_BYTES = 20000;
+  var TEXT_FIELDS = { stack: /^[A-Za-z0-9][A-Za-z0-9_-]*$/, env: /^[A-Za-z0-9][A-Za-z0-9_-]*$/,
+    vm_public_ip: /^[A-Za-z0-9][A-Za-z0-9.-]*$/, confluent_env: /^[A-Za-z0-9_-]+$/, kafka_cluster: /^[A-Za-z0-9_-]+$/ };
+  var REQUIRED_LINKS = ["shop", "shop-home", "control"];
+  var OPTIONAL_LINKS = ["stock-dashboard", "online-dashboard", "apm", "dsm", "cost-dashboard", "confluent", "control-center", "ecs"];
+  var box = document.getElementById("connect-box");
+  var badge = document.getElementById("stack-badge");
+  var applied = [];  // {orig, nodes}: text nodes the stack replaced, so Forget can restore them
+  var stackNow = null;
+
+  function webUrl(value, what) {
+    if (typeof value !== "string") throw new Error(what + " must be a text value");
+    var u;
+    try { u = new URL(value); } catch (e) { throw new Error(what + " is not a valid URL"); }
+    if (u.protocol !== "http:" && u.protocol !== "https:") throw new Error(what + " must start with http:// or https://");
+    return value;
+  }
+  // Returns a clean copy of the stack, or throws an Error whose message says what to fix.
+  function parseStack(text) {
+    if (!text.trim()) throw new Error("Paste the JSON first.");
+    if (text.length > STACK_MAX_BYTES) throw new Error("That is too long to be the stack JSON.");
+    var raw;
+    try { raw = JSON.parse(text); } catch (e) { throw new Error("This is not valid JSON (" + e.message + "). Copy it again from the panel or from make links-json."); }
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("The JSON must be an object, as copied from the panel.");
+    if (raw.version !== 1) throw new Error('Unsupported "version": this guide reads version 1.');
+    var out = { version: 1, links: {} };
+    Object.keys(TEXT_FIELDS).forEach(function (k) {
+      if (typeof raw[k] !== "string" || !raw[k]) throw new Error('The field "' + k + '" is missing.');
+      if (!TEXT_FIELDS[k].test(raw[k])) throw new Error('The field "' + k + '" has characters that do not belong in it.');
+      out[k] = raw[k];
+    });
+    out.alb = webUrl(raw.alb, 'The field "alb"').replace(/\/+$/, "");
+    if (!raw.links || typeof raw.links !== "object") throw new Error('The field "links" is missing.');
+    REQUIRED_LINKS.concat(OPTIONAL_LINKS).forEach(function (k) {
+      var v = raw.links[k];
+      if (v === undefined || v === null || v === "") {
+        if (REQUIRED_LINKS.indexOf(k) >= 0) throw new Error('The link "' + k + '" is missing.');
+        return;
+      }
+      out.links[k] = webUrl(v, 'The link "' + k + '"');
+    });
+    return out;
+  }
+
+  // ---- placeholder replacement ----
+  // A segment is a plain string, or {text, href?, ph} for a value taken from the stack.
+  function stackRules(s) {
+    var host = new URL(s.alb).host;
+    var origin = s.alb;
+    var values = { "alb-dns-name": host, "vm-public-ip": s.vm_public_ip, "env-id": s.confluent_env,
+      "cluster-id": s.kafka_cluster, "env": s.env, "stack name": s.env, "stack": s.stack };
+    function sub(str) {
+      return str.replace(/https?:\/\/<alb-dns-name>/g, origin)
+        .replace(/<(alb-dns-name|vm-public-ip|env-id|cluster-id|env|stack name|stack)>/g, function (m, k) { return values[k]; });
+    }
+    function pathOf(url) { var u = new URL(url); return u.pathname; }
+    var rules = [];
+    // sample output lines of ./demo status and ./demo links
+    [[/(stock dashboard: )https:\/\/\S+/g, "stock-dashboard"], [/(online dashboard: )https:\/\/\S+/g, "online-dashboard"],
+     [/(account-cost dashboard: )https:\/\/\S+/g, "cost-dashboard"], [/(APM inventory-api 1\.1\.0: )https:\/\/\S+/g, "apm"],
+     [/(DSM map: )https:\/\/\S+/g, "dsm"]].forEach(function (r) {
+      var url = s.links[r[1]];
+      if (url) rules.push({ re: r[0], fn: function (m) { return [m[1], { text: url, href: url, ph: r[1] }]; } });
+    });
+    if (s.links.apm) {
+      var cmp = new URL(s.links.apm);
+      cmp.searchParams.delete("version");
+      cmp.searchParams.set("compare_to", "previous");
+      rules.push({ re: /(APM latency comparison: )https:\/\/\S+/g, fn: function (m) { return [m[1], { text: cmp.href, href: cmp.href, ph: "apm" }]; } });
+    }
+    if (s.links["cost-dashboard"]) {
+      rules.push({ re: /(cost dashboard: )\/dashboard\/<id>\/\S+/g, fn: function (m) {
+        return [m[1], { text: pathOf(s.links["cost-dashboard"]), href: s.links["cost-dashboard"], ph: "cost-dashboard" }]; } });
+    }
+    if (s.links["stock-dashboard"]) {
+      rules.push({ re: /(\bdashboard: )\/dashboard\/<id>\/\S+/g, fn: function (m) {
+        return [m[1], { text: pathOf(s.links["stock-dashboard"]), href: s.links["stock-dashboard"], ph: "stock-dashboard" }]; } });
+    }
+    // a whole URL that holds a placeholder: the replaced URL is a link
+    rules.push({ re: /https?:\/\/[^\s"'`]+/g, fn: function (m) {
+      var url = m[0].replace(/[.,;:)]+$/, ""), tail = m[0].slice(url.length);
+      if (!/<(alb-dns-name|vm-public-ip)>/.test(url)) return null;
+      var real = sub(url);
+      return [{ text: real, href: /</.test(real) ? null : real, ph: "url" }, tail];
+    } });
+    rules.push({ re: /<(alb-dns-name|vm-public-ip|env-id|cluster-id|env|stack name|stack)>/g, fn: function (m) { return [{ text: values[m[1]], ph: m[1] }]; } });
+    if (s.stack !== "hybrid") {
+      rules.push({ re: /stack:hybrid\b/g, fn: function () { return ["stack:", { text: s.stack, ph: "stack" }]; } });
+    }
+    if (s.env !== "dd-demo-hybrid") {
+      rules.push({ re: /dd-demo-hybrid/g, fn: function () { return [{ text: s.env, ph: "env" }]; } });
+    }
+    return rules;
+  }
+  function splitBy(segs, rule) {
+    var out = [];
+    segs.forEach(function (seg) {
+      if (typeof seg !== "string") { out.push(seg); return; }
+      var last = 0, m;
+      rule.re.lastIndex = 0;
+      while ((m = rule.re.exec(seg))) {
+        var rep = rule.fn(m);
+        if (!rep) continue;
+        if (m.index > last) out.push(seg.slice(last, m.index));
+        rep.forEach(function (r) { if (r !== "") out.push(r); });
+        last = m.index + m[0].length;
+      }
+      if (last < seg.length) out.push(seg.slice(last));
+    });
+    return out;
+  }
+  function nodeFor(seg, inCmd) {
+    var el;
+    if (seg.href && !inCmd) {
+      el = document.createElement("a");
+      el.href = seg.href;
+      el.target = "_blank";
+      el.rel = "noopener";
+    } else {
+      el = document.createElement("span");
+    }
+    el.className = "stk";
+    el.setAttribute("data-ph", seg.ph);
+    el.textContent = seg.text;
+    return el;
+  }
+  var PH_TEST = /<(?:alb-dns-name|vm-public-ip|env-id|cluster-id|env|stack name|stack|id)>|dd-demo-hybrid|stack:hybrid/;
+  function replaceInDoc(s) {
+    var rules = stackRules(s);
+    var walker = document.createTreeWalker(document.querySelector(".doc"), NodeFilter.SHOW_TEXT, {
+      acceptNode: function (n) {
+        if (!PH_TEST.test(n.nodeValue)) return NodeFilter.FILTER_REJECT;
+        var p = n.parentElement;
+        if (!p || p.closest(".connect-box, .path-chooser, script, style, textarea, h1, h2, h3, h4, .header-anchor, .stk")) return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      } });
+    var nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach(function (n) {
+      var segs = [n.nodeValue];
+      rules.forEach(function (r) { segs = splitBy(segs, r); });
+      if (segs.length === 1 && typeof segs[0] === "string") return;
+      var inCmd = !!n.parentElement.closest(".code-cmd");
+      var frag = document.createDocumentFragment(), made = [];
+      segs.forEach(function (seg) {
+        var x = typeof seg === "string" ? document.createTextNode(seg) : nodeFor(seg, inCmd);
+        frag.appendChild(x); made.push(x);
+      });
+      n.parentNode.insertBefore(frag, n);
+      n.parentNode.removeChild(n);
+      applied.push({ orig: n, nodes: made });
+    });
+  }
+  function restoreDoc() {
+    applied.forEach(function (a) {
+      a.nodes[0].parentNode.insertBefore(a.orig, a.nodes[0]);
+      a.nodes.forEach(function (x) { x.parentNode.removeChild(x); });
+    });
+    applied = [];
+  }
+
+  // ---- "open the X" links ----
+  function applyLinks(s) {
+    document.querySelectorAll("a[data-stack-link]").forEach(function (a) {
+      if (!a.hasAttribute("data-guide-href")) a.setAttribute("data-guide-href", a.getAttribute("href"));
+      var url = s && s.links[a.getAttribute("data-stack-link")];
+      a.classList.add("stk-link");
+      if (url) {
+        a.href = url; a.target = "_blank"; a.rel = "noopener";
+        a.classList.add("stk-on");
+        a.title = "Opens your stack's page in a new tab";
+      } else {
+        a.href = "#connect-box"; a.removeAttribute("target"); a.removeAttribute("rel");
+        a.classList.remove("stk-on");
+        a.title = s ? "This page is not in your pasted JSON. Open the Connect box." : "Connect your stack to open this directly";
+      }
+    });
+  }
+
+  function setStatus(msg, bad) {
+    var el = box.querySelector(".connect-status");
+    el.textContent = msg;
+    el.classList.toggle("connect-bad", !!bad);
+  }
+  function showConnected(s) {
+    stackNow = s;
+    restoreDoc();
+    if (s) replaceInDoc(s);
+    applyLinks(s);
+    box.querySelector(".connect-forget").hidden = !s;
+    badge.hidden = !s;
+    if (s) {
+      badge.querySelector(".stack-badge-name").textContent = ": stack " + s.stack;
+      box.classList.add("connected");
+    } else {
+      box.classList.remove("connected");
+    }
+  }
+  if (box) {
+    var input = document.getElementById("connect-json");
+    var saved = null;
+    try {
+      var rawSaved = localStorage.getItem(STACK_KEY);
+      if (rawSaved) saved = parseStack(rawSaved);
+    } catch (e) {
+      console.warn("workshop: the saved stack was ignored:", e);
+      try { localStorage.removeItem(STACK_KEY); } catch (e2) { /* storage unavailable: nothing to remove */ }
+    }
+    showConnected(saved);
+    if (saved) setStatus("Connected: stack " + saved.stack + ", environment " + saved.env + ". Placeholders and links now use your values.");
+    box.querySelector(".connect-go").addEventListener("click", function () {
+      var s;
+      try { s = parseStack(input.value); }
+      catch (e) { setStatus(e.message, true); return; }
+      var remembered = true;
+      try { localStorage.setItem(STACK_KEY, JSON.stringify(s)); }
+      catch (e) {
+        remembered = false;
+        console.warn("workshop: localStorage unavailable, the stack is not remembered:", e);
+      }
+      showConnected(s);
+      input.value = "";
+      setStatus("Connected: stack " + s.stack + ", environment " + s.env + ". Placeholders and links now use your values." +
+        (remembered ? "" : " This browser blocks storage, so the stack is forgotten when you reload."));
+      live.textContent = "Stack " + s.stack + " connected";
+    });
+    box.querySelector(".connect-forget").addEventListener("click", function () {
+      try { localStorage.removeItem(STACK_KEY); }
+      catch (e) { console.warn("workshop: localStorage unavailable:", e); }
+      showConnected(null);
+      setStatus("Your stack is forgotten. The guide shows the placeholders again.");
+      live.textContent = "Stack forgotten";
+    });
   }
 
   // ---------- image zoom ----------

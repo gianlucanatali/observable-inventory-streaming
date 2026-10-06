@@ -3,6 +3,8 @@
 # Env (set by the Makefile): DC (docker compose command line), STACK, TOPOLOGY. Hybrid stacks only: the key goes to
 # ElastiCache through a short-lived scenario container on the VM (same path as layer.sh's demo:layers).
 # Only non-sensitive URLs: Terraform outputs and the links that `make links` prints.
+# Also writes `demo:stack` (ids of the stack) so the panel's "Copy for the workshop guide" button can build the guide JSON.
+# `--print` writes nothing: it prints that guide JSON to stdout (make links-json; read-only, needs no DC).
 set -euo pipefail
 
 readonly HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -10,7 +12,13 @@ readonly OVERLAY="$(cd "$HERE/../.." && pwd)"
 readonly TF="$OVERLAY/terraform"
 
 die() { echo "publish-links: $*" >&2; exit 1; }
-: "${DC:?publish-links: DC must be set; run via 'make links-publish'}"
+mode=publish
+case "${1:-}" in
+  "") ;;
+  --print) mode=print ;;
+  *) die "unknown argument '$1' (only --print is accepted)" ;;
+esac
+if [ "$mode" = publish ]; then : "${DC:?publish-links: DC must be set; run via 'make links-publish'}"; fi
 : "${STACK:?publish-links: STACK must be set}"
 [ "${TOPOLOGY:-hybrid}" = hybrid ] || die "only the hybrid stack has a control panel on AWS (TOPOLOGY=${TOPOLOGY})"
 region="${AWS_REGION:-eu-west-1}"
@@ -24,6 +32,7 @@ out() { # out <dir> <output>
 alb="$(out aws alb_url)"
 env_id="$(out cloud environment_id)"
 cluster_id="$(out cloud kafka_cluster_id)"
+vm_ip="$(out vm public_ip)"
 dd_links="$(STACK="$STACK" TOPOLOGY="$TOPOLOGY" "$HERE/links.sh")" || die "links.sh failed"
 
 json="$(ALB="$alb" ENV_ID="$env_id" CLUSTER_ID="$cluster_id" REGION="$region" STACK="$STACK" DD_LINKS="$dd_links" python3 - <<'PY'
@@ -57,9 +66,30 @@ print(json.dumps([dict(zip(("id", "group", "name", "desc", "url"), l)) for l in 
 PY
 )" || die "could not build the link list"
 
+stack_json="$(ALB="$alb" VM_IP="$vm_ip" ENV_ID="$env_id" CLUSTER_ID="$cluster_id" STACK="$STACK" python3 -c '
+import json, os
+print(json.dumps({"version": 1, "stack": os.environ["STACK"], "env": "dd-demo-" + os.environ["STACK"], "alb": os.environ["ALB"].rstrip("/"),
+                  "vm_public_ip": os.environ["VM_IP"], "confluent_env": os.environ["ENV_ID"], "kafka_cluster": os.environ["CLUSTER_ID"]}))
+')" || die "could not build demo:stack"
+
+if [ "$mode" = print ]; then
+  STACK_JSON="$stack_json" LINKS_JSON="$json" python3 -c '
+import json, os
+stack, links = json.loads(os.environ["STACK_JSON"]), json.loads(os.environ["LINKS_JSON"])
+ordered = {"control": stack["alb"] + "/control/"}
+ordered.update((l["id"], l["url"]) for l in links)
+print(json.dumps({**stack, "links": ordered}, indent=2))
+' || die "could not assemble the guide JSON"
+  exit 0
+fi
+
 # shellcheck disable=SC2086
 res="$($DC --profile tools run --rm -T --entrypoint python scenario -c \
   'import os,sys; from redis import Redis; print("OK" if Redis.from_url(os.environ["REDIS_URL"]).set("demo:links", sys.argv[1]) else "FAIL")' "$json")" \
   || die "could not write demo:links to ElastiCache"
 [ "$(printf '%s' "$res" | tail -n1)" = OK ] || die "redis SET demo:links answered '$res', expected OK"
+res="$($DC --profile tools run --rm -T --entrypoint python scenario -c \
+  'import os,sys; from redis import Redis; print("OK" if Redis.from_url(os.environ["REDIS_URL"]).set("demo:stack", sys.argv[1]) else "FAIL")' "$stack_json")" \
+  || die "could not write demo:stack to ElastiCache"
+[ "$(printf '%s' "$res" | tail -n1)" = OK ] || die "redis SET demo:stack answered '$res', expected OK"
 echo "   demo:links = $(printf '%s' "$json" | python3 -c 'import json,sys; print(len(json.load(sys.stdin)), "links")')"
