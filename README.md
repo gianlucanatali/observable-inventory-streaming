@@ -20,7 +20,7 @@ What is in this repository:
 - Datadog APM, logs, Data Streams Monitoring, freshness probes, LLM Observability, Synthetics, RUM, dashboards and monitors. All of it is defined as code.
 - Docker Compose, Terraform and Make targets in this directory.
 
-Never commit keys. Put provider credentials in `demo.yaml` in the repository root. Git ignores that file. See [Where each secret goes](workshop/README.md#52-where-each-secret-goes).
+Never commit keys. Put provider credentials in `demo.yaml` in the repository root. Git ignores that file. See [Where each secret goes](workshop/README.md#i2-where-each-secret-goes).
 
 For local development with no cloud cost, see [LOCAL.md](LOCAL.md) and [RUNBOOK.md](RUNBOOK.md).
 

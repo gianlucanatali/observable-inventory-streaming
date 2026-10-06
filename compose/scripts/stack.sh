@@ -365,7 +365,11 @@ write_env_file() { # <repo>/.env.cloud-<stack> = cloud + vm env_file (+ datadog 
   mv "$tmp" "$ENV_CLOUD" || die "could not write $ENV_CLOUD"
   chmod 600 "$ENV_CLOUD" || die "could not chmod $ENV_CLOUD"
   echo "   wrote $ENV_CLOUD (mode 600, values not shown)"
-  if hybrid_enabled && tf_has_state aws; then write_hybrid_endpoints; fi
+  if hybrid_enabled && tf_has_state aws; then
+    # A failed first apply leaves resources in state but no outputs; stack-up writes the endpoints after terraform aws.
+    if aws_out alb_url >/dev/null 2>&1; then write_hybrid_endpoints
+    else echo "   terraform/aws has no outputs yet (earlier apply did not finish): hybrid endpoints written after terraform aws"; fi
+  fi
 }
 write_hybrid_endpoints() {
   local tmp="$ENV_CLOUD.tmp" alb redis cluster rule target_groups tg100 tg110 tg120

@@ -68,17 +68,11 @@
 <li class="toc-h3"><a href="#41-configure-demoyaml">4.1 Configure demo.yaml</a></li>
 <li class="toc-h3"><a href="#42-run-the-preflight-no-cloud-costs-yet">4.2 Run the preflight (no cloud costs yet)</a></li>
 <li class="toc-h3"><a href="#43-create-the-stack">4.3 Create the stack</a></li>
-<li class="toc-h3"><a href="#44-read-back-the-stack">4.4 Read back the stack</a></li>
-<li class="toc-h3"><a href="#45-reset-verify-and-warm-up">4.5 Reset, verify and warm up</a></li>
+<li class="toc-h3"><a href="#44-open-the-shop-the-control-panel-and-datadog">4.4 Open the shop, the control panel and Datadog</a></li>
+<li class="toc-h3"><a href="#45-start-from-a-clean-state">4.5 Start from a clean state</a></li>
 <li class="toc-h3"><a href="#46-checkpoint">4.6 Checkpoint</a></li>
 </ol></li>
-<li class="toc-h2"><a href="#5-what-demo-does-step-by-step">5. What ./demo does, step by step</a>
-<ol class="toc-sub">
-<li class="toc-h3"><a href="#51-the-commands-underneath">5.1 The commands underneath</a></li>
-<li class="toc-h3"><a href="#52-where-each-secret-goes">5.2 Where each secret goes</a></li>
-<li class="toc-h3"><a href="#53-the-build-stages">5.3 The build stages</a></li>
-</ol></li>
-<li class="toc-h2"><a href="#6-labs">6. Labs</a>
+<li class="toc-h2"><a href="#5-labs">5. Labs</a>
 <ol class="toc-sub">
 <li class="toc-h3"><a href="#lab-1-one-product-five-stores-one-online-number">Lab 1: One product, five stores, one online number</a></li>
 <li class="toc-h3"><a href="#lab-1b-optional-look-inside-confluent">Lab 1b (optional): Look inside Confluent</a></li>
@@ -89,11 +83,11 @@
 <li class="toc-h3"><a href="#lab-6-offers-with-a-safe-default">Lab 6: Offers with a safe default</a></li>
 <li class="toc-h3"><a href="#lab-7-datadog-on-top-of-the-solution">Lab 7: Datadog on top of the solution</a></li>
 </ol></li>
-<li class="toc-h2"><a href="#7-troubleshooting">7. Troubleshooting</a>
+<li class="toc-h2"><a href="#6-troubleshooting">6. Troubleshooting</a>
 </li>
-<li class="toc-h2"><a href="#8-teardown">8. Teardown</a>
+<li class="toc-h2"><a href="#7-teardown">7. Teardown</a>
 </li>
-<li class="toc-h2"><a href="#9-recap-and-further-reading">9. Recap and further reading</a>
+<li class="toc-h2"><a href="#8-recap-and-further-reading">8. Recap and further reading</a>
 </li>
 <li class="toc-h2"><a href="#reference">Reference</a>
 <ol class="toc-sub">
@@ -104,6 +98,8 @@
 <li class="toc-h3"><a href="#e-command-reference">E. Command reference</a></li>
 <li class="toc-h3"><a href="#f-remove-the-account-wide-pieces">F. Remove the account-wide pieces</a></li>
 <li class="toc-h3"><a href="#g-other-datadog-sites">G. Other Datadog sites</a></li>
+<li class="toc-h3"><a href="#h-the-control-panel-button-by-button">H. The control panel, button by button</a></li>
+<li class="toc-h3"><a href="#i-what-demo-does-step-by-step">I. What ./demo does, step by step</a></li>
 </ol></li>
 </ol>
   </nav>
@@ -157,12 +153,11 @@
 <li><a href="#2-the-architecture-at-a-glance">The architecture at a glance</a></li>
 <li><a href="#3-prerequisites">Prerequisites</a>, including <a href="#34-get-the-code">Get the code</a></li>
 <li><a href="#4-build-the-stack">Build the stack</a></li>
-<li><a href="#5-what-demo-does-step-by-step">What <code>./demo</code> does, step by step</a></li>
-<li><a href="#6-labs">Labs</a>: <a href="#lab-1-one-product-five-stores-one-online-number">1</a>, <a href="#lab-1b-optional-look-inside-confluent">1b</a>, <a href="#lab-2-unknown-is-not-zero">2</a>, <a href="#lab-3-the-incident">3</a>, <a href="#lab-4-canary-the-fix">4</a>, <a href="#lab-5-restock-that-learns">5</a>, <a href="#lab-6-offers-with-a-safe-default">6</a>, <a href="#lab-7-datadog-on-top-of-the-solution">7</a></li>
-<li><a href="#7-troubleshooting">Troubleshooting</a></li>
-<li><a href="#8-teardown">Teardown</a></li>
-<li><a href="#9-recap-and-further-reading">Recap and further reading</a></li>
-<li><a href="#reference">Reference</a>: glossary, components, Datadog signals, cost, commands</li>
+<li><a href="#5-labs">Labs</a>: <a href="#lab-1-one-product-five-stores-one-online-number">1</a>, <a href="#lab-1b-optional-look-inside-confluent">1b</a>, <a href="#lab-2-unknown-is-not-zero">2</a>, <a href="#lab-3-the-incident">3</a>, <a href="#lab-4-canary-the-fix">4</a>, <a href="#lab-5-restock-that-learns">5</a>, <a href="#lab-6-offers-with-a-safe-default">6</a>, <a href="#lab-7-datadog-on-top-of-the-solution">7</a></li>
+<li><a href="#6-troubleshooting">Troubleshooting</a></li>
+<li><a href="#7-teardown">Teardown</a></li>
+<li><a href="#8-recap-and-further-reading">Recap and further reading</a></li>
+<li><a href="#reference">Reference</a>: glossary, components, Datadog signals, cost, commands, <a href="#h-the-control-panel-button-by-button">the control panel button by button</a>, <a href="#i-what-demo-does-step-by-step">what <code>./demo</code> does</a></li>
 </ol>
 <p><strong>Conventions.</strong> Once you have the code (<a href="#34-get-the-code">3.4</a>), run every command from the root of the repository. Values you must replace look like <code>&lt;this&gt;</code>. Output blocks show what you should see. In an output, <code>&lt;...&gt;</code> is a value that is different on your run, and <code>...</code> marks lines that were left out.</p>
 <p>To try the core path on your own machine without any cloud cost, see <a href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/LOCAL.md" rel="noopener" target="_blank">Run locally</a>.</p>
@@ -205,15 +200,15 @@
 </tr>
 <tr>
 <td><code>./demo status</code>, <code>./demo links</code></td>
-<td>Print the addresses of the Online shop, the control panel and the Datadog pages (<a href="#44-read-back-the-stack">4.4</a>)</td>
+<td>Print the addresses of the Online shop, the control panel and the Datadog pages (<a href="#44-open-the-shop-the-control-panel-and-datadog">4.4</a>)</td>
 </tr>
 <tr>
 <td><code>grep '^CONTROL_PASSWORD=' .env.secrets | cut -d= -f2-</code></td>
-<td>Print the control panel password (<a href="#open-the-control-panel">Open the control panel</a>)</td>
+<td>Print the control panel password (<a href="#2-open-the-control-panel">Open the control panel</a>)</td>
 </tr>
 <tr>
 <td><code>./demo destroy</code></td>
-<td>Delete the stack at the end, then check that nothing is left (<a href="#8-teardown">Teardown</a>)</td>
+<td>Delete the stack at the end, then check that nothing is left (<a href="#7-teardown">Teardown</a>)</td>
 </tr>
 </tbody>
 </table></div>
@@ -226,7 +221,7 @@
 <div class="code code-out" data-lang="json"><div class="code-bar"><span class="code-label">JSON</span></div><pre tabindex="0"><code><span class="p">{</span><span class="w"> </span><span class="nt">"store_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"S03"</span><span class="p">,</span><span class="w"> </span><span class="nt">"product_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"P0042"</span><span class="p">,</span><span class="w"> </span><span class="nt">"quantity"</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="nt">"revision"</span><span class="p">:</span><span class="w"> </span><span class="mi">1187</span><span class="p">,</span><span class="w"> </span><span class="nt">"changed_at"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2026-10-04T18:21:57Z"</span><span class="w"> </span><span class="p">}</span>
 </code></pre></div>
 <p>The field names are simplified here. The real records are Avro, wrapped in a Debezium envelope.</p>
-<p>A <code>product_id</code> such as <code>P0042</code> is a <em>SKU</em>: one model in one colour and one size. Every part of the path tracks stock per SKU: the stores, the change events, Kafka, Flink, Redis and the stock API. Only the Online shop groups SKUs into models for display (see <a href="#44-read-back-the-stack">4.4</a>).</p>
+<p>A <code>product_id</code> such as <code>P0042</code> is a <em>SKU</em>: one model in one colour and one size. Every part of the path tracks stock per SKU: the stores, the change events, Kafka, Flink, Redis and the stock API. Only the Online shop groups SKUs into models for display (see <a href="#44-open-the-shop-the-control-panel-and-datadog">4.4</a>).</p>
 <p><em>Change data capture</em> (CDC) turns committed database changes into these events. Here Debezium does it: it reads PostgreSQL's <abbr title="The journal PostgreSQL already writes for crash recovery. Reading it adds no queries to the store database.">write-ahead log</abbr>, so the store applications do not change and the store databases get no extra queries. Apache Kafka keeps the events as an ordered log on disk, and each reader reads it at its own pace.</p>
 <figure class="diagram"><svg aria-roledescription="flowchart-v2" role="graphics-document document" viewBox="0 0 953.640625 667.0631713867188" style="max-width: 953.640625px;" class="flowchart" xmlns="http://www.w3.org/2000/svg" width="100%" id="mmd-575d540cdcb97864"><style>#mmd-575d540cdcb97864{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;fill:#1d1a24;}#mmd-575d540cdcb97864 .error-icon{fill:#FAF8FD;}#mmd-575d540cdcb97864 .error-text{fill:#050702;stroke:#050702;}#mmd-575d540cdcb97864 .edge-thickness-normal{stroke-width:1px;}#mmd-575d540cdcb97864 .edge-thickness-thick{stroke-width:3.5px;}#mmd-575d540cdcb97864 .edge-pattern-solid{stroke-dasharray:0;}#mmd-575d540cdcb97864 .edge-thickness-invisible{stroke-width:0;fill:none;}#mmd-575d540cdcb97864 .edge-pattern-dashed{stroke-dasharray:3;}#mmd-575d540cdcb97864 .edge-pattern-dotted{stroke-dasharray:2;}#mmd-575d540cdcb97864 .marker{fill:#7B4FB8;stroke:#7B4FB8;}#mmd-575d540cdcb97864 .marker.cross{stroke:#7B4FB8;}#mmd-575d540cdcb97864 svg{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;}#mmd-575d540cdcb97864 p{margin:0;}#mmd-575d540cdcb97864 .label{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1d1a24;}#mmd-575d540cdcb97864 .cluster-label text{fill:#050702;}#mmd-575d540cdcb97864 .cluster-label span{color:#050702;}#mmd-575d540cdcb97864 .cluster-label span p{background-color:transparent;}#mmd-575d540cdcb97864 .label text,#mmd-575d540cdcb97864 span{fill:#1d1a24;color:#1d1a24;}#mmd-575d540cdcb97864 .node rect,#mmd-575d540cdcb97864 .node circle,#mmd-575d540cdcb97864 .node ellipse,#mmd-575d540cdcb97864 .node polygon,#mmd-575d540cdcb97864 .node path{fill:#F3EDFB;stroke:#632CA6;stroke-width:1px;}#mmd-575d540cdcb97864 .rough-node .label text,#mmd-575d540cdcb97864 .node .label text,#mmd-575d540cdcb97864 .image-shape .label,#mmd-575d540cdcb97864 .icon-shape .label{text-anchor:middle;}#mmd-575d540cdcb97864 .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#mmd-575d540cdcb97864 .rough-node .label,#mmd-575d540cdcb97864 .node .label,#mmd-575d540cdcb97864 .image-shape .label,#mmd-575d540cdcb97864 .icon-shape .label{text-align:center;}#mmd-575d540cdcb97864 .node.clickable{cursor:pointer;}#mmd-575d540cdcb97864 .root .anchor path{fill:#7B4FB8!important;stroke-width:0;stroke:#7B4FB8;}#mmd-575d540cdcb97864 .arrowheadPath{fill:#0b0b0b;}#mmd-575d540cdcb97864 .edgePath .path{stroke:#7B4FB8;stroke-width:2.0px;}#mmd-575d540cdcb97864 .flowchart-link{stroke:#7B4FB8;fill:none;}#mmd-575d540cdcb97864 .edgeLabel{background-color:#FFFFFF;text-align:center;}#mmd-575d540cdcb97864 .edgeLabel p{background-color:#FFFFFF;}#mmd-575d540cdcb97864 .edgeLabel rect{opacity:0.5;background-color:#FFFFFF;fill:#FFFFFF;}#mmd-575d540cdcb97864 .labelBkg{background-color:rgba(255, 255, 255, 0.5);}#mmd-575d540cdcb97864 .cluster rect{fill:#FAF8FD;stroke:#C9B6E4;stroke-width:1px;}#mmd-575d540cdcb97864 .cluster text{fill:#050702;}#mmd-575d540cdcb97864 .cluster span{color:#050702;}#mmd-575d540cdcb97864 div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;background:#FAF8FD;border:1px solid hsl(264, 15.5555555556%, 88.2352941176%);border-radius:2px;pointer-events:none;z-index:100;}#mmd-575d540cdcb97864 .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#1d1a24;}#mmd-575d540cdcb97864 rect.text{fill:none;stroke-width:0;}#mmd-575d540cdcb97864 .icon-shape,#mmd-575d540cdcb97864 .image-shape{background-color:#FFFFFF;text-align:center;}#mmd-575d540cdcb97864 .icon-shape p,#mmd-575d540cdcb97864 .image-shape p{background-color:#FFFFFF;padding:2px;}#mmd-575d540cdcb97864 .icon-shape rect,#mmd-575d540cdcb97864 .image-shape rect{opacity:0.5;background-color:#FFFFFF;fill:#FFFFFF;}#mmd-575d540cdcb97864 :root{--mermaid-font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;}</style><g><marker orient="auto" markerHeight="8" markerWidth="8" markerUnits="userSpaceOnUse" refY="5" refX="5" viewBox="0 0 10 10" class="marker flowchart-v2" id="mmd-575d540cdcb97864_flowchart-v2-pointEnd"><path style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 0 0 L 10 5 L 0 10 z"></path></marker><marker orient="auto" markerHeight="8" markerWidth="8" markerUnits="userSpaceOnUse" refY="5" refX="4.5" viewBox="0 0 10 10" class="marker flowchart-v2" id="mmd-575d540cdcb97864_flowchart-v2-pointStart"><path style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 0 5 L 10 10 L 10 0 z"></path></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5" refX="11" viewBox="0 0 10 10" class="marker flowchart-v2" id="mmd-575d540cdcb97864_flowchart-v2-circleEnd"><circle style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" r="5" cy="5" cx="5"></circle></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5" refX="-1" viewBox="0 0 10 10" class="marker flowchart-v2" id="mmd-575d540cdcb97864_flowchart-v2-circleStart"><circle style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" r="5" cy="5" cx="5"></circle></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5.2" refX="12" viewBox="0 0 11 11" class="marker cross flowchart-v2" id="mmd-575d540cdcb97864_flowchart-v2-crossEnd"><path style="stroke-width: 2; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9"></path></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5.2" refX="-1" viewBox="0 0 11 11" class="marker cross flowchart-v2" id="mmd-575d540cdcb97864_flowchart-v2-crossStart"><path style="stroke-width: 2; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path style="" class="edge-thickness-invisible edge-pattern-solid" id="L_BEFORE_AFTER_12" d="M488.781,333.532L492.615,333.532C496.448,333.532,504.115,333.532,511.781,333.532C519.448,333.532,527.115,333.532,530.948,333.532L534.781,333.532"></path></g><g class="edgeLabels"><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignObject height="0" width="0"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"></span></div></foreignObject></g></g></g><g class="nodes"><g transform="translate(526.78125, 0)" class="root"><g class="clusters"><g data-look="classic" id="AFTER" class="cluster"><rect height="651.0631713867188" width="410.859375" y="8" x="8" style=""></rect><g transform="translate(196.546875, 8)" class="cluster-label"><foreignObject height="22.5" width="33.765625"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>After</p></span></div></foreignObject></g></g></g><g class="edgePaths"><path marker-end="url(#mmd-575d540cdcb97864_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_a1_k_5" d="M57.086,102.961L57.086,110.992C57.086,119.024,57.086,135.088,70.67,150.671C84.253,166.253,111.42,181.356,125.004,188.907L138.588,196.458"></path><path marker-end="url(#mmd-575d540cdcb97864_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_a2_k_6" d="M135.258,102.593L135.258,110.686C135.258,118.779,135.258,134.965,141.935,150.439C148.613,165.913,161.968,180.674,168.646,188.054L175.323,195.435"></path><path marker-end="url(#mmd-575d540cdcb97864_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_a3_k_7" d="M213.43,104.401L213.43,112.193C213.43,119.985,213.43,135.568,213.506,150.568C213.582,165.568,213.735,179.985,213.811,187.193L213.887,194.401"></path><path marker-end="url(#mmd-575d540cdcb97864_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_a4_k_8" d="M291.602,102.043L291.602,110.228C291.602,118.413,291.602,134.782,285.085,150.342C278.568,165.902,265.535,180.653,259.018,188.028L252.501,195.404"></path><path marker-end="url(#mmd-575d540cdcb97864_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_a5_k_9" d="M369.773,103.621L369.773,111.543C369.773,119.465,369.773,135.308,356.355,150.778C342.936,166.248,316.099,181.344,302.68,188.892L289.262,196.44"></path><path marker-end="url(#mmd-575d540cdcb97864_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_k_view_10" d="M213.93,277.901L213.846,285.61C213.763,293.318,213.596,308.735,213.513,323.568C213.43,338.401,213.43,352.651,213.43,359.776L213.43,366.901"></path><path marker-end="url(#mmd-575d540cdcb97864_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_view_web2_11" d="M213.43,461.063L213.43,470.73C213.43,480.397,213.43,499.73,213.43,518.397C213.43,537.063,213.43,555.063,213.43,564.063L213.43,573.063"></path></g><g class="edgeLabels"><g transform="translate(57.0859375, 151.1512680053711)" class="edgeLabel"><g transform="translate(-29.0859375, -11.25)" class="label"><foreignObject height="22.5" width="58.171875"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"><p>changes</p></span></div></foreignObject></g></g><g transform="translate(135.2578125, 151.1512680053711)" class="edgeLabel"><g transform="translate(-29.0859375, -11.25)" class="label"><foreignObject height="22.5" width="58.171875"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"><p>changes</p></span></div></foreignObject></g></g><g transform="translate(213.4296875, 151.1512680053711)" class="edgeLabel"><g transform="translate(-29.0859375, -11.25)" class="label"><foreignObject height="22.5" width="58.171875"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"><p>changes</p></span></div></foreignObject></g></g><g transform="translate(291.6015625, 151.1512680053711)" class="edgeLabel"><g transform="translate(-29.0859375, -11.25)" class="label"><foreignObject height="22.5" width="58.171875"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"><p>changes</p></span></div></foreignObject></g></g><g transform="translate(369.7734375, 151.1512680053711)" class="edgeLabel"><g transform="translate(-29.0859375, -11.25)" class="label"><foreignObject height="22.5" width="58.171875"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"><p>changes</p></span></div></foreignObject></g></g><g transform="translate(213.4296875, 324.1512680053711)" class="edgeLabel"><g transform="translate(-63.9296875, -11.25)" class="label"><foreignObject height="22.5" width="127.859375"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"><p>applied by revision</p></span></div></foreignObject></g></g><g transform="translate(213.4296875, 519.0631713867188)" class="edgeLabel"><g transform="translate(-81.0546875, -22.5)" class="label"><foreignObject height="45" width="162.109375"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"><p>reads only the view,<br>no queries to the stores</p></span></div></foreignObject></g></g></g><g class="nodes"><g transform="translate(57.0859375, 73.95063400268555)" id="flowchart-a1-11" class="node default"><path transform="translate(-28.5546875, -29.009974259974257)" style="" class="basic label-container" d="M0,7.83998283998284 a28.5546875,7.83998283998284 0,0,0 57.109375,0 a28.5546875,7.83998283998284 0,0,0 -57.109375,0 l0,42.33998283998284 a28.5546875,7.83998283998284 0,0,0 57.109375,0 l0,-42.33998283998284"></path><g transform="translate(-22.5546875, -3.25)" style="" class="label"><rect></rect><foreignObject height="22.5" width="45.109375"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Milano</p></span></div></foreignObject></g></g><g transform="translate(213.4296875, 237.6512680053711)" id="flowchart-k-21" class="node default"><polygon transform="translate(-90.828125,39.75)" class="label-container" points="0,0 181.65625,0 181.65625,-79.5 0,-79.5 0,0 -8,0 189.65625,0 189.65625,-79.5 -8,-79.5 -8,0"></polygon><g transform="translate(-84.828125, -33.75)" style="" class="label"><rect></rect><foreignObject height="67.5" width="169.65625"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Kafka topic<br>in Confluent Cloud<br>(ordered log of changes)</p></span></div></foreignObject></g></g><g transform="translate(135.2578125, 73.95063400268555)" id="flowchart-a2-12" class="node default"><path transform="translate(-27.2734375, -28.64261160908537)" style="" class="basic label-container" d="M0,7.595074406056915 a27.2734375,7.595074406056915 0,0,0 54.546875,0 a27.2734375,7.595074406056915 0,0,0 -54.546875,0 l0,42.095074406056916 a27.2734375,7.595074406056915 0,0,0 54.546875,0 l0,-42.095074406056916"></path><g transform="translate(-21.2734375, -3.25)" style="" class="label"><rect></rect><foreignObject height="22.5" width="42.546875"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Torino</p></span></div></foreignObject></g></g><g transform="translate(213.4296875, 73.95063400268555)" id="flowchart-a3-13" class="node default"><path transform="translate(-33.953125, -30.450631783573627)" style="" class="basic label-container" d="M0,8.800421189049084 a33.953125,8.800421189049084 0,0,0 67.90625,0 a33.953125,8.800421189049084 0,0,0 -67.90625,0 l0,43.30042118904908 a33.953125,8.800421189049084 0,0,0 67.90625,0 l0,-43.30042118904908"></path><g transform="translate(-27.953125, -3.25)" style="" class="label"><rect></rect><foreignObject height="22.5" width="55.90625"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Bologna</p></span></div></foreignObject></g></g><g transform="translate(291.6015625, 73.95063400268555)" id="flowchart-a4-14" class="node default"><path transform="translate(-25.421875, -28.09281144481962)" style="" class="basic label-container" d="M0,7.228540963213081 a25.421875,7.228540963213081 0,0,0 50.84375,0 a25.421875,7.228540963213081 0,0,0 -50.84375,0 l0,41.72854096321308 a25.421875,7.228540963213081 0,0,0 50.84375,0 l0,-41.72854096321308"></path><g transform="translate(-19.421875, -3.25)" style="" class="label"><rect></rect><foreignObject height="22.5" width="38.84375"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Roma</p></span></div></foreignObject></g></g><g transform="translate(369.7734375, 73.95063400268555)" id="flowchart-a5-15" class="node default"><path transform="translate(-30.953125, -29.670581842501253)" style="" class="basic label-container" d="M0,8.280387895000835 a30.953125,8.280387895000835 0,0,0 61.90625,0 a30.953125,8.280387895000835 0,0,0 -61.90625,0 l0,42.780387895000835 a30.953125,8.280387895000835 0,0,0 61.90625,0 l0,-42.780387895000835"></path><g transform="translate(-24.953125, -3.25)" style="" class="label"><rect></rect><foreignObject height="22.5" width="49.90625"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Firenze</p></span></div></foreignObject></g></g><g transform="translate(213.4296875, 415.9822196960449)" id="flowchart-view-23" class="node default"><path transform="translate(-49.5390625, -45.08095669758036)" style="" class="basic label-container" d="M0,11.053971131720242 a49.5390625,11.053971131720242 0,0,0 99.078125,0 a49.5390625,11.053971131720242 0,0,0 -99.078125,0 l0,68.05397113172025 a49.5390625,11.053971131720242 0,0,0 99.078125,0 l0,-68.05397113172025"></path><g transform="translate(-43.5390625, -14.5)" style="" class="label"><rect></rect><foreignObject height="45" width="87.078125"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Serving view<br>in Redis</p></span></div></foreignObject></g></g><g transform="translate(213.4296875, 600.3131713867188)" id="flowchart-web2-25" class="node default"><rect height="46.5" width="129.484375" y="-23.25" x="-64.7421875" style="" class="basic label-container"></rect><g transform="translate(-40.7421875, -11.25)" style="" class="label"><rect></rect><foreignObject height="22.5" width="81.484375"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Online shop</p></span></div></foreignObject></g></g></g></g><g transform="translate(0, 0.830963134765625)" class="root"><g class="clusters"><g data-look="classic" id="BEFORE" class="cluster"><rect height="649.4012680053711" width="480.78125" y="8" x="8" style=""></rect><g transform="translate(225.8671875, 8)" class="cluster-label"><foreignObject height="22.5" width="45.046875"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Before</p></span></div></foreignObject></g></g></g><g class="edgePaths"><path marker-end="url(#mmd-575d540cdcb97864_flowchart-v2-pointEnd)" marker-start="url(#mmd-575d540cdcb97864_flowchart-v2-pointStart)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_b1_web1_0" d="M64.078,106.961L64.078,112.451C64.078,117.941,64.078,128.921,64.078,140.328C64.078,151.735,64.078,163.568,64.078,175.401C64.078,187.235,64.078,199.068,64.078,210.901C64.078,222.735,64.078,234.568,64.078,246.401C64.078,258.235,64.078,270.068,64.078,283.776C64.078,297.485,64.078,313.068,64.078,328.651C64.078,344.235,64.078,359.818,64.078,373.526C64.078,387.235,64.078,399.068,64.078,410.901C64.078,422.735,64.078,434.568,64.078,446.401C64.078,458.235,64.078,470.068,64.078,481.901C64.078,493.735,64.078,505.568,79.034,517.165C93.989,528.761,123.9,540.121,138.856,545.801L153.811,551.481"></path><path marker-end="url(#mmd-575d540cdcb97864_flowchart-v2-pointEnd)" marker-start="url(#mmd-575d540cdcb97864_flowchart-v2-pointStart)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_b2_web1_1" d="M156.234,106.593L156.234,112.145C156.234,117.696,156.234,128.799,156.234,140.267C156.234,151.735,156.234,163.568,156.234,175.401C156.234,187.235,156.234,199.068,156.234,210.901C156.234,222.735,156.234,234.568,156.234,246.401C156.234,258.235,156.234,270.068,156.234,283.776C156.234,297.485,156.234,313.068,156.234,328.651C156.234,344.235,156.234,359.818,156.234,373.526C156.234,387.235,156.234,399.068,156.234,410.901C156.234,422.735,156.234,434.568,156.234,446.401C156.234,458.235,156.234,470.068,156.234,481.901C156.234,493.735,156.234,505.568,163.493,516.998C170.751,528.428,185.268,539.455,192.527,544.968L199.785,550.482"></path><path marker-end="url(#mmd-575d540cdcb97864_flowchart-v2-pointEnd)" marker-start="url(#mmd-575d540cdcb97864_flowchart-v2-pointStart)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_b3_web1_2" d="M248.391,108.401L248.391,113.651C248.391,118.901,248.391,129.401,248.391,140.568C248.391,151.735,248.391,163.568,248.391,175.401C248.391,187.235,248.391,199.068,248.391,210.901C248.391,222.735,248.391,234.568,248.391,246.401C248.391,258.235,248.391,270.068,248.391,283.776C248.391,297.485,248.391,313.068,248.391,328.651C248.391,344.235,248.391,359.818,248.391,373.526C248.391,387.235,248.391,399.068,248.391,410.901C248.391,422.735,248.391,434.568,248.391,446.401C248.391,458.235,248.391,470.068,248.391,481.901C248.391,493.735,248.391,505.568,248.391,516.735C248.391,527.901,248.391,538.401,248.391,543.651L248.391,548.901"></path><path marker-end="url(#mmd-575d540cdcb97864_flowchart-v2-pointEnd)" marker-start="url(#mmd-575d540cdcb97864_flowchart-v2-pointStart)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_b4_web1_3" d="M340.547,106.043L340.547,111.686C340.547,117.329,340.547,128.615,340.547,140.175C340.547,151.735,340.547,163.568,340.547,175.401C340.547,187.235,340.547,199.068,340.547,210.901C340.547,222.735,340.547,234.568,340.547,246.401C340.547,258.235,340.547,270.068,340.547,283.776C340.547,297.485,340.547,313.068,340.547,328.651C340.547,344.235,340.547,359.818,340.547,373.526C340.547,387.235,340.547,399.068,340.547,410.901C340.547,422.735,340.547,434.568,340.547,446.401C340.547,458.235,340.547,470.068,340.547,481.901C340.547,493.735,340.547,505.568,333.288,516.998C326.03,528.428,311.513,539.455,304.254,544.968L296.996,550.482"></path><path marker-end="url(#mmd-575d540cdcb97864_flowchart-v2-pointEnd)" marker-start="url(#mmd-575d540cdcb97864_flowchart-v2-pointStart)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_b5_web1_4" d="M432.703,107.621L432.703,113.001C432.703,118.381,432.703,129.141,432.703,140.438C432.703,151.735,432.703,163.568,432.703,175.401C432.703,187.235,432.703,199.068,432.703,210.901C432.703,222.735,432.703,234.568,432.703,246.401C432.703,258.235,432.703,270.068,432.703,283.776C432.703,297.485,432.703,313.068,432.703,328.651C432.703,344.235,432.703,359.818,432.703,373.526C432.703,387.235,432.703,399.068,432.703,410.901C432.703,422.735,432.703,434.568,432.703,446.401C432.703,458.235,432.703,470.068,432.703,481.901C432.703,493.735,432.703,505.568,417.748,517.165C402.792,528.761,372.881,540.121,357.925,545.801L342.97,551.481"></path></g><g class="edgeLabels"><g transform="translate(64.078125, 328.6512680053711)" class="edgeLabel"><g transform="translate(-36.078125, -11.25)" class="label"><foreignObject height="22.5" width="72.15625"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"><p>SQL query</p></span></div></foreignObject></g></g><g transform="translate(156.234375, 328.6512680053711)" class="edgeLabel"><g transform="translate(-36.078125, -11.25)" class="label"><foreignObject height="22.5" width="72.15625"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"><p>SQL query</p></span></div></foreignObject></g></g><g transform="translate(248.390625, 328.6512680053711)" class="edgeLabel"><g transform="translate(-36.078125, -11.25)" class="label"><foreignObject height="22.5" width="72.15625"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"><p>SQL query</p></span></div></foreignObject></g></g><g transform="translate(340.546875, 328.6512680053711)" class="edgeLabel"><g transform="translate(-36.078125, -11.25)" class="label"><foreignObject height="22.5" width="72.15625"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"><p>SQL query</p></span></div></foreignObject></g></g><g transform="translate(432.703125, 328.6512680053711)" class="edgeLabel"><g transform="translate(-36.078125, -11.25)" class="label"><foreignObject height="22.5" width="72.15625"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"><p>SQL query</p></span></div></foreignObject></g></g></g><g class="nodes"><g transform="translate(64.078125, 73.95063400268555)" id="flowchart-b1-0" class="node default"><path transform="translate(-28.5546875, -29.009974259974257)" style="" class="basic label-container" d="M0,7.83998283998284 a28.5546875,7.83998283998284 0,0,0 57.109375,0 a28.5546875,7.83998283998284 0,0,0 -57.109375,0 l0,42.33998283998284 a28.5546875,7.83998283998284 0,0,0 57.109375,0 l0,-42.33998283998284"></path><g transform="translate(-22.5546875, -3.25)" style="" class="label"><rect></rect><foreignObject height="22.5" width="45.109375"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Milano</p></span></div></foreignObject></g></g><g transform="translate(248.390625, 587.4012680053711)" id="flowchart-web1-10" class="node default"><rect height="69" width="190.828125" y="-34.5" x="-95.4140625" style="" class="basic label-container"></rect><g transform="translate(-71.4140625, -22.5)" style="" class="label"><rect></rect><foreignObject height="45" width="142.828125"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Online shop<br>(on every page view)</p></span></div></foreignObject></g></g><g transform="translate(156.234375, 73.95063400268555)" id="flowchart-b2-1" class="node default"><path transform="translate(-27.2734375, -28.64261160908537)" style="" class="basic label-container" d="M0,7.595074406056915 a27.2734375,7.595074406056915 0,0,0 54.546875,0 a27.2734375,7.595074406056915 0,0,0 -54.546875,0 l0,42.095074406056916 a27.2734375,7.595074406056915 0,0,0 54.546875,0 l0,-42.095074406056916"></path><g transform="translate(-21.2734375, -3.25)" style="" class="label"><rect></rect><foreignObject height="22.5" width="42.546875"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Torino</p></span></div></foreignObject></g></g><g transform="translate(248.390625, 73.95063400268555)" id="flowchart-b3-2" class="node default"><path transform="translate(-33.953125, -30.450631783573627)" style="" class="basic label-container" d="M0,8.800421189049084 a33.953125,8.800421189049084 0,0,0 67.90625,0 a33.953125,8.800421189049084 0,0,0 -67.90625,0 l0,43.30042118904908 a33.953125,8.800421189049084 0,0,0 67.90625,0 l0,-43.30042118904908"></path><g transform="translate(-27.953125, -3.25)" style="" class="label"><rect></rect><foreignObject height="22.5" width="55.90625"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Bologna</p></span></div></foreignObject></g></g><g transform="translate(340.546875, 73.95063400268555)" id="flowchart-b4-3" class="node default"><path transform="translate(-25.421875, -28.09281144481962)" style="" class="basic label-container" d="M0,7.228540963213081 a25.421875,7.228540963213081 0,0,0 50.84375,0 a25.421875,7.228540963213081 0,0,0 -50.84375,0 l0,41.72854096321308 a25.421875,7.228540963213081 0,0,0 50.84375,0 l0,-41.72854096321308"></path><g transform="translate(-19.421875, -3.25)" style="" class="label"><rect></rect><foreignObject height="22.5" width="38.84375"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Roma</p></span></div></foreignObject></g></g><g transform="translate(432.703125, 73.95063400268555)" id="flowchart-b5-4" class="node default"><path transform="translate(-30.953125, -29.670581842501253)" style="" class="basic label-container" d="M0,8.280387895000835 a30.953125,8.280387895000835 0,0,0 61.90625,0 a30.953125,8.280387895000835 0,0,0 -61.90625,0 l0,42.780387895000835 a30.953125,8.280387895000835 0,0,0 61.90625,0 l0,-42.780387895000835"></path><g transform="translate(-24.953125, -3.25)" style="" class="label"><rect></rect><foreignObject height="22.5" width="49.90625"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Firenze</p></span></div></foreignObject></g></g></g></g></g></g></g></svg></figure>
 <p>The Online shop reads a <em>serving view</em>: a copy of the stock positions in Redis that the change stream keeps up to date and can rebuild at any time. Two rules keep the view from showing a wrong number, and you will see both in the labs:</p>
@@ -415,7 +410,7 @@
 <p>From here on, run every command from the root of this folder (<code>observable-inventory-streaming</code>, or your fork's folder).</p>
 <hr />
 <h2 id="4-build-the-stack">4. Build the stack <a class="header-anchor" href="#4-build-the-stack">#</a></h2>
-<p>You build everything with one configuration file and one command. This section shows the steps. <a href="#5-what-demo-does-step-by-step">Section 5</a> explains what happens underneath.</p>
+<p>You build everything with one configuration file and one command. This section shows the steps. <a href="#i-what-demo-does-step-by-step">Reference I</a> explains what happens underneath; you do not need it to follow the labs.</p>
 <h3 id="41-configure-demoyaml">4.1 Configure <code>demo.yaml</code> <a class="header-anchor" href="#41-configure-demoyaml">#</a></h3>
 <p><code>demo.yaml</code> keeps all your settings and credentials in one file. Git ignores it, and <code>./demo</code> refuses to run if anyone other than you can read it. From the repository root (<a href="#34-get-the-code">3.4</a>):</p>
 <div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>cp<span class="w"> </span>demo.example.yaml<span class="w"> </span>demo.yaml
@@ -490,7 +485,7 @@ chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>d
 <tr>
 <td>AWS</td>
 <td>Tags on every resource: <code>project = dd-demo</code>, <code>stack = &lt;name&gt;</code> (<code>stack = account</code> for the account-wide pieces) and <code>owner = &lt;your local user name&gt;</code>. The VM's resources also carry <code>layer = core</code></td>
-<td>Resource Groups &gt; Tag Editor with tag <code>project</code> = <code>dd-demo</code>, or <code>aws resourcegroupstaggingapi get-resources --tag-filters Key=project,Values=dd-demo --profile dd-demo --region eu-west-1</code>. This list lags behind deletions (see <a href="#8-teardown">Teardown</a>)</td>
+<td>Resource Groups &gt; Tag Editor with tag <code>project</code> = <code>dd-demo</code>, or <code>aws resourcegroupstaggingapi get-resources --tag-filters Key=project,Values=dd-demo --profile dd-demo --region eu-west-1</code>. This list lags behind deletions (see <a href="#7-teardown">Teardown</a>)</td>
 </tr>
 <tr>
 <td>Datadog</td>
@@ -532,7 +527,7 @@ chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>d
 </details>
 <details><summary>Where do I get <code>allowed_cidr</code>?</summary>
 <p><code>allowed_cidr</code> is an address range in CIDR notation, where <code>/32</code> means exactly one address. It is the only source address that the security groups (AWS firewall rules) of the load balancer and the VM let through.</p>
-<p>If you leave it commented out (or empty), <code>./demo create</code> looks up your public IPv4 address once at <code>https://checkip.amazonaws.com</code> (5 second timeout) and uses it as a <code>/32</code>, before it writes or bills anything. If the lookup fails, it stops and creates nothing, and you set <code>allowed_cidr</code> yourself. <code>--dry-run</code> skips the lookup. The detected address is not saved to <code>demo.yaml</code>, so if your IP changes, set <code>allowed_cidr</code> or run <code>./demo create</code> again. If you run <code>make stack-preflight</code> or <code>make stack-up</code> directly with an empty CIDR, they stop with a clear message. See also <a href="#7-troubleshooting">Troubleshooting</a>.</p>
+<p>If you leave it commented out (or empty), <code>./demo create</code> looks up your public IPv4 address once at <code>https://checkip.amazonaws.com</code> (5 second timeout) and uses it as a <code>/32</code>, before it writes or bills anything. If the lookup fails, it stops and creates nothing, and you set <code>allowed_cidr</code> yourself. <code>--dry-run</code> skips the lookup. The detected address is not saved to <code>demo.yaml</code>, so if your IP changes, set <code>allowed_cidr</code> or run <code>./demo create</code> again. If you run <code>make stack-preflight</code> or <code>make stack-up</code> directly with an empty CIDR, they stop with a clear message. See also <a href="#6-troubleshooting">Troubleshooting</a>.</p>
 <p>To find your public IP yourself, open <a href="https://checkip.amazonaws.com" rel="noopener" target="_blank">https://checkip.amazonaws.com</a> in the browser you will use for the labs, or run <code>curl https://checkip.amazonaws.com</code>. Add <code>/32</code> to the address it shows, for example <code>203.0.113.7/32</code>.</p>
 </details>
 <details><summary>Where do I get <code>datadog_site</code>?</summary>
@@ -593,7 +588,7 @@ This creates billed AWS and Confluent Cloud resources: about $1.50 to $2.50 per 
 <p><em>What just happened:</em> <code>./demo</code> checked <code>demo.yaml</code>, wrote <code>.env</code> from it (mode 600, ignored by git), generated random local passwords in <code>.env.secrets</code>, and ran the preflight. Add <code>--dry-run</code> to print the commands without running them.</p>
 <h3 id="43-create-the-stack">4.3 Create the stack <a class="header-anchor" href="#43-create-the-stack">#</a></h3>
 <aside class="admonition admonition-warning" role="note"><p class="admonition-title"><span class="admonition-icon" aria-hidden="true"></span>Warning</p>
-<p>As soon as you type <code>yes</code>, AWS and Confluent Cloud start billing you, about $1.50 to $2.50 per hour (<a href="#d-cost-details">details</a>). Confluent Cloud bills a partial hour as a full hour. Set an AWS budget alert, plan to finish in one session, and run the <a href="#8-teardown">teardown</a> at the end.</p>
+<p>As soon as you type <code>yes</code>, AWS and Confluent Cloud start billing you, about $1.50 to $2.50 per hour (<a href="#d-cost-details">details</a>). Confluent Cloud bills a partial hour as a full hour. Set an AWS budget alert, plan to finish in one session, and run the <a href="#7-teardown">teardown</a> at the end.</p>
 </aside>
 <p>Run <code>./demo create</code> again and type <code>yes</code> at the question. Then, to follow the full log, open a second terminal in the repository root and run:</p>
 <div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>tail<span class="w"> </span>-F<span class="w"> </span>.state/logs/hybrid-latest.log
@@ -626,36 +621,19 @@ stack hybrid, core always on; optional layers:
 == log finished: &lt;repo&gt;/.state/logs/hybrid-up-&lt;timestamp&gt;.log (exit 0)
 </code></pre></div>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Stack-up success"><img src="img/build-01-stack-up-success.png" alt="Stack-up success" width="2600" height="1622" loading="lazy" decoding="async"></button><figcaption>Stack-up success</figcaption></figure>
-<p>If a stage fails, the script stops with <code>stack.sh: step '&lt;stage&gt;' FAILED (command: ...)</code>. Read the lines above it, check <a href="#7-troubleshooting">Troubleshooting</a>, and keep the log. If you run <code>./demo create</code> again, it updates the existing stack to match the configuration instead of starting from zero. We have not measured how long a rerun after a partial failure takes.</p>
-<h3 id="44-read-back-the-stack">4.4 Read back the stack <a class="header-anchor" href="#44-read-back-the-stack">#</a></h3>
+<p>If a stage fails, the script stops with <code>stack.sh: step '&lt;stage&gt;' FAILED (command: ...)</code>. Read the lines above it, check <a href="#6-troubleshooting">Troubleshooting</a>, and keep the log. If you run <code>./demo create</code> again, it updates the existing stack to match the configuration instead of starting from zero. We have not measured how long a rerun after a partial failure takes.</p>
+<h3 id="44-open-the-shop-the-control-panel-and-datadog">4.4 Open the shop, the control panel and Datadog <a class="header-anchor" href="#44-open-the-shop-the-control-panel-and-datadog">#</a></h3>
+<p>You use three windows in the labs: the Online shop, the control panel and the Datadog stock dashboard. Open them now and keep them open.</p>
+<h4 id="1-open-the-online-shop">1. Open the Online shop <a class="header-anchor" href="#1-open-the-online-shop">#</a></h4>
+<p>Print the stack's addresses:</p>
 <div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>./demo<span class="w"> </span>status
-./demo<span class="w"> </span>links
-make<span class="w"> </span>control
 </code></pre></div>
-<p><code>status</code> prints the summary above again. <code>links</code> prints the Datadog links for this stack:</p>
-<div class="code code-out" data-lang="text"><div class="code-bar"><span class="code-label">Expected output</span></div><pre tabindex="0"><code>stock dashboard: https://app.datadoghq.eu/dashboard/&lt;id&gt;/...
-online dashboard: https://app.datadoghq.eu/dashboard/&lt;id&gt;/...
-account-cost dashboard: https://app.datadoghq.eu/dashboard/&lt;id&gt;/...
-APM inventory-api 1.1.0: https://app.datadoghq.eu/apm/services/inventory-api?env=dd-demo-hybrid&amp;version=1.1.0
-APM latency comparison: https://app.datadoghq.eu/apm/services/inventory-api?env=dd-demo-hybrid&amp;compare_to=previous
-DSM map: https://app.datadoghq.eu/data-streams?env=dd-demo-hybrid
-control-center: http://&lt;vm-public-ip&gt;:9021
-</code></pre></div>
-<p><code>control</code> prints the control panel URL; see <a href="#open-the-control-panel">Open the control panel</a> below.</p>
-<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Stack-status and links output"><img src="img/build-02-status-and-links.png" alt="Stack-status and links output" width="2600" height="1573" loading="lazy" decoding="async"></button><figcaption>Stack-status and links output</figcaption></figure>
-<p>To see what the build created in AWS, open the AWS console in <code>eu-west-1</code> (Ireland). The ECS cluster lists the running services, including the three <code>inventory-api</code> releases side by side. On the load balancer, the listener rule for <code>/api/availability/*</code> sends traffic to three <abbr title="The set of containers that receives one release's share of the traffic.">target groups</abbr>, one per release, and the weight on each group sets its share. ElastiCache runs the Redis serving view.</p>
-<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: ECS cluster services list"><img src="img/build-07-aws-ecs-services.png" alt="ECS cluster services list" width="2880" height="2000" loading="lazy" decoding="async"></button><figcaption>ECS cluster services list</figcaption></figure>
-<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: ALB listener rule with the three weighted target groups"><img src="img/build-08-aws-alb-weights.png" alt="ALB listener rule with the three weighted target groups" width="4200" height="2000" loading="lazy" decoding="async"></button><figcaption>ALB listener rule with the three weighted target groups</figcaption></figure>
-<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: ElastiCache cluster overview"><img src="img/build-09-aws-elasticache.png" alt="ElastiCache cluster overview" width="2880" height="2000" loading="lazy" decoding="async"></button><figcaption>ElastiCache cluster overview</figcaption></figure>
-<p>Open the <code>shop:</code> URL in your browser. You should see the UrbanStreet Online shop: one card per model (the 200 SKUs are grouped into 21 models), with the price and a dot for each colour. Click a card to open the product page of one SKU (<a href="#2-open-the-product-page">Lab 1</a>). If the page does not load, your public IP has probably changed since the build; see <a href="#7-troubleshooting">Troubleshooting</a>. The product photos are AI-generated images of fictional, unbranded products (<a href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/storefront/assets-src/README.md" rel="noopener" target="_blank">how they are made</a>).</p>
-<h4 id="open-the-control-panel">Open the control panel <a class="header-anchor" href="#open-the-control-panel">#</a></h4>
-<p>On the control panel path you run the labs from this page. On the terminal path you open it only in Labs 5 and 6, to change settings that have no make command. To open it:</p>
+<p>It prints the summary from the end of the build again. Open the <code>shop:</code> URL in your browser. You should see the UrbanStreet Online shop: one card per model (the 200 SKUs are grouped into 21 models), with the price and a dot for each colour. You open the product page in <a href="#2-open-the-product-page">Lab 1</a>. If the page does not load, your public IP has probably changed since the build; see <a href="#6-troubleshooting">Troubleshooting</a>. The product photos are AI-generated images of fictional, unbranded products (<a href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/storefront/assets-src/README.md" rel="noopener" target="_blank">how they are made</a>).</p>
+<h4 id="2-open-the-control-panel">2. Open the control panel <a class="header-anchor" href="#2-open-the-control-panel">#</a></h4>
+<p>On the control panel path you run the labs from this page. On the terminal path you open it only in Labs 5 and 6, to change settings that have no make command.</p>
 <ol>
 <li>
-<p>Print its address:</p>
-<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>./demo<span class="w"> </span>status
-</code></pre></div>
-<p>Look for the <code>control:</code> line:</p>
+<p>In the <code>./demo status</code> output, find the <code>control:</code> line:</p>
 <div class="code code-out" data-lang="text"><div class="code-bar"><span class="code-label">Expected output</span></div><pre tabindex="0"><code>control:  http://&lt;alb-dns-name&gt;/control/   (user demo, CONTROL_PASSWORD in .env.secrets)
 </code></pre></div>
 </li>
@@ -666,410 +644,163 @@ control-center: http://&lt;vm-public-ip&gt;:9021
 <p>It is a secret: do not paste it into a chat, a screenshot or a recording.</p>
 </li>
 <li>
-<p>Open the URL in your browser and sign in with user <code>demo</code> and that password. If the page does not load, check that your IP still matches <code>allowed_cidr</code> (<a href="#7-troubleshooting">Troubleshooting</a>).</p>
+<p>Open the URL in your browser and sign in with user <code>demo</code> and that password. If the page does not load, check that your IP still matches <code>allowed_cidr</code> (<a href="#6-troubleshooting">Troubleshooting</a>).</p>
 </li>
 </ol>
-<h4 id="the-control-panel-and-its-cards">The control panel and its cards <a class="header-anchor" href="#the-control-panel-and-its-cards">#</a></h4>
-<p>Once you are signed in (<a href="#open-the-control-panel">Open the control panel</a>), you see five action cards at the top; below them are the demo's settings by layer, which Labs 5 and 6 use. Each button does the same job as a make command:</p>
+<div data-path="panel" markdown="1">
+<p><strong>With the control panel</strong></p>
+<p>The panel shows five cards at the top and the demo's settings below them. You do not need to learn them now: each lab tells you which button to press and what the card shows afterwards.</p>
 <div class="table-wrap" tabindex="0"><table>
 <thead>
 <tr>
 <th>Card</th>
-<th>Buttons</th>
-<th>Replaces</th>
+<th>You use it in</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><strong>Actions</strong> (Source data actions)</td>
-<td><strong>Sell out product</strong>, <strong>Reset demo data</strong></td>
-<td><code>sell-out</code>, the data part of <code>reset</code></td>
+<td><strong>Background sales</strong> (<strong>Full reset</strong>)</td>
+<td>Every lab, to start from a clean state</td>
 </tr>
 <tr>
-<td>Release routing</td>
-<td><strong>Canary 1.1.0 (10%)</strong>, <strong>Canary 1.2.0 (10%)</strong> / <strong>(50%)</strong> / <strong>(100%)</strong>, <strong>Incident</strong>, <strong>Baseline</strong>, <strong>Rollback</strong>, <strong>Refresh weights</strong></td>
-<td><code>canary-110-10</code>, <code>canary-*</code>, <code>incident</code>, <code>route-baseline</code>, <code>rollback</code>, <code>route-show</code></td>
+<td><strong>Actions</strong> (<strong>Sell out product</strong>)</td>
+<td>Labs 1, 5 and 6</td>
 </tr>
 <tr>
-<td>Store feed</td>
-<td><strong>Pause feed</strong>, <strong>Resume feed</strong>, <strong>Refresh state</strong></td>
-<td><code>store-pause</code>, <code>store-resume</code></td>
+<td><strong>Store feed</strong></td>
+<td>Labs 1 and 2</td>
 </tr>
 <tr>
-<td>Checks</td>
-<td><strong>Run load (120 s, 5 rps)</strong>, <strong>Verify</strong>, <strong>Check canary</strong>, <strong>Refresh</strong></td>
-<td><code>load</code>, <code>verify</code>, <code>canary-check</code></td>
+<td><strong>Release routing</strong></td>
+<td>Labs 3 and 4</td>
 </tr>
 <tr>
-<td>Background sales</td>
-<td><strong>Sales off</strong>, <strong>Sales on</strong>, <strong>Full reset</strong></td>
-<td><code>sales-off</code>, <code>sales-on</code>, <code>reset</code></td>
+<td><strong>Checks</strong> (<strong>Run load</strong>, <strong>Verify</strong>, <strong>Check canary</strong>)</td>
+<td>4.5, Labs 1 to 4</td>
 </tr>
 </tbody>
 </table></div>
-<div data-path="terminal" markdown="1">
-<p><strong>With the terminal</strong></p>
-<p>You run the lab steps with the make commands in the right column, so you can skip the rest of this section and go to <a href="#45-reset-verify-and-warm-up">4.5</a>. You still open the panel's settings in Labs 5 and 6.</p>
+<p><a href="#h-the-control-panel-button-by-button">Reference H</a> describes every button, for when you want the details.</p>
 </div>
-<div data-path="panel" markdown="1">
-<p><strong>With the control panel</strong></p>
-<p>The <strong>Actions</strong> card (Source data actions) runs two steps of the labs:</p>
-<div class="table-wrap" tabindex="0"><table>
-<thead>
-<tr>
-<th>Control</th>
-<th>What it does</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Product field (default <code>P0042</code>)</td>
-<td>The product to sell out, written as <code>P</code> and four digits</td>
-</tr>
-<tr>
-<td><strong>Sell out product</strong></td>
-<td>Like <code>sell-out</code>: sells all of the product's stock in each of the five stores, one store at a time, and waits <code>sell_out_gap_s</code> seconds (1.5 by default) between stores</td>
-</tr>
-<tr>
-<td><strong>Reset demo data</strong></td>
-<td>Like the data part of <code>reset</code>: writes the seeded stock back into the five Sources. Background sales must be off first, or it refuses to start (see below)</td>
-</tr>
-</tbody>
-</table></div>
-<p>Both buttons ask you to confirm, and only one action runs at a time. The card shows a progress line such as <code>running: Sold out S01 (1/5); source verified</code> and ends with <code>succeeded: Source and Redis verification completed</code>: before it reports success, the panel reads the Sources back and checks that Redis has the same values.</p>
-<p>The actions change only PostgreSQL; the change travels through Debezium and Confluent Cloud as in Lab 1. <strong>Reset demo data</strong> refuses to run while background sales are on: press <strong>Sales off</strong> first, or use <strong>Full reset</strong> on the <strong>Background sales</strong> card.</p>
+<h4 id="3-open-the-datadog-stock-dashboard">3. Open the Datadog stock dashboard <a class="header-anchor" href="#3-open-the-datadog-stock-dashboard">#</a></h4>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>./demo<span class="w"> </span>links
+</code></pre></div>
+<p>It prints the Datadog links for this stack:</p>
+<div class="code code-out" data-lang="text"><div class="code-bar"><span class="code-label">Expected output</span></div><pre tabindex="0"><code>stock dashboard: https://app.datadoghq.eu/dashboard/&lt;id&gt;/...
+online dashboard: https://app.datadoghq.eu/dashboard/&lt;id&gt;/...
+account-cost dashboard: https://app.datadoghq.eu/dashboard/&lt;id&gt;/...
+APM inventory-api 1.1.0: https://app.datadoghq.eu/apm/services/inventory-api?env=dd-demo-hybrid&amp;version=1.1.0
+APM latency comparison: https://app.datadoghq.eu/apm/services/inventory-api?env=dd-demo-hybrid&amp;compare_to=previous
+DSM map: https://app.datadoghq.eu/data-streams?env=dd-demo-hybrid
+control-center: http://&lt;vm-public-ip&gt;:9021
+</code></pre></div>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Stack-status and links output"><img src="img/build-02-status-and-links.png" alt="Stack-status and links output" width="2600" height="1573" loading="lazy" decoding="async"></button><figcaption>Stack-status and links output</figcaption></figure>
+<p>Open the <code>stock dashboard:</code> link, &quot;UrbanStreet stock service [dd-demo-hybrid]&quot;. Its charts fill up over the next minutes; you read them from Lab 1 on.</p>
 <details>
-<summary>Why Reset demo data refuses while sales are on</summary>
-<p>Background sales keep changing the stock, so a reset could never match the baseline. <strong>Reset demo data</strong> does not stop background sales, does not change the load balancer routing and does not cancel restock purchase orders. <strong>Full reset</strong> does all of that: it turns sales off, sets routing to 100 / 0 / 0, cancels open purchase orders and then resets the data. <code>make reset</code> does the same from the terminal.</p>
+<summary>Optional: see what the build created in AWS</summary>
+<p>Open the AWS console in <code>eu-west-1</code> (Ireland). The ECS cluster lists the running services, including the three <code>inventory-api</code> releases side by side. On the load balancer, the listener rule for <code>/api/availability/*</code> sends traffic to three <abbr title="The set of containers that receives one release's share of the traffic.">target groups</abbr>, one per release, and the weight on each group sets its share. ElastiCache runs the Redis serving view.</p>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: ECS cluster services list"><img src="img/build-07-aws-ecs-services.png" alt="ECS cluster services list" width="2880" height="2000" loading="lazy" decoding="async"></button><figcaption>ECS cluster services list</figcaption></figure>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: ALB listener rule with the three weighted target groups"><img src="img/build-08-aws-alb-weights.png" alt="ALB listener rule with the three weighted target groups" width="4200" height="2000" loading="lazy" decoding="async"></button><figcaption>ALB listener rule with the three weighted target groups</figcaption></figure>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: ElastiCache cluster overview"><img src="img/build-09-aws-elasticache.png" alt="ElastiCache cluster overview" width="2880" height="2000" loading="lazy" decoding="async"></button><figcaption>ElastiCache cluster overview</figcaption></figure>
 </details>
-<p>The <strong>Release routing</strong> card moves the inventory API traffic between the three releases, like the <code>canary-110-10</code>, <code>canary-*</code>, <code>incident</code>, <code>route-baseline</code> and <code>rollback</code> make commands:</p>
-<div class="table-wrap" tabindex="0"><table>
-<thead>
-<tr>
-<th>Button</th>
-<th>Weights 1.0.0 / 1.1.0 / 1.2.0 (%)</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>Canary 1.1.0 (10%)</strong></td>
-<td>90 / 10 / 0 (Lab 3)</td>
-</tr>
-<tr>
-<td><strong>Canary 1.2.0 (10%)</strong></td>
-<td>90 / 0 / 10 (Lab 4)</td>
-</tr>
-<tr>
-<td><strong>Canary 1.2.0 (50%)</strong></td>
-<td>50 / 0 / 50</td>
-</tr>
-<tr>
-<td><strong>Canary 1.2.0 (100%)</strong></td>
-<td>0 / 0 / 100</td>
-</tr>
-<tr>
-<td><strong>Baseline (all to 1.0.0)</strong></td>
-<td>100 / 0 / 0</td>
-</tr>
-<tr>
-<td><strong>Incident (all to 1.1.0)</strong></td>
-<td>0 / 100 / 0 (optional step at the end of Lab 3)</td>
-</tr>
-<tr>
-<td><strong>Rollback</strong></td>
-<td>The split that was in place before the last routing change</td>
-</tr>
-<tr>
-<td><strong>Refresh weights</strong></td>
-<td>Changes nothing. Reads the load balancer again</td>
-</tr>
-</tbody>
-</table></div>
-<p>Each change asks you to confirm. The weight tiles show the live weights of the load balancer rule, and the line under them shows the live split and the previous one, for example <code>Live 90/10/0 · previous (for Rollback): 100/0/0</code>. The card reports success only after it has read the rule back and found the weights you asked for. The panel changes the rule from AWS itself, so routing from the panel needs no AWS login on your computer.</p>
-<p>The <strong>Store feed</strong> card pauses or resumes the Debezium connector of one store, like <code>store-pause</code> and <code>store-resume</code>. Pick a store, <code>S01</code> to <code>S05</code>, and press <strong>Pause feed</strong> or <strong>Resume feed</strong>. After a pause or resume, the card waits up to 20 seconds for the connector to report <code>PAUSED</code> or <code>RUNNING</code>, and shows an error if it does not. <strong>Refresh state</strong> reads the connector and task states again. The panel reaches Kafka Connect over the VPC's private network; port 8083 is never open to the internet (see <a href="#b-components-and-data-flow">Reference B</a>).</p>
-<p>The <strong>Checks</strong> card runs three tools on the VM through the <code>scenario-api</code> service: the load generator, the comparison of the Sources with Redis, and the <abbr title="A pass or fail check of the canary's samples, errors, p95 latency and data correctness. You run it; it never runs by itself.">canary gate</abbr>. They work exactly like <code>load</code>, <code>verify</code> and <code>canary-check</code>, with the same files, output lines and results.</p>
-<div class="table-wrap" tabindex="0"><table>
-<thead>
-<tr>
-<th>Button</th>
-<th>What it does</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>Run load (120 s, 5 rps)</strong></td>
-<td>Sends steady load to the Online shop for 2 minutes. The card shows live progress lines, for example <code>Load 40/120 s, last window: 1.1.0 50 req p95 1450 ms; errors 0</code> with all traffic on 1.1.0 (your numbers will differ)</td>
-</tr>
-<tr>
-<td><strong>Verify</strong></td>
-<td>Compares the Source of every store with Redis and ends with <code>VERIFY PASSED</code> or <code>VERIFY FAILED</code></td>
-</tr>
-<tr>
-<td><strong>Check canary</strong></td>
-<td>Checks the last load and verify results against the gates and ends with <code>CANARY GATES PASSED</code> or <code>CANARY GATES FAILED</code> (with the failed gates and <code>roll back</code>). It prints one <code>PASS</code> or <code>FAIL</code> line per gate, the samples per release and the p95</td>
-</tr>
-<tr>
-<td><strong>Refresh</strong></td>
-<td>Changes nothing. Reads the live routing and the last run again</td>
-</tr>
-</tbody>
-</table></div>
-<p><strong>Check canary</strong> picks the gate from the live routing and shows it below the buttons. At 90 / 10 / 0 (Lab 3) it checks 1.1.0 against 1.0.0. At 90 / 0 / 10 and 50 / 0 / 50 (Lab 4) it checks 1.2.0 against 1.0.0. At 0 / 0 / 100 it checks 1.2.0 alone. At 100 / 0 / 0 there is nothing to check, so it refuses. It also refuses if the routing changed since the last load you ran in the panel, because that load measured a different split. <strong>Run load</strong> blocks the cards for about 2 minutes.</p>
-<details>
-<summary>How the panel's gate matches the make commands</summary>
-<p>The canary is the newer release that receives traffic, and the baseline is the older one. When the canary has less than 50% of the traffic, the gate lowers the minimum number of samples from 100 to 30. These are the same gates as the <code>canary-check CHECK_ARGS=...</code> commands in Labs 3 and 4.</p>
-</details>
-<p>The <strong>Background sales</strong> card controls the sales generator, so you do not need a terminal. The rate tile shows the sales per minute per store (24 by default), or <code>OFF</code> with <code>rate 0 · Sales on restores 24/min</code> when sales are off.</p>
-<div class="table-wrap" tabindex="0"><table>
-<thead>
-<tr>
-<th>Button</th>
-<th>What it does</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>Sales off</strong></td>
-<td>Sets the sales rate to 0 in every store, remembers the old rate and checks that sales stop</td>
-</tr>
-<tr>
-<td><strong>Sales on</strong></td>
-<td>Sets the remembered rate again, then waits for a real sale before it reports success</td>
-</tr>
-<tr>
-<td><strong>Full reset</strong></td>
-<td>Like <code>make ... reset</code>: <strong>Sales off</strong>, then <strong>Baseline</strong> (100 / 0 / 0), then <strong>Reset demo data</strong>. When the restock layer runs, it also cancels open purchase orders before the data reset and clears the restock ETA keys after it. Otherwise its progress line says it did not change them. It needs the hybrid stack, which has the load balancer routing</td>
-</tr>
-</tbody>
-</table></div>
-<p>The panel turns sales on and off by changing the rate, while the sales containers keep running.</p>
-<p>Every action also sends a Datadog event named <code>demo action: &lt;name&gt; started</code>, then <code>succeeded</code> or <code>failed</code> (see <a href="#5-monitors">Lab 7</a>).</p>
-<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Actions card with the product field P0042, the Sell out product and Reset demo data buttons, and the status line succeeded: Source and Redis verification completed"><img src="img/build-04-control-actions.png" alt="Actions card with the product field P0042, the Sell out product and Reset demo data buttons, and the status line succeeded: Source and Redis verification completed" width="2328" height="569" loading="lazy" decoding="async"></button><figcaption>Actions card with the product field P0042, the Sell out product and Reset demo data buttons, and the status line succeeded: Source and Redis verification completed</figcaption></figure>
-<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Release routing and Store feed cards"><img src="img/build-05-routing-store-feed.png" alt="Release routing and Store feed cards" width="2328" height="1801" loading="lazy" decoding="async"></button><figcaption>Release routing and Store feed cards</figcaption></figure>
-<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Checks and Background sales cards"><img src="img/build-06-checks-sales.png" alt="Checks and Background sales cards" width="2328" height="1938" loading="lazy" decoding="async"></button><figcaption>Checks and Background sales cards</figcaption></figure>
-</div>
-<details>
-<summary>Why one path?</summary>
-<p>The panel stores the demo settings (key <code>demo:config</code>) and its <strong>Rollback</strong> memory (key <code>demo:routing-state</code>) in Redis, in the same ElastiCache instance that holds the serving view, under separate keys. <code>make rollback</code> keeps its memory in a local file on your computer, <code>.state/routing-&lt;stack&gt;</code>. So a <strong>Rollback</strong> in one does not know about a change made in the other: it restores what was live before the last change made by <em>that same</em> path.</p>
-<p>Background sales differ too. The panel turns sales on and off by changing the rate; <code>make sales-on</code> and <code>make sales-off</code> start and stop the containers. After the panel's <strong>Sales off</strong>, <code>make sales-on</code> starts containers that sell nothing until you press <strong>Sales on</strong>.</p>
-</details>
-<h3 id="45-reset-verify-and-warm-up">4.5 Reset, verify and warm up <a class="header-anchor" href="#45-reset-verify-and-warm-up">#</a></h3>
-<p>Every lab starts from a known state. A reset stops background sales, sends all stock lookups to release 1.0.0 and writes the seeded stock back into the five Sources. A verify then compares every store with Redis.</p>
+<h3 id="45-start-from-a-clean-state">4.5 Start from a clean state <a class="header-anchor" href="#45-start-from-a-clean-state">#</a></h3>
+<p>When the build ends, background sales are running: every store sells a few products each minute, so the stock keeps changing. Every lab starts by stopping them and writing the seeded stock back, so that you know what the page should show. Do it once now, then check that Redis matches the stores.</p>
 <div data-path="panel" markdown="1">
 <p><strong>With the control panel</strong></p>
 <ol>
-<li>On the <strong>Background sales</strong> card, press <strong>Full reset</strong> and confirm. It runs <strong>Sales off</strong>, <strong>Baseline (all to 1.0.0)</strong> and <strong>Reset demo data</strong>, in that order. When it ends, the card reads <code>full-reset succeeded: Full reset done: background sales off (rate 0), routing 100/0/0 verified, demo data at the seeded baseline and Redis converged; ...</code>.</li>
+<li>On the <strong>Background sales</strong> card, press <strong>Full reset</strong> and confirm. It turns background sales off, sends all stock lookups to release 1.0.0 and writes the seeded stock back into the five stores. Wait until the card reads <code>full-reset succeeded: Full reset done: background sales off (rate 0), routing 100/0/0 verified, demo data at the seeded baseline and Redis converged; ...</code>.</li>
 <li>On the <strong>Checks</strong> card, press <strong>Verify</strong>. After a few seconds the result box shows <code>VERIFY PASSED</code>, and the status line reads <code>verify succeeded: Verify passed: 0 position mismatch(es), 0 sellable mismatch(es)</code>.</li>
-<li>Press <strong>Sales on</strong> on the <strong>Background sales</strong> card. The rate tile goes back to 24 and the card reads <code>sales-on succeeded: Background sales are on: 24/min per store; sale seen in ...</code>. Background sales never change product P0042, which the labs use.</li>
-<li>Look at the <strong>Release routing</strong> card. The tiles should read 100% for 1.0.0 and 0% for 1.1.0 and 1.2.0. Press <strong>Refresh weights</strong> to read the load balancer again.</li>
 </ol>
+<p>If you press <strong>Verify</strong> before <strong>Full reset</strong>, it can fail with a list such as <code>sellable P0011: sources sum 97, redis 96</code>. Nothing is broken: background sales were changing the stock while Verify compared it. Press <strong>Full reset</strong>, then <strong>Verify</strong> again.</p>
 </div>
 <div data-path="terminal" markdown="1">
 <p><strong>With the terminal</strong></p>
-<p>Three commands get you there:</p>
-<ul>
-<li><code>reset</code> stops background sales, sends all stock lookups to release 1.0.0 and writes the seeded stock back into the five Sources.</li>
-<li><code>verify</code> compares every store with Redis.</li>
-<li><code>smoke</code> checks the whole path the way a shopper uses it.</li>
-</ul>
 <div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>reset
 make<span class="w"> </span>verify
-make<span class="w"> </span>smoke
 </code></pre></div>
-<p><code>reset</code> first prints the AWS rule JSON that changes the routing, then the <code>alb-routing:</code> line. Among the output lines you should see:</p>
+<p><code>reset</code> turns background sales off, sends all stock lookups to release 1.0.0 and writes the seeded stock back into the five stores. It first prints the AWS rule JSON that changes the routing. Among the output lines you should see:</p>
 <div class="code code-out" data-lang="text"><div class="code-bar"><span class="code-label">Expected output</span></div><pre tabindex="0"><code>alb-routing: weights 1.0.0/1.1.0/1.2.0 = 100 0 0%
 reset ok: scenario &lt;id&gt;, &lt;n&gt; positions at baseline, sellable caught up, feed ok, &lt;n&gt; open purchase order(s) cancelled, &lt;n&gt; restock:eta key(s) cleared
 == background sales are OFF now: make sales-on to restart them
 {"ok": true, "mismatches": 0, "sellable_mismatches": 0}
-PASS  connect: connectors and tasks RUNNING  ...
-...
-smoke: 9 passed, 0 failed
 </code></pre></div>
-<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Reset, verify and smoke output"><img src="img/build-03-reset-verify-smoke.png" alt="Reset, verify and smoke output" width="2600" height="1034" loading="lazy" decoding="async"></button><figcaption>Reset, verify and smoke output</figcaption></figure>
-<p>Now turn background sales on again. They never change product P0042, which the labs use. Then check that your machine can read the live load balancer routing, which Labs 3 and 4 change:</p>
-<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>sales-on
-make<span class="w"> </span>route-check
-</code></pre></div>
-<p>The last line should read:</p>
-<div class="code code-out" data-lang="text"><div class="code-bar"><span class="code-label">Expected output</span></div><pre tabindex="0"><code>alb-routing: live weights 1.0.0/1.1.0/1.2.0 = 100 0 0%
-</code></pre></div>
-<p><em>What just happened:</em> the routing commands call the AWS API from your machine. <code>reset</code>, <code>verify</code> and <code>smoke</code> run as short-lived containers on the VM, next to the store databases.</p>
+<p>The last line is <code>verify</code>: every store matches Redis. If you run <code>verify</code> before <code>reset</code>, it can report mismatches, because background sales were changing the stock while it compared. Run <code>reset</code>, then <code>verify</code> again.</p>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Key lines of make reset and make verify"><img src="img/build-03-reset-verify-smoke.png" alt="Key lines of make reset and make verify" width="2600" height="593" loading="lazy" decoding="async"></button><figcaption>Key lines of make reset and make verify</figcaption></figure>
 </div>
-<p>Wait 10 to 15 minutes so that Datadog collects enough data before you rely on its charts.</p>
+<p>Background sales stay off until you turn them on; the labs do not need them. Datadog needs about 10 minutes of data before its charts are useful, and the freshness probe keeps sending data while sales are off. Start Lab 1 now: its first Datadog step comes after those minutes.</p>
 <h3 id="46-checkpoint">4.6 Checkpoint <a class="header-anchor" href="#46-checkpoint">#</a></h3>
 <ul class="contains-task-list">
 <li class="task-list-item enabled"><input class="task-list-item-checkbox"  type="checkbox"> The build ended with <code>smoke: 9 passed, 0 failed</code>.</li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"  type="checkbox"> The Online shop, the control panel and the Datadog stock dashboard are open.</li>
 </ul>
 <div data-path="panel" markdown="1">
 <p><strong>With the control panel</strong></p>
 <ul class="contains-task-list">
-<li class="task-list-item enabled"><input class="task-list-item-checkbox"  type="checkbox"> <strong>Verify</strong> showed <code>VERIFY PASSED</code>.</li>
-<li class="task-list-item enabled"><input class="task-list-item-checkbox"  type="checkbox"> The Online shop opens in your browser and the <strong>Release routing</strong> tiles read 100 / 0 / 0.</li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"  type="checkbox"> <strong>Full reset</strong> ended with <code>full-reset succeeded</code>, and <strong>Verify</strong> showed <code>VERIFY PASSED</code>.</li>
 </ul>
 </div>
 <div data-path="terminal" markdown="1">
 <p><strong>With the terminal</strong></p>
 <ul class="contains-task-list">
 <li class="task-list-item enabled"><input class="task-list-item-checkbox"  type="checkbox"> <code>verify</code> printed <code>&quot;mismatches&quot;: 0, &quot;sellable_mismatches&quot;: 0</code>.</li>
-<li class="task-list-item enabled"><input class="task-list-item-checkbox"  type="checkbox"> The Online shop opens in your browser and <code>route-check</code> reads <code>100 0 0</code>.</li>
 </ul>
 </div>
 <hr />
-<h2 id="5-what-demo-does-step-by-step">5. What <code>./demo</code> does, step by step <a class="header-anchor" href="#5-what-demo-does-step-by-step">#</a></h2>
-<p>You do not need to run anything in this section. Read it to understand the build or to debug a failed stage.</p>
-<h3 id="51-the-commands-underneath">5.1 The commands underneath <a class="header-anchor" href="#51-the-commands-underneath">#</a></h3>
-<p><code>./demo</code> is a small script that checks your input and then runs make targets. Each action maps to one of them:</p>
+<h2 id="5-labs">5. Labs <a class="header-anchor" href="#5-labs">#</a></h2>
+<p>The labs tell one story about UrbanStreet's Online shop. Do them in order: each lab uses what the one before showed you.</p>
 <div class="table-wrap" tabindex="0"><table>
 <thead>
 <tr>
-<th><code>./demo</code> action</th>
-<th>Runs</th>
+<th>Lab</th>
+<th>What happens to the shop</th>
+<th>What you show</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>create</code></td>
-<td><code>make secrets</code>, <code>make stack-preflight</code>, the cost question, then <code>make stack-up CONFIRM=yes</code></td>
+<td><a href="#lab-1-one-product-five-stores-one-online-number">1</a></td>
+<td>A product sells out in all five stores</td>
+<td>The online number follows within seconds, without querying any store</td>
 </tr>
 <tr>
-<td><code>status</code></td>
-<td><code>make stack-status</code></td>
+<td><a href="#lab-1b-optional-look-inside-confluent">1b</a> (optional)</td>
+<td>The same sale, seen from inside</td>
+<td>The change event in Confluent Cloud and Control Center</td>
 </tr>
 <tr>
-<td><code>links</code></td>
-<td><code>make links</code></td>
+<td><a href="#lab-2-unknown-is-not-zero">2</a></td>
+<td>One store stops reporting</td>
+<td>The shop shows &quot;at least&quot; instead of a wrong number, and Datadog names the store</td>
 </tr>
 <tr>
-<td><code>reset</code></td>
-<td><code>make reset</code></td>
+<td><a href="#lab-3-the-incident">3</a></td>
+<td>A new release is slow</td>
+<td>The canary check stops it at 10% of traffic; APM shows why</td>
 </tr>
 <tr>
-<td><code>destroy</code></td>
-<td>A confirmation question, then <code>make stack-down CONFIRM=yes</code></td>
+<td><a href="#lab-4-canary-the-fix">4</a></td>
+<td>The fix goes out</td>
+<td>The same check lets it through, step by step, with a way back</td>
+</tr>
+<tr>
+<td><a href="#lab-5-restock-that-learns">5</a> (optional layer)</td>
+<td>A product runs out</td>
+<td>The system orders more and the stock comes back</td>
+</tr>
+<tr>
+<td><a href="#lab-6-offers-with-a-safe-default">6</a> (optional layer)</td>
+<td>A shopper's product sells out in their cart</td>
+<td>An offer, chosen by AI only when it is confident enough</td>
+</tr>
+<tr>
+<td><a href="#lab-7-datadog-on-top-of-the-solution">7</a></td>
+<td>Nothing breaks</td>
+<td>Datadog's view of the whole platform: integrations, tests, monitors, cost</td>
 </tr>
 </tbody>
 </table></div>
-<p>Every call adds <code>MODE=cloud TOPOLOGY=hybrid STACK=&lt;stack&gt;</code> and the profile, region and layers from <code>demo.yaml</code>. <code>./demo create --dry-run</code> prints the exact commands, with secrets masked. When you run <code>make &lt;target&gt;</code> yourself, the Makefile reads the same values from <code>demo.yaml</code>, so you do not need to add them.</p>
-<h3 id="52-where-each-secret-goes">5.2 Where each secret goes <a class="header-anchor" href="#52-where-each-secret-goes">#</a></h3>
-<p>You enter credentials for three accounts (AWS, Confluent Cloud, Datadog) and, optionally, the Jev key. The build generates everything else. Your AWS credentials stay in your AWS CLI profile. The others go in <code>demo.yaml</code>.</p>
-<div class="table-wrap" tabindex="0"><table>
-<thead>
-<tr>
-<th>File or store</th>
-<th>Contents</th>
-<th>Created by</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>demo.yaml</code> (repository root, mode 600, ignored by git)</td>
-<td>Your Datadog, Confluent Cloud and optional Jev keys</td>
-<td>You</td>
-</tr>
-<tr>
-<td><code>.env</code> (repository root, mode 600, ignored by git)</td>
-<td>The same keys as environment variables</td>
-<td><code>./demo create</code>, from <code>demo.yaml</code></td>
-</tr>
-<tr>
-<td><code>.env.secrets</code> (mode 600)</td>
-<td>Random database and control panel passwords, and <code>SCENARIO_API_TOKEN</code>, the token the control panel uses for the Checks card</td>
-<td><code>make secrets</code></td>
-</tr>
-<tr>
-<td><code>.env.cloud-hybrid</code> (mode 600)</td>
-<td>Kafka and Schema Registry keys for each service, endpoints, ALB and Redis addresses</td>
-<td><code>stack-up</code>, from Terraform outputs</td>
-</tr>
-<tr>
-<td>AWS <abbr title="The AWS service that stores configuration values and secrets for the Fargate tasks.">SSM Parameter Store</abbr>, <code>/dd-demo/hybrid/</code></td>
-<td>The secrets that the Fargate tasks need, as encrypted SecureStrings, taken from an allowlist</td>
-<td><code>stack-up</code></td>
-</tr>
-</tbody>
-</table></div>
-<p><code>.gitignore</code> excludes all <code>.env*</code> files and <code>demo.yaml</code>, so <code>git add .</code> cannot add them.</p>
-<h3 id="53-the-build-stages">5.3 The build stages <a class="header-anchor" href="#53-the-build-stages">#</a></h3>
-<p><code>stack-up</code> runs these stages in order. The table groups them; the log prints one <code>== [stage]</code> line per step, for example <code>== [terraform vm (EC2 host)]</code>. Each <code>terraform</code> stage applies one of the five Terraform configurations.</p>
-<div class="table-wrap" tabindex="0"><table>
-<thead>
-<tr>
-<th>#</th>
-<th>Stages</th>
-<th>What they do</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>1</td>
-<td>preflight</td>
-<td>The checks from <a href="#42-run-the-preflight-no-cloud-costs-yet">4.2</a></td>
-</tr>
-<tr>
-<td>2</td>
-<td>terraform account</td>
-<td>Resources for the whole account, kept across stacks: Cost and Usage Report export, Datadog AWS integration, read-only Confluent identity for cost data, account cost dashboard</td>
-</tr>
-<tr>
-<td>3</td>
-<td>terraform cloud</td>
-<td>Confluent environment <code>dd-demo-hybrid</code>, Basic cluster, Schema Registry, topics, keys and Flink pool. The Flink statements wait until stage 9</td>
-</tr>
-<tr>
-<td>4</td>
-<td>terraform vm</td>
-<td>The EC2 VM, its security group (<code>allowed_cidr</code> only) and key pair</td>
-</tr>
-<tr>
-<td>5</td>
-<td>env file, docker context, secrets</td>
-<td>Writes <code>.env.cloud-hybrid</code>, waits for SSH, creates the <abbr title="Tells your local docker CLI to run commands on the VM over SSH.">Docker context</abbr> <code>dd-demo-hybrid</code>, generates <code>.env.secrets</code></td>
-</tr>
-<tr>
-<td>6</td>
-<td>terraform aws, SSM</td>
-<td><abbr title="The AWS registry that stores the container images.">ECR</abbr>, ElastiCache, ECS services, ALB and target groups. Copies the allowlisted secrets to SSM</td>
-</tr>
-<tr>
-<td>7</td>
-<td>build and push</td>
-<td>Builds every image on the ARM64 VM, pushes them to ECR, waits until every ECS service is stable</td>
-</tr>
-<tr>
-<td>8</td>
-<td>VM services</td>
-<td>Starts the on-premises services, seeds the five stores with data, registers the connectors and waits until they run</td>
-</tr>
-<tr>
-<td>9</td>
-<td>schema priming and Flink</td>
-<td>Writes a first record to each input topic, waits for its schema, then starts the Flink statements</td>
-</tr>
-<tr>
-<td>10</td>
-<td>first data</td>
-<td>Waits until Redis holds sellable stock for all 200 products, resets, verifies, turns sales on</td>
-</tr>
-<tr>
-<td>11</td>
-<td>terraform datadog</td>
-<td>Dashboards, monitors, Synthetics, RUM, Confluent integration. Deploys the Online shop again with the RUM settings</td>
-</tr>
-<tr>
-<td>12</td>
-<td>smoke</td>
-<td>The end-to-end smoke test, then the status summary</td>
-</tr>
-</tbody>
-</table></div>
-<details>
-<summary>Why the Flink statements wait until stage 9</summary>
-<p>Confluent Cloud Flink reads a table's columns from the topic's Schema Registry subject (<code>&lt;topic&gt;-value</code>), and that subject exists only after the first record arrives. A statement created earlier fails. So the script first writes a record to each input topic (&quot;priming&quot;), waits up to 300 s for the subjects, and only then creates the statements.</p>
-</details>
-<p>Every lifecycle command writes a log under <code>.state/logs/</code> (mode 600). Logs can contain operational details such as hostnames, so do not share them publicly.</p>
-<hr />
-<h2 id="6-labs">6. Labs <a class="header-anchor" href="#6-labs">#</a></h2>
-<p>Every lab expects the stack from <a href="#4-build-the-stack">Section 4</a> to be running and warmed up. On the terminal path, run the commands from the repository root: the make commands read your stack name from <code>demo.yaml</code>. The examples use the stack name <code>hybrid</code>; if you chose another one (<a href="#the-stack-name">4.1</a>), read <code>dd-demo-&lt;your name&gt;</code> for <code>dd-demo-hybrid</code> and <code>stack:&lt;your name&gt;</code> for <code>stack:hybrid</code>. Each lab first says what you will do and why, then shows the part of the architecture it uses. If something does not work, see <a href="#7-troubleshooting">Troubleshooting</a>.</p>
+<p>Every lab follows the same pattern: start from a clean state with <strong>Full reset</strong> (or <code>make reset</code>; Lab 4 continues from Lab 3 instead), do one thing to the shop, look at the result in the shop and in Datadog, then tick the checkpoint.</p>
+<p>Every lab expects the stack from <a href="#4-build-the-stack">Section 4</a> to be running and warmed up. On the terminal path, run the commands from the repository root: the make commands read your stack name from <code>demo.yaml</code>. The examples use the stack name <code>hybrid</code>; if you chose another one (<a href="#the-stack-name">4.1</a>), read <code>dd-demo-&lt;your name&gt;</code> for <code>dd-demo-hybrid</code> and <code>stack:&lt;your name&gt;</code> for <code>stack:hybrid</code>. Each lab first says what you will do and why, then shows the part of the architecture it uses. If something does not work, see <a href="#6-troubleshooting">Troubleshooting</a>.</p>
 <h3 id="lab-1-one-product-five-stores-one-online-number" class="lab">Lab 1: One product, five stores, one online number <a class="header-anchor" href="#lab-1-one-product-five-stores-one-online-number">#</a></h3>
 <p><em>About 15 minutes.</em> You sell out one <abbr title="One model in one colour and one size, such as P0042. Stock is tracked per SKU.">SKU</abbr> in all five stores and watch the Online shop count down to &quot;Out of stock online&quot; within seconds, although it never queries a store. Then you use Datadog to check that the feed is fresh: that changes reach the Online shop quickly.</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Core layer: Debezium on the VM writes change events into Kafka; Flink sums them; the projector and the Redis sink fill ElastiCache; the stock API reads only ElastiCache"><img src="img/arch-1-core.png" alt="Core layer: Debezium on the VM writes change events into Kafka; Flink sums them; the projector and the Redis sink fill ElastiCache; the stock API reads only ElastiCache" width="3820" height="1620" loading="lazy" decoding="async"></button>
@@ -1078,13 +809,13 @@ make<span class="w"> </span>route-check
 <p>You follow product P0042, the Alpenpace Trailrunner GTX in Forest green, size EU 42. Its seeded quantities in the five stores are 2, 1, 3, 1 and 2, so 9 in total.</p>
 <div data-path="panel" markdown="1">
 <p><strong>With the control panel</strong></p>
-<p>Press <strong>Full reset</strong> on the <strong>Background sales</strong> card of the control panel (<a href="#open-the-control-panel">how to open it</a>) and confirm. Wait until the card reads <code>full-reset succeeded</code>. Background sales are now off. Do not use <strong>Reset demo data</strong> here: it refuses while background sales are on, and you turned them on in <a href="#45-reset-verify-and-warm-up">4.5</a>.</p>
+<p>Press <strong>Full reset</strong> on the <strong>Background sales</strong> card of the control panel (<a href="#2-open-the-control-panel">how to open it</a>) and confirm. Wait until the card reads <code>full-reset succeeded</code>. Background sales are now off.</p>
 </div>
 <div data-path="terminal" markdown="1">
 <p><strong>With the terminal</strong></p>
 <div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>reset
 </code></pre></div>
-<p>You should see <code>reset ok: ...</code> as in <a href="#45-reset-verify-and-warm-up">4.5</a>. Background sales are now off.</p>
+<p>You should see <code>reset ok: ...</code> as in <a href="#45-start-from-a-clean-state">4.5</a>. Background sales are now off.</p>
 </div>
 <h4 id="2-open-the-product-page">2. Open the product page <a class="header-anchor" href="#2-open-the-product-page">#</a></h4>
 <p>Open <code>http://&lt;alb-dns-name&gt;/#/product/P0042</code>. You should see the brand Alpenpace, the name Trailrunner GTX, the price and &quot;Item P0042&quot;, then a description. Below that you see &quot;Colour: Forest green&quot; with one swatch per colour and &quot;Size: EU 42&quot; with one button per size. The page also shows &quot;9 available online&quot;, the quantity per store, and the footer &quot;Serving release 1.0.0&quot;. The page asks the availability API for the stock about once a second.</p>
@@ -1196,7 +927,7 @@ make<span class="w"> </span>route-check
 <h4 id="1-reset-and-open-the-page">1. Reset and open the page <a class="header-anchor" href="#1-reset-and-open-the-page">#</a></h4>
 <div data-path="panel" markdown="1">
 <p><strong>With the control panel</strong></p>
-<p>Press <strong>Full reset</strong> on the <strong>Background sales</strong> card of the control panel (<a href="#open-the-control-panel">how to open it</a>) and confirm. Wait until the card reads <code>full-reset succeeded</code>. Background sales are now off. Do not use <strong>Reset demo data</strong> here: it refuses while background sales are on, and you turned them on in <a href="#45-reset-verify-and-warm-up">4.5</a>.</p>
+<p>Press <strong>Full reset</strong> on the <strong>Background sales</strong> card of the control panel (<a href="#2-open-the-control-panel">how to open it</a>) and confirm. Wait until the card reads <code>full-reset succeeded</code>. Background sales are now off.</p>
 </div>
 <div data-path="terminal" markdown="1">
 <p><strong>With the terminal</strong></p>
@@ -1220,7 +951,7 @@ make<span class="w"> </span>route-check
 </div>
 <h4 id="3-watch-the-page">3. Watch the page <a class="header-anchor" href="#3-watch-the-page">#</a></h4>
 <p>Wait about 15 seconds (<code>stale_after_s</code> in the control panel). You should see &quot;At least 9 available online&quot;, a note that some stores are not reporting live, and Bologna marked &quot;(not live)&quot;.</p>
-<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Product page showing At least 9 available online with Bologna marked not live"><img src="img/lab2-01-at-least-nine.png" alt="Product page showing At least 9 available online with Bologna marked not live" width="1280" height="800" loading="lazy" decoding="async"></button><figcaption>Product page showing At least 9 available online with Bologna marked not live</figcaption></figure>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Product page showing At least 9 available online with Bologna marked not live"><img src="img/lab2-01-at-least-nine.png" alt="Product page showing At least 9 available online with Bologna marked not live" width="2880" height="2420" loading="lazy" decoding="async"></button><figcaption>Product page showing At least 9 available online with Bologna marked not live</figcaption></figure>
 <p><em>What just happened:</em> <code>watchdog</code> kept writing probe rows into store S03, but no change event left the store, so after 15 s it marked the S03 feed <code>stale</code>. The lookup service treats that store's stock as unknown, so the total becomes a minimum (&quot;at least&quot;). If the known total had been zero, the answer would have been <em>unknown stock</em>, never &quot;out of stock&quot;.</p>
 <h4 id="4-check-the-api-answer">4. Check the API answer <a class="header-anchor" href="#4-check-the-api-answer">#</a></h4>
 <p>Open <code>http://&lt;alb-dns-name&gt;/api/availability/P0042</code> in your browser, or run:</p>
@@ -1323,7 +1054,7 @@ current=90 10 0 previous=100 0 0
 </div>
 <p>About one lookup in ten goes to 1.1.0, so expect about 60 samples of it in two minutes.</p>
 <p>While the load runs, open the product page. Most stock updates come from 1.0.0. When one goes to 1.1.0, it takes visibly longer and the footer says &quot;Serving release 1.1.0&quot;. The page's own lookups, including the size checks from <a href="#3-sell-it-out-one-store-at-a-time">Lab 1</a>, go through the same split.</p>
-<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Product page with a lookup served by release 1.1.0"><img src="img/lab3-01-shop-on-release-110.png" alt="Product page with a lookup served by release 1.1.0" width="1280" height="800" loading="lazy" decoding="async"></button><figcaption>Product page with a lookup served by release 1.1.0</figcaption></figure>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Product page with a lookup served by release 1.1.0"><img src="img/lab3-01-shop-on-release-110.png" alt="Product page with a lookup served by release 1.1.0" width="2880" height="2300" loading="lazy" decoding="async"></button><figcaption>Product page with a lookup served by release 1.1.0</figcaption></figure>
 <h4 id="4-run-the-gate-it-fails">4. Run the gate: it fails <a class="header-anchor" href="#4-run-the-gate-it-fails">#</a></h4>
 <p>The gate compares the canary (1.1.0) with the release it would replace (1.0.0). It requires at least 30 samples of each, no errors, a canary p95 of 200 ms or less, and a passing verify. The default minimum is 100 samples, but a 10% share gives only about 60 in two minutes, so at 10% the gate lowers it to 30.</p>
 <div data-path="panel" markdown="1">
@@ -1367,7 +1098,7 @@ current=100 0 0 previous=90 10 0
 </div>
 <p>Only the 10% of lookups that went to 1.1.0 during the canary were slow. The other 90% never reached it. The canary's traces stay in Datadog, so you can now look for the cause while shoppers use the healthy release.</p>
 <h4 id="6-compare-releases-in-apm">6. Compare releases in APM <a class="header-anchor" href="#6-compare-releases-in-apm">#</a></h4>
-<p>Open the <code>APM inventory-api 1.1.0:</code> link, or APM &gt; <code>inventory-api</code> with environment <code>dd-demo-hybrid</code>, past 15 minutes, operation <code>flask.request</code>. During the canary, 1.1.0 is far above 1.0.0 at p95: hundreds of milliseconds against about ten. In our run, with all traffic on one release at 5 rps, the server-side p95 was about 430 ms for 1.1.0 and about 4 ms for the fixed 1.2.0. Your numbers will differ.</p>
+<p>Open the <code>APM inventory-api 1.1.0:</code> link, or APM &gt; <code>inventory-api</code> with environment <code>dd-demo-hybrid</code>, past 15 minutes, operation <code>flask.request</code>. During the canary, 1.1.0 is far above 1.0.0 at p95: around a second or more, against under ten milliseconds. In our run (2026-10-06, every release on 0.5 vCPU) the load script measured a client-side p95 of about 1.5 s for 1.1.0 and about 10 ms for 1.0.0 at 90 / 10 / 0. Your numbers will differ.</p>
 <p>You can read the comparison in three places:</p>
 <ol>
 <li>
@@ -1421,7 +1152,7 @@ current=100 0 0 previous=90 10 0
 <div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>route-baseline
 </code></pre></div>
 </div>
-<p>While the load runs, every lookup goes to 1.1.0, requests wait in a queue, and the client-side p95 becomes much worse than the APM span (in our run about 1.5 s against about 0.4 s). This run also gives you the CPU comparison under the same load that you use at the end of <a href="#5-prove-it-latency-cpu-and-cost">Lab 4</a>.</p>
+<p>While the load runs, every lookup goes to 1.1.0 and requests queue up. On 0.5 vCPU, 1.1.0 cannot keep up with 5 requests per second. In our run (2026-10-06) 532 of the 600 requests timed out on the client, the 15 that were answered had a p95 of about 9.4 s, the task used its whole 0.5 vCPU, and ECS replaced it after it failed its health check. This is what the 10% canary kept away from 90% of the lookups. ECS starts a new 1.1.0 task by itself; Lab 4 does not need it. This run also gives you the CPU comparison under the same load that you use at the end of <a href="#5-prove-it-latency-cpu-and-cost">Lab 4</a>.</p>
 <h4 id="checkpoint-3" class="checkpoint">Checkpoint <a class="header-anchor" href="#checkpoint-3">#</a></h4>
 <ul class="contains-task-list">
 <li class="task-list-item enabled"><input class="task-list-item-checkbox"  type="checkbox"> The gate reported <code>CANARY GATES FAILED</code> with a <code>FAIL</code> line for <code>p95_b</code> on release 1.1.0.</li>
@@ -1551,7 +1282,7 @@ CANARY GATES PASSED
 <p>If a gate fails, the command exits with a non-zero code.</p>
 </div>
 <p>If a gate fails, its <code>FAIL</code> line names it: stop and roll back. In an earlier run, the 10% step had 75 samples of 1.2.0, and the p95 of 1.2.0 was about 23 ms.</p>
-<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Product page during the 10% canary"><img src="img/lab4-01-shop-canary-10.png" alt="Product page during the 10% canary" width="1280" height="800" loading="lazy" decoding="async"></button><figcaption>Product page during the 10% canary</figcaption></figure>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Product page during the 10% canary"><img src="img/lab4-01-shop-canary-10.png" alt="Product page during the 10% canary" width="2880" height="2300" loading="lazy" decoding="async"></button><figcaption>Product page during the 10% canary</figcaption></figure>
 <h4 id="2-compare-the-versions-in-apm">2. Compare the versions in APM <a class="header-anchor" href="#2-compare-the-versions-in-apm">#</a></h4>
 <p>Open the <code>inventory-api</code> service page (environment <code>dd-demo-hybrid</code>, past 15 minutes). The <strong>Deployments</strong> section now lists three versions: 1.0.0, 1.1.0 (from the Lab 3 canary) and 1.2.0. The p95 of 1.2.0 is close to that of 1.0.0 and much lower than that of 1.1.0.</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Deployments table comparing the versions"><img src="img/lab4-02-deployments-by-version.png" alt="Deployments table comparing the versions" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>Deployments table comparing the versions</figcaption></figure>
@@ -1606,13 +1337,13 @@ make<span class="w"> </span>canary-check<span class="w"> </span><span class="nv"
 <p>You have now run the same load (120 s at 5 requests per second) with 1.2.0 taking all traffic. Compare it with 1.1.0 in Datadog:</p>
 <ol>
 <li>
-<p>Latency: use the Metrics Explorer query from <a href="#6-compare-releases-in-apm">Lab 3</a> and compare the versions. 1.2.0 should be much lower than 1.1.0. In our run the server-side p95 was about 4 ms for 1.2.0 and about 430 ms for 1.1.0.</p>
+<p>Latency: use the Metrics Explorer query from <a href="#6-compare-releases-in-apm">Lab 3</a> and compare the versions. 1.2.0 should be much lower than 1.1.0. In our run the load script measured a client-side p95 of about 8 ms for 1.2.0 with all traffic (575 requests, no errors), and APM showed about 3 ms. 1.1.0 with all traffic timed out, as in Lab 3 step 9.</p>
 </li>
 <li>
 <p>CPU: open Metrics &gt; Explorer and paste the query below. It is the query of the <strong>Fargate CPU usage by service/version</strong> widget on the stock dashboard (group <em>ElastiCache and VM host</em>, tags <code>service</code> and <code>version</code>). Replace <code>&lt;stack&gt;</code> with <code>hybrid</code>:</p>
 <div class="code code-out" data-lang="text"><div class="code-bar"><span class="code-label">Expected output</span></div><pre tabindex="0"><code>sum:ecs.fargate.cpu.usage{project:dd-demo,stack:&lt;stack&gt;} by {service,version}
 </code></pre></div>
-<p>The values are in nanocores (1 vCPU = 10⁹ nanocores), averaged over the whole task, including the Agent sidecar container. To compare fairly, each version must get the same load. The optional all-traffic step at the end of <a href="#lab-3-the-incident">Lab 3</a> gives you that. In our run, with 5 requests per second sent to each release in turn, 1.1.0 used about 0.29 vCPU on average and 1.2.0 about 0.009 vCPU. That is about 30 times less CPU for the same traffic.</p>
+<p>The values are in nanocores (1 vCPU = 10⁹ nanocores), averaged over the whole task, including the Agent sidecar container. To compare fairly, each version must get the same load. The optional all-traffic step at the end of <a href="#lab-3-the-incident">Lab 3</a> gives you that. In our run, with 5 requests per second sent to each release in turn, 1.1.0 used its whole 0.5 vCPU until ECS replaced it, and 1.2.0 used about 0.02 vCPU (AWS Container Insights, <code>CpuUtilized</code>, 2026-10-06). That is at least 20 times less CPU for the same traffic; the real gap is larger, because 1.1.0 hit its limit.</p>
 </li>
 <li>
 <p>Cost: all three releases run on the same task size (0.5 vCPU / 1 GB in <code>service_sizing</code>, <code>terraform/aws/variables.tf</code>), so each task costs the same per hour on Fargate. The saving comes from capacity: the fix uses much less CPU per request, so the same tasks can serve more traffic before you need more tasks. We did not measure at what traffic level either release needs more tasks.</p>
@@ -1658,12 +1389,12 @@ make<span class="w"> </span>sell-out<span class="w"> </span><span class="nv">PRO
 </div>
 <h4 id="2-watch-the-eta-appear">2. Watch the ETA appear <a class="header-anchor" href="#2-watch-the-eta-appear">#</a></h4>
 <p>After a few seconds the page shows &quot;Out of stock online&quot; with &quot;Back in stock in about N hours&quot; and the note &quot;demo clock: 1 min = 1 h&quot;. This is the <abbr title="Estimated time until the product is back in stock.">ETA</abbr>. The default lead time is 48 business hours and each order gets a random variation (jitter), so N is a few tens of hours. We saw 28, 29 and 37.</p>
-<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Product page showing Out of stock online with a restock ETA"><img src="img/lab5-01-restock-eta.png" alt="Product page showing Out of stock online with a restock ETA" width="1280" height="800" loading="lazy" decoding="async"></button><figcaption>Product page showing Out of stock online with a restock ETA</figcaption></figure>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Product page showing Out of stock online with a restock ETA"><img src="img/lab5-01-restock-eta.png" alt="Product page showing Out of stock online with a restock ETA" width="2880" height="2468" loading="lazy" decoding="async"></button><figcaption>Product page showing Out of stock online with a restock ETA</figcaption></figure>
 <p>This is the loop that just ran:</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Order flow: Flink turns demand and lead time into restock requests; Order sync (JDBC + CDC) upserts purchase orders into the procurement database; Supplier sim reads orders to ship and calls restock() in the five store databases"><img src="img/arch-b11-order-flow.png" alt="Order flow: Flink turns demand and lead time into restock requests; Order sync (JDBC + CDC) upserts purchase orders into the procurement database; Supplier sim reads orders to ship and calls restock() in the five store databases" width="3420" height="1660" loading="lazy" decoding="async"></button><figcaption>Order flow: Flink turns demand and lead time into restock requests; Order sync (JDBC + CDC) upserts purchase orders into the procurement database; Supplier sim reads orders to ship and calls restock() in the five store databases</figcaption></figure>
 <p><em>What just happened:</em> Flink emitted one restock request per store. A <abbr title="A Kafka Connect connector that copies Kafka records into a database table.">JDBC sink connector</abbr> wrote each request into the procurement database as a purchase order, and Debezium streamed the orders back into Kafka. That is how Flink knows the stock is on order and does not order it twice. The supplier simulator (<code>supplier-sim</code>) wrote the earliest due time to Redis, and the page shows it as the ETA.</p>
 <h4 id="3-open-the-control-panel">3. Open the control panel <a class="header-anchor" href="#3-open-the-control-panel">#</a></h4>
-<p>Open the control panel in both paths (<a href="#open-the-control-panel">how to open it</a>) and scroll below the cards to the <code>restock</code> settings. You should see the restock parameters: supplier lead time, lead time jitter, safety factor, coverage after delivery, minimum order quantity, demand window and the demo clock (<code>time_compression</code>, 60 by default). Each change you save is also sent to Datadog as an event.</p>
+<p>Open the control panel in both paths (<a href="#2-open-the-control-panel">how to open it</a>) and scroll below the cards to the <code>restock</code> settings. You should see the restock parameters: supplier lead time, lead time jitter, safety factor, coverage after delivery, minimum order quantity, demand window and the demo clock (<code>time_compression</code>, 60 by default). Each change you save is also sent to Datadog as an event.</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Control panel restock parameters"><img src="img/lab5-03-control-panel.png" alt="Control panel restock parameters" width="2328" height="2387" loading="lazy" decoding="async"></button><figcaption>Control panel restock parameters</figcaption></figure>
 <h4 id="4-shorten-the-lead-time">4. Shorten the lead time <a class="header-anchor" href="#4-shorten-the-lead-time">#</a></h4>
 <p>Set the supplier lead time to 2 business hours, which is 2 real minutes with the default clock.</p>
@@ -1682,7 +1413,7 @@ make<span class="w"> </span>sell-out<span class="w"> </span><span class="nv">PRO
 <p>Every open order is rescaled and keeps its own jitter.</p>
 <h4 id="5-watch-the-delivery">5. Watch the delivery <a class="header-anchor" href="#5-watch-the-delivery">#</a></h4>
 <p>After about a minute (the exact time depends on the product), the supplier calls <code>restock()</code> in each store's database. That is an ordinary stock update, like a sale but marked <code>restock</code>, so it travels the same path and the page goes back to &quot;N available online&quot;. N depends on the demand Flink has learned and on the coverage setting.</p>
-<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Product page back in stock after the supplier delivery"><img src="img/lab5-02-back-in-stock.png" alt="Product page back in stock after the supplier delivery" width="1280" height="800" loading="lazy" decoding="async"></button><figcaption>Product page back in stock after the supplier delivery</figcaption></figure>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Product page back in stock after the supplier delivery"><img src="img/lab5-02-back-in-stock.png" alt="Product page back in stock after the supplier delivery" width="2880" height="2300" loading="lazy" decoding="async"></button><figcaption>Product page back in stock after the supplier delivery</figcaption></figure>
 <h4 id="6-see-it-in-datadog">6. See it in Datadog <a class="header-anchor" href="#6-see-it-in-datadog">#</a></h4>
 <p>On the stock dashboard, open the <strong>Restock</strong> group. <code>restock.orders.open</code> rises after the sell-out and falls at delivery. Next to it are <code>restock.orders.delivered by store</code> and <code>restock.lead_time</code>. If you saved the lead-time change in the panel, it shows as an event marker on <code>restock.orders.open</code> and as a <code>demo config: lead_time_s = 7200</code> entry in the <strong>Demo panel: config changes and actions</strong> list. That list also shows each panel action, such as a sell-out or a reset, as <code>demo action: &lt;name&gt; started</code>, then <code>succeeded</code> or <code>failed</code>. These events have the tags <code>project:dd-demo</code>, <code>stack:hybrid</code> and <code>demo_event:config</code> or <code>demo_event:action</code>, so you can also find them in the Events Explorer.</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Restock group with the lead-time event"><img src="img/lab5-04-restock-group.png" alt="Restock group with the lead-time event" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>Restock group with the lead-time event</figcaption></figure>
@@ -1735,7 +1466,7 @@ make<span class="w"> </span>sell-out<span class="w"> </span><span class="nv">PRO
 </code></pre></div>
 </div>
 <p>About 8 to 10 seconds after the last store sells out, an offer card appears below the product. With the default threshold, the offer is usually the rule default: the closest-priced eligible alternative, at 10% off. For P0042 (Trailrunner GTX, EU 42) that is P0160, the Brenta Storm in EU 42. It is a different model because the Trailrunner GTX exists in EU 42 only in Forest green, so there is no other colour of it to offer in that size.</p>
-<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Offer card proposing an eligible alternative at 10% off after P0042 sold out"><img src="img/lab6-01-offer-rule-default.png" alt="Offer card proposing an eligible alternative at 10% off after P0042 sold out" width="1280" height="800" loading="lazy" decoding="async"></button><figcaption>Offer card proposing an eligible alternative at 10% off after P0042 sold out</figcaption></figure>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Offer card proposing an eligible alternative at 10% off after P0042 sold out"><img src="img/lab6-01-offer-rule-default.png" alt="Offer card proposing an eligible alternative at 10% off after P0042 sold out" width="2880" height="2716" loading="lazy" decoding="async"></button><figcaption>Offer card proposing an eligible alternative at 10% off after P0042 sold out</figcaption></figure>
 <p><em>What just happened:</em> Flink joined your cart (topic <code>carts.events</code>) with the <code>stock.sellable</code> value of 0 and emitted a cart at risk. <code>offer-worker</code> built the alternatives, asked Jev, compared Jev's confidence with 0.8, checked the stock again, and published the offer to the <code>offers</code> topic, where the Online shop reads it.</p>
 <h4 id="3-see-why-in-llm-observability">3. See why in LLM Observability <a class="header-anchor" href="#3-see-why-in-llm-observability">#</a></h4>
 <p>In Datadog, open AI Observability &gt; Agent Observability &gt; Traces and select the application <code>urbanstreet-offers</code> (the picker may show another application first). <abbr title="Datadog's record of each AI call as a trace, with what was sent and what came back.">LLM Observability</abbr> keeps the Jev calls here. Open the latest trace and its <code>offer.jev.call</code> span, the step that called Jev. The input shows the eligible alternatives as <code>criteria</code>. The output shows the <code>choice</code> and its <code>confidence</code>.</p>
@@ -1743,7 +1474,7 @@ make<span class="w"> </span>sell-out<span class="w"> </span><span class="nv">PRO
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Offer.jev.call span input and output"><img src="img/lab6-03-llmobs-span-io.png" alt="Offer.jev.call span input and output" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>Offer.jev.call span input and output</figcaption></figure>
 <p>The same request also appears in APM (service <code>offer-worker</code>, span <code>offer.process</code>). Its linked logs state the decision, for example route <code>RULE_DEFAULT</code> with reason <code>low_confidence</code>.</p>
 <h4 id="4-lower-the-threshold-live">4. Lower the threshold, live <a class="header-anchor" href="#4-lower-the-threshold-live">#</a></h4>
-<p>This setting exists only in the control panel, so you use the panel in both paths (<a href="#open-the-control-panel">how to open it</a>). In the <code>offers</code> settings, set <strong>Jev minimum confidence</strong> (<code>jev_min_confidence</code>) to <code>0.7</code> and press <strong>Save</strong>. Then reset, reload the page, add P0042 to the cart again, and sell it out.</p>
+<p>This setting exists only in the control panel, so you use the panel in both paths (<a href="#2-open-the-control-panel">how to open it</a>). In the <code>offers</code> settings, set <strong>Jev minimum confidence</strong> (<code>jev_min_confidence</code>) to <code>0.7</code> and press <strong>Save</strong>. Then reset, reload the page, add P0042 to the cart again, and sell it out.</p>
 <div data-path="panel" markdown="1">
 <p><strong>With the control panel</strong></p>
 <p>Press <strong>Full reset</strong>, reload the product page, click <strong>Add to cart</strong>, then press <strong>Sell out product</strong> with <code>P0042</code>.</p>
@@ -1838,9 +1569,9 @@ make<span class="w"> </span>sell-out<span class="w"> </span><span class="nv">PRO
 <li class="task-list-item enabled"><input class="task-list-item-checkbox"  type="checkbox"> Both Synthetics tests have recent passing results.</li>
 <li class="task-list-item enabled"><input class="task-list-item-checkbox"  type="checkbox"> The cost dashboard shows a current USD-per-hour value for <code>hybrid</code>.</li>
 </ul>
-<p>Across the labs, APM found the slow request, freshness and DSM showed that the data path was fine, version tags checked the canary, and the integrations and monitors gave you the view of the whole platform. <strong>Next:</strong> <a href="#8-teardown">Teardown</a>.</p>
+<p>Across the labs, APM found the slow request, freshness and DSM showed that the data path was fine, version tags checked the canary, and the integrations and monitors gave you the view of the whole platform. <strong>Next:</strong> <a href="#7-teardown">Teardown</a>.</p>
 <hr />
-<h2 id="7-troubleshooting">7. Troubleshooting <a class="header-anchor" href="#7-troubleshooting">#</a></h2>
+<h2 id="6-troubleshooting">6. Troubleshooting <a class="header-anchor" href="#6-troubleshooting">#</a></h2>
 <p>When a step fails, read the last lines before the failure. Every script prints the step, the command and, where it can, the fix. If a step fails twice, stop and read before you try a third time. Running the build again without knowing why it failed is the most expensive way to debug.</p>
 <p><strong>Setup and preflight</strong></p>
 <div class="table-wrap" tabindex="0"><table>
@@ -2089,7 +1820,7 @@ make<span class="w"> </span>sell-out<span class="w"> </span><span class="nv">PRO
 <tr>
 <td>No data in Datadog charts</td>
 <td>Telemetry needs a few minutes to fill a 15-minute window</td>
-<td>Wait 10 to 15 minutes with <code>sales-on</code> running</td>
+<td>Wait 10 to 15 minutes. The freshness probe sends data even while background sales are off</td>
 </tr>
 <tr>
 <td><code>route-show</code> shows an unexpected split</td>
@@ -2176,7 +1907,7 @@ make<span class="w"> </span>sell-out<span class="w"> </span><span class="nv">PRO
 </tbody>
 </table></div>
 <hr />
-<h2 id="8-teardown">8. Teardown <a class="header-anchor" href="#8-teardown">#</a></h2>
+<h2 id="7-teardown">7. Teardown <a class="header-anchor" href="#7-teardown">#</a></h2>
 <aside class="admonition admonition-warning" role="note"><p class="admonition-title"><span class="admonition-icon" aria-hidden="true"></span>Warning</p>
 <p><code>./demo destroy</code> deletes everything in the <code>hybrid</code> stack: the Datadog objects, the AWS online side with its images, the VM with its volumes, and the Confluent environment with all topics. The data is synthetic, but a rebuild takes about 36 minutes. Until you run it, the stack keeps costing about $1.50 to $2.50 per hour.</p>
 </aside>
@@ -2235,7 +1966,7 @@ aws<span class="w"> </span>ecs<span class="w"> </span>list-clusters<span class="
 <li class="task-list-item enabled"><input class="task-list-item-checkbox"  type="checkbox"> Every command in steps 2 and 3 printed nothing for <code>hybrid</code>.</li>
 </ul>
 <hr />
-<h2 id="9-recap-and-further-reading">9. Recap and further reading <a class="header-anchor" href="#9-recap-and-further-reading">#</a></h2>
+<h2 id="8-recap-and-further-reading">8. Recap and further reading <a class="header-anchor" href="#8-recap-and-further-reading">#</a></h2>
 <p>You streamed changes out of five store databases without changing them. You built a serving view that never queries the stores and never shows unknown stock as zero, and you used a probe to show that it stays fresh. Then you shipped a slow release as a 10% canary; the gate failed it, and you rolled it back before most lookups reached it. You found the cause with version-tagged traces, and you rolled out the fix through the same gate, with a tested way back. Two optional layers used the same stream for restocking and for AI offers that follow rules.</p>
 <div class="table-wrap" tabindex="0"><table>
 <thead>
@@ -2783,11 +2514,11 @@ aws<span class="w"> </span>ecs<span class="w"> </span>list-clusters<span class="
 </tr>
 <tr>
 <td><code>stack-preflight</code>, <code>stack-up</code>, <code>stack-status</code>, <code>stack-down</code></td>
-<td>The lifecycle targets that <code>./demo</code> runs (<a href="#5-what-demo-does-step-by-step">Section 5</a>)</td>
+<td>The lifecycle targets that <code>./demo</code> runs (<a href="#i-what-demo-does-step-by-step">Reference I</a>)</td>
 </tr>
 <tr>
 <td><code>stack-leftovers</code></td>
-<td>Read-only leftover check, the last step of <code>stack-down</code> (<a href="#8-teardown">Teardown</a>)</td>
+<td>Read-only leftover check, the last step of <code>stack-down</code> (<a href="#7-teardown">Teardown</a>)</td>
 </tr>
 </tbody>
 </table></div>
@@ -2798,6 +2529,335 @@ aws<span class="w"> </span>ecs<span class="w"> </span>list-clusters<span class="
 <p><code>ACCOUNT_DOWN_DESTROY=yes</code> is a second switch that you must set on purpose. Only with it does the script remove Terraform's <code>prevent_destroy</code> protection and empty the report bucket, after you review the plan. Unverified: this path has not been tested end to end.</p>
 <h3 id="g-other-datadog-sites">G. Other Datadog sites <a class="header-anchor" href="#g-other-datadog-sites">#</a></h3>
 <p>This guide supports only the Datadog EU site. <code>./demo</code> accepts other site names, but the Terraform providers, the FireLens log host, the Synthetics IP-range lookup and the link helper still point to <code>datadoghq.eu</code>. Changing them is untested.</p>
+<h3 id="h-the-control-panel-button-by-button">H. The control panel, button by button <a class="header-anchor" href="#h-the-control-panel-button-by-button">#</a></h3>
+<p>The labs tell you which button to press. This section describes every card and button in one place. Sign in as in <a href="#2-open-the-control-panel">Open the control panel</a>. Five action cards sit at the top; below them are the demo's settings by layer, which Labs 5 and 6 use. Each button does the same job as a make command:</p>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>Card</th>
+<th>Buttons</th>
+<th>Replaces</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Actions</strong> (Source data actions)</td>
+<td><strong>Sell out product</strong>, <strong>Reset demo data</strong></td>
+<td><code>sell-out</code>, the data part of <code>reset</code></td>
+</tr>
+<tr>
+<td>Release routing</td>
+<td><strong>Canary 1.1.0 (10%)</strong>, <strong>Canary 1.2.0 (10%)</strong> / <strong>(50%)</strong> / <strong>(100%)</strong>, <strong>Incident</strong>, <strong>Baseline</strong>, <strong>Rollback</strong>, <strong>Refresh weights</strong></td>
+<td><code>canary-110-10</code>, <code>canary-*</code>, <code>incident</code>, <code>route-baseline</code>, <code>rollback</code>, <code>route-show</code></td>
+</tr>
+<tr>
+<td>Store feed</td>
+<td><strong>Pause feed</strong>, <strong>Resume feed</strong>, <strong>Refresh state</strong></td>
+<td><code>store-pause</code>, <code>store-resume</code></td>
+</tr>
+<tr>
+<td>Checks</td>
+<td><strong>Run load (120 s, 5 rps)</strong>, <strong>Verify</strong>, <strong>Check canary</strong>, <strong>Refresh</strong></td>
+<td><code>load</code>, <code>verify</code>, <code>canary-check</code></td>
+</tr>
+<tr>
+<td>Background sales</td>
+<td><strong>Sales off</strong>, <strong>Sales on</strong>, <strong>Full reset</strong></td>
+<td><code>sales-off</code>, <code>sales-on</code>, <code>reset</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>The <strong>Actions</strong> card (Source data actions) runs two steps of the labs:</p>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>Control</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Product field (default <code>P0042</code>)</td>
+<td>The product to sell out, written as <code>P</code> and four digits</td>
+</tr>
+<tr>
+<td><strong>Sell out product</strong></td>
+<td>Like <code>sell-out</code>: sells all of the product's stock in each of the five stores, one store at a time, and waits <code>sell_out_gap_s</code> seconds (1.5 by default) between stores</td>
+</tr>
+<tr>
+<td><strong>Reset demo data</strong></td>
+<td>Like the data part of <code>reset</code>: writes the seeded stock back into the five Sources. Background sales must be off first, or it refuses to start (see below)</td>
+</tr>
+</tbody>
+</table></div>
+<p>Both buttons ask you to confirm, and only one action runs at a time. The card shows a progress line such as <code>running: Sold out S01 (1/5); source verified</code> and ends with <code>succeeded: Source and Redis verification completed</code>: before it reports success, the panel reads the Sources back and checks that Redis has the same values.</p>
+<p>The actions change only PostgreSQL; the change travels through Debezium and Confluent Cloud as in Lab 1. <strong>Reset demo data</strong> refuses to run while background sales are on: press <strong>Sales off</strong> first, or use <strong>Full reset</strong> on the <strong>Background sales</strong> card.</p>
+<details>
+<summary>Why Reset demo data refuses while sales are on</summary>
+<p>Background sales keep changing the stock, so a reset could never match the baseline. <strong>Reset demo data</strong> does not stop background sales, does not change the load balancer routing and does not cancel restock purchase orders. <strong>Full reset</strong> does all of that: it turns sales off, sets routing to 100 / 0 / 0, cancels open purchase orders and then resets the data. <code>make reset</code> does the same from the terminal.</p>
+</details>
+<p>The <strong>Release routing</strong> card moves the inventory API traffic between the three releases, like the <code>canary-110-10</code>, <code>canary-*</code>, <code>incident</code>, <code>route-baseline</code> and <code>rollback</code> make commands:</p>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>Button</th>
+<th>Weights 1.0.0 / 1.1.0 / 1.2.0 (%)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Canary 1.1.0 (10%)</strong></td>
+<td>90 / 10 / 0 (Lab 3)</td>
+</tr>
+<tr>
+<td><strong>Canary 1.2.0 (10%)</strong></td>
+<td>90 / 0 / 10 (Lab 4)</td>
+</tr>
+<tr>
+<td><strong>Canary 1.2.0 (50%)</strong></td>
+<td>50 / 0 / 50</td>
+</tr>
+<tr>
+<td><strong>Canary 1.2.0 (100%)</strong></td>
+<td>0 / 0 / 100</td>
+</tr>
+<tr>
+<td><strong>Baseline (all to 1.0.0)</strong></td>
+<td>100 / 0 / 0</td>
+</tr>
+<tr>
+<td><strong>Incident (all to 1.1.0)</strong></td>
+<td>0 / 100 / 0 (optional step at the end of Lab 3)</td>
+</tr>
+<tr>
+<td><strong>Rollback</strong></td>
+<td>The split that was in place before the last routing change</td>
+</tr>
+<tr>
+<td><strong>Refresh weights</strong></td>
+<td>Changes nothing. Reads the load balancer again</td>
+</tr>
+</tbody>
+</table></div>
+<p>Each change asks you to confirm. The weight tiles show the live weights of the load balancer rule, and the line under them shows the live split and the previous one, for example <code>Live 90/10/0 · previous (for Rollback): 100/0/0</code>. The card reports success only after it has read the rule back and found the weights you asked for. The panel changes the rule from AWS itself, so routing from the panel needs no AWS login on your computer.</p>
+<p>The <strong>Store feed</strong> card pauses or resumes the Debezium connector of one store, like <code>store-pause</code> and <code>store-resume</code>. Pick a store, <code>S01</code> to <code>S05</code>, and press <strong>Pause feed</strong> or <strong>Resume feed</strong>. After a pause or resume, the card waits up to 20 seconds for the connector to report <code>PAUSED</code> or <code>RUNNING</code>, and shows an error if it does not. <strong>Refresh state</strong> reads the connector and task states again. The panel reaches Kafka Connect over the VPC's private network; port 8083 is never open to the internet (see <a href="#b-components-and-data-flow">Reference B</a>).</p>
+<p>The <strong>Checks</strong> card runs three tools on the VM through the <code>scenario-api</code> service: the load generator, the comparison of the Sources with Redis, and the <abbr title="A pass or fail check of the canary's samples, errors, p95 latency and data correctness. You run it; it never runs by itself.">canary gate</abbr>. They work exactly like <code>load</code>, <code>verify</code> and <code>canary-check</code>, with the same files, output lines and results.</p>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>Button</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Run load (120 s, 5 rps)</strong></td>
+<td>Sends steady load to the Online shop for 2 minutes. The card shows live progress lines, for example <code>Load 40/120 s, last window: ...</code> with the requests, p95 and errors per release</td>
+</tr>
+<tr>
+<td><strong>Verify</strong></td>
+<td>Compares the Source of every store with Redis and ends with <code>VERIFY PASSED</code> or <code>VERIFY FAILED</code></td>
+</tr>
+<tr>
+<td><strong>Check canary</strong></td>
+<td>Checks the last load and verify results against the gates and ends with <code>CANARY GATES PASSED</code> or <code>CANARY GATES FAILED</code> (with the failed gates and <code>roll back</code>). It prints one <code>PASS</code> or <code>FAIL</code> line per gate, the samples per release and the p95</td>
+</tr>
+<tr>
+<td><strong>Refresh</strong></td>
+<td>Changes nothing. Reads the live routing and the last run again</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Check canary</strong> picks the gate from the live routing and shows it below the buttons. At 90 / 10 / 0 (Lab 3) it checks 1.1.0 against 1.0.0. At 90 / 0 / 10 and 50 / 0 / 50 (Lab 4) it checks 1.2.0 against 1.0.0. At 0 / 0 / 100 it checks 1.2.0 alone. At 100 / 0 / 0 there is nothing to check, so it refuses. It also refuses if the routing changed since the last load you ran in the panel, because that load measured a different split. <strong>Run load</strong> blocks the cards for about 2 minutes.</p>
+<details>
+<summary>How the panel's gate matches the make commands</summary>
+<p>The canary is the newer release that receives traffic, and the baseline is the older one. When the canary has less than 50% of the traffic, the gate lowers the minimum number of samples from 100 to 30. These are the same gates as the <code>canary-check CHECK_ARGS=...</code> commands in Labs 3 and 4.</p>
+</details>
+<p>The <strong>Background sales</strong> card controls the sales generator, so you do not need a terminal. The rate tile shows the sales per minute per store (24 by default), or <code>OFF</code> with <code>rate 0 · Sales on restores 24/min</code> when sales are off.</p>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>Button</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Sales off</strong></td>
+<td>Sets the sales rate to 0 in every store, remembers the old rate and checks that sales stop</td>
+</tr>
+<tr>
+<td><strong>Sales on</strong></td>
+<td>Sets the remembered rate again, then waits for a real sale before it reports success</td>
+</tr>
+<tr>
+<td><strong>Full reset</strong></td>
+<td>Like <code>make ... reset</code>: <strong>Sales off</strong>, then <strong>Baseline</strong> (100 / 0 / 0), then <strong>Reset demo data</strong>. When the restock layer runs, it also cancels open purchase orders before the data reset and clears the restock ETA keys after it. Otherwise its progress line says it did not change them. It needs the hybrid stack, which has the load balancer routing</td>
+</tr>
+</tbody>
+</table></div>
+<p>The panel turns sales on and off by changing the rate, while the sales containers keep running.</p>
+<p>Every action also sends a Datadog event named <code>demo action: &lt;name&gt; started</code>, then <code>succeeded</code> or <code>failed</code> (see <a href="#5-monitors">Lab 7</a>).</p>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Actions card with the product field P0042, the Sell out product and Reset demo data buttons, and the status line succeeded: Source and Redis verification completed"><img src="img/build-04-control-actions.png" alt="Actions card with the product field P0042, the Sell out product and Reset demo data buttons, and the status line succeeded: Source and Redis verification completed" width="2328" height="569" loading="lazy" decoding="async"></button><figcaption>Actions card with the product field P0042, the Sell out product and Reset demo data buttons, and the status line succeeded: Source and Redis verification completed</figcaption></figure>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Release routing and Store feed cards"><img src="img/build-05-routing-store-feed.png" alt="Release routing and Store feed cards" width="2328" height="1801" loading="lazy" decoding="async"></button><figcaption>Release routing and Store feed cards</figcaption></figure>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Checks and Background sales cards"><img src="img/build-06-checks-sales.png" alt="Checks and Background sales cards" width="2328" height="1938" loading="lazy" decoding="async"></button><figcaption>Checks and Background sales cards</figcaption></figure>
+<details>
+<summary>Why one path?</summary>
+<p>The panel stores the demo settings (key <code>demo:config</code>) and its <strong>Rollback</strong> memory (key <code>demo:routing-state</code>) in Redis, in the same ElastiCache instance that holds the serving view, under separate keys. <code>make rollback</code> keeps its memory in a local file on your computer, <code>.state/routing-&lt;stack&gt;</code>. So a <strong>Rollback</strong> in one does not know about a change made in the other: it restores what was live before the last change made by <em>that same</em> path.</p>
+<p>Background sales differ too. The panel turns sales on and off by changing the rate; <code>make sales-on</code> and <code>make sales-off</code> start and stop the containers. After the panel's <strong>Sales off</strong>, <code>make sales-on</code> starts containers that sell nothing until you press <strong>Sales on</strong>.</p>
+</details>
+<h3 id="i-what-demo-does-step-by-step">I. What <code>./demo</code> does, step by step <a class="header-anchor" href="#i-what-demo-does-step-by-step">#</a></h3>
+<p>You do not need to run anything in this section. Read it to understand the build or to debug a failed stage.</p>
+<h4 id="i1-the-commands-underneath">I.1 The commands underneath <a class="header-anchor" href="#i1-the-commands-underneath">#</a></h4>
+<p><code>./demo</code> is a small script that checks your input and then runs make targets. Each action maps to one of them:</p>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th><code>./demo</code> action</th>
+<th>Runs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>create</code></td>
+<td><code>make secrets</code>, <code>make stack-preflight</code>, the cost question, then <code>make stack-up CONFIRM=yes</code></td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td><code>make stack-status</code></td>
+</tr>
+<tr>
+<td><code>links</code></td>
+<td><code>make links</code></td>
+</tr>
+<tr>
+<td><code>reset</code></td>
+<td><code>make reset</code></td>
+</tr>
+<tr>
+<td><code>destroy</code></td>
+<td>A confirmation question, then <code>make stack-down CONFIRM=yes</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>Every call adds <code>MODE=cloud TOPOLOGY=hybrid STACK=&lt;stack&gt;</code> and the profile, region and layers from <code>demo.yaml</code>. <code>./demo create --dry-run</code> prints the exact commands, with secrets masked. When you run <code>make &lt;target&gt;</code> yourself, the Makefile reads the same values from <code>demo.yaml</code>, so you do not need to add them.</p>
+<h4 id="i2-where-each-secret-goes">I.2 Where each secret goes <a class="header-anchor" href="#i2-where-each-secret-goes">#</a></h4>
+<p>You enter credentials for three accounts (AWS, Confluent Cloud, Datadog) and, optionally, the Jev key. The build generates everything else. Your AWS credentials stay in your AWS CLI profile. The others go in <code>demo.yaml</code>.</p>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>File or store</th>
+<th>Contents</th>
+<th>Created by</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>demo.yaml</code> (repository root, mode 600, ignored by git)</td>
+<td>Your Datadog, Confluent Cloud and optional Jev keys</td>
+<td>You</td>
+</tr>
+<tr>
+<td><code>.env</code> (repository root, mode 600, ignored by git)</td>
+<td>The same keys as environment variables</td>
+<td><code>./demo create</code>, from <code>demo.yaml</code></td>
+</tr>
+<tr>
+<td><code>.env.secrets</code> (mode 600)</td>
+<td>Random database and control panel passwords, and <code>SCENARIO_API_TOKEN</code>, the token the control panel uses for the Checks card</td>
+<td><code>make secrets</code></td>
+</tr>
+<tr>
+<td><code>.env.cloud-hybrid</code> (mode 600)</td>
+<td>Kafka and Schema Registry keys for each service, endpoints, ALB and Redis addresses</td>
+<td><code>stack-up</code>, from Terraform outputs</td>
+</tr>
+<tr>
+<td>AWS <abbr title="The AWS service that stores configuration values and secrets for the Fargate tasks.">SSM Parameter Store</abbr>, <code>/dd-demo/hybrid/</code></td>
+<td>The secrets that the Fargate tasks need, as encrypted SecureStrings, taken from an allowlist</td>
+<td><code>stack-up</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><code>.gitignore</code> excludes all <code>.env*</code> files and <code>demo.yaml</code>, so <code>git add .</code> cannot add them.</p>
+<h4 id="i3-the-build-stages">I.3 The build stages <a class="header-anchor" href="#i3-the-build-stages">#</a></h4>
+<p><code>stack-up</code> runs these stages in order. The table groups them; the log prints one <code>== [stage]</code> line per step, for example <code>== [terraform vm (EC2 host)]</code>. Each <code>terraform</code> stage applies one of the five Terraform configurations.</p>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>#</th>
+<th>Stages</th>
+<th>What they do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>preflight</td>
+<td>The checks from <a href="#42-run-the-preflight-no-cloud-costs-yet">4.2</a></td>
+</tr>
+<tr>
+<td>2</td>
+<td>terraform account</td>
+<td>Resources for the whole account, kept across stacks: Cost and Usage Report export, Datadog AWS integration, read-only Confluent identity for cost data, account cost dashboard</td>
+</tr>
+<tr>
+<td>3</td>
+<td>terraform cloud</td>
+<td>Confluent environment <code>dd-demo-hybrid</code>, Basic cluster, Schema Registry, topics, keys and Flink pool. The Flink statements wait until stage 9</td>
+</tr>
+<tr>
+<td>4</td>
+<td>terraform vm</td>
+<td>The EC2 VM, its security group (<code>allowed_cidr</code> only) and key pair</td>
+</tr>
+<tr>
+<td>5</td>
+<td>env file, docker context, secrets</td>
+<td>Writes <code>.env.cloud-hybrid</code>, waits for SSH, creates the <abbr title="Tells your local docker CLI to run commands on the VM over SSH.">Docker context</abbr> <code>dd-demo-hybrid</code>, generates <code>.env.secrets</code></td>
+</tr>
+<tr>
+<td>6</td>
+<td>terraform aws, SSM</td>
+<td><abbr title="The AWS registry that stores the container images.">ECR</abbr>, ElastiCache, ECS services, ALB and target groups. Copies the allowlisted secrets to SSM</td>
+</tr>
+<tr>
+<td>7</td>
+<td>build and push</td>
+<td>Builds every image on the ARM64 VM, pushes them to ECR, waits until every ECS service is stable</td>
+</tr>
+<tr>
+<td>8</td>
+<td>VM services</td>
+<td>Starts the on-premises services, seeds the five stores with data, registers the connectors and waits until they run</td>
+</tr>
+<tr>
+<td>9</td>
+<td>schema priming and Flink</td>
+<td>Writes a first record to each input topic, waits for its schema, then starts the Flink statements</td>
+</tr>
+<tr>
+<td>10</td>
+<td>first data</td>
+<td>Waits until Redis holds sellable stock for all 200 products, resets, verifies, turns sales on</td>
+</tr>
+<tr>
+<td>11</td>
+<td>terraform datadog</td>
+<td>Dashboards, monitors, Synthetics, RUM, Confluent integration. Deploys the Online shop again with the RUM settings</td>
+</tr>
+<tr>
+<td>12</td>
+<td>smoke</td>
+<td>The end-to-end smoke test, then the status summary</td>
+</tr>
+</tbody>
+</table></div>
+<details>
+<summary>Why the Flink statements wait until stage 9</summary>
+<p>Confluent Cloud Flink reads a table's columns from the topic's Schema Registry subject (<code>&lt;topic&gt;-value</code>), and that subject exists only after the first record arrives. A statement created earlier fails. So the script first writes a record to each input topic (&quot;priming&quot;), waits up to 300 s for the subjects, and only then creates the statements.</p>
+</details>
+<p>Every lifecycle command writes a log under <code>.state/logs/</code> (mode 600). Logs can contain operational details such as hostnames, so do not share them publicly.</p>
 
     </article>
     <footer class="doc-footer">

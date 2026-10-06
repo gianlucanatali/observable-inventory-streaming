@@ -80,7 +80,7 @@ export default function App() {
               {offerCard}
             </ProductPage>
           )
-          : <><Home />{offerCard}</>}
+          : <><Home />{(offer || offerError) && offerCard}</>}
       </main>
       {toast && <Toast key={toast.id} message={toast.message} type={toast.type} onClose={clear} />}
     </div>

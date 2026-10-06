@@ -30,6 +30,7 @@ a { color: inherit; }
 .chip { padding: 9px 18px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); font-weight: 700; }
 .chip-on { background: var(--accent); border-color: var(--accent); color: #fff; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(265px, 1fr)); gap: 22px; }
+main > .offer { margin-top: 24px; }  /* home: after the grid or "Show more" */
 .card { display: block; background: var(--card); border-radius: var(--radius); overflow: hidden; text-decoration: none; box-shadow: var(--shadow); transition: transform .12s ease, box-shadow .12s ease; }
 .card:hover { transform: translateY(-3px); box-shadow: 0 8px 18px rgba(42,18,80,.14), 0 18px 36px rgba(42,18,80,.10); }
 .card img { display: block; width: 100%; aspect-ratio: 1; }

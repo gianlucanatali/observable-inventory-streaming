@@ -362,6 +362,16 @@ def test_verify_mismatch_fails_and_canary_fails_correctness(parts):
     assert "CANARY GATES FAILED: verify 1 mismatch(es); roll back" in go(parts, "canary-check", expect="failed")["error"]
 
 
+def test_verify_failing_with_background_sales_on_says_to_full_reset(parts):
+    parts["vm"].verify_doc = {"ok": False, "mismatches": 0, "sellable_mismatches": 21}
+    failed = go(parts, "verify", expect="failed")
+    assert failed["error"] == ("Action failed: Verify FAILED: 0 position mismatch(es), 21 sellable mismatch(es). "
+                               "Background sales are on (24/min per store) and kept changing the stock while Verify "
+                               "compared it: press Full reset, then Verify again")
+    parts["sales"].rate = 0.0
+    assert "Background sales" not in go(parts, "verify", expect="failed")["error"]
+
+
 def test_canary_refuses_when_routing_changed_since_the_last_load(parts):
     go(parts, "load")
     go(parts, "verify")

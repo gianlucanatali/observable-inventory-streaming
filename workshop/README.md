@@ -39,12 +39,11 @@ Every product, store, sale and shopper in this workshop is synthetic.
 2. [The architecture at a glance](#2-the-architecture-at-a-glance)
 3. [Prerequisites](#3-prerequisites), including [Get the code](#34-get-the-code)
 4. [Build the stack](#4-build-the-stack)
-5. [What `./demo` does, step by step](#5-what-demo-does-step-by-step)
-6. [Labs](#6-labs): [1](#lab-1-one-product-five-stores-one-online-number), [1b](#lab-1b-optional-look-inside-confluent), [2](#lab-2-unknown-is-not-zero), [3](#lab-3-the-incident), [4](#lab-4-canary-the-fix), [5](#lab-5-restock-that-learns), [6](#lab-6-offers-with-a-safe-default), [7](#lab-7-datadog-on-top-of-the-solution)
-7. [Troubleshooting](#7-troubleshooting)
-8. [Teardown](#8-teardown)
-9. [Recap and further reading](#9-recap-and-further-reading)
-10. [Reference](#reference): glossary, components, Datadog signals, cost, commands
+5. [Labs](#5-labs): [1](#lab-1-one-product-five-stores-one-online-number), [1b](#lab-1b-optional-look-inside-confluent), [2](#lab-2-unknown-is-not-zero), [3](#lab-3-the-incident), [4](#lab-4-canary-the-fix), [5](#lab-5-restock-that-learns), [6](#lab-6-offers-with-a-safe-default), [7](#lab-7-datadog-on-top-of-the-solution)
+6. [Troubleshooting](#6-troubleshooting)
+7. [Teardown](#7-teardown)
+8. [Recap and further reading](#8-recap-and-further-reading)
+9. [Reference](#reference): glossary, components, Datadog signals, cost, commands, [the control panel button by button](#h-the-control-panel-button-by-button), [what `./demo` does](#i-what-demo-does-step-by-step)
 
 **Conventions.** Once you have the code ([3.4](#34-get-the-code)), run every command from the root of the repository. Values you must replace look like `<this>`. Output blocks show what you should see. In an output, `<...>` is a value that is different on your run, and `...` marks lines that were left out.
 
@@ -62,9 +61,9 @@ To try the core path on your own machine without any cloud cost, see [Run locall
 |---|---|
 | `aws login --profile dd-demo` | Sign in to AWS before you build or tear down the stack, and again after 12 hours |
 | `./demo create` | Check your setup, then build the stack ([4.2](#42-run-the-preflight-no-cloud-costs-yet), [4.3](#43-create-the-stack)) |
-| `./demo status`, `./demo links` | Print the addresses of the Online shop, the control panel and the Datadog pages ([4.4](#44-read-back-the-stack)) |
-| `grep '^CONTROL_PASSWORD=' .env.secrets \| cut -d= -f2-` | Print the control panel password ([Open the control panel](#open-the-control-panel)) |
-| `./demo destroy` | Delete the stack at the end, then check that nothing is left ([Teardown](#8-teardown)) |
+| `./demo status`, `./demo links` | Print the addresses of the Online shop, the control panel and the Datadog pages ([4.4](#44-open-the-shop-the-control-panel-and-datadog)) |
+| `grep '^CONTROL_PASSWORD=' .env.secrets \| cut -d= -f2-` | Print the control panel password ([Open the control panel](#2-open-the-control-panel)) |
+| `./demo destroy` | Delete the stack at the end, then check that nothing is left ([Teardown](#7-teardown)) |
 
 </div>
 
@@ -84,7 +83,7 @@ So the stores publish each change as it happens. A *change event* says that one 
 
 The field names are simplified here. The real records are Avro, wrapped in a Debezium envelope.
 
-A `product_id` such as `P0042` is a *SKU*: one model in one colour and one size. Every part of the path tracks stock per SKU: the stores, the change events, Kafka, Flink, Redis and the stock API. Only the Online shop groups SKUs into models for display (see [4.4](#44-read-back-the-stack)).
+A `product_id` such as `P0042` is a *SKU*: one model in one colour and one size. Every part of the path tracks stock per SKU: the stores, the change events, Kafka, Flink, Redis and the stock API. Only the Online shop groups SKUs into models for display (see [4.4](#44-open-the-shop-the-control-panel-and-datadog)).
 
 *Change data capture* (CDC) turns committed database changes into these events. Here Debezium does it: it reads PostgreSQL's <abbr title="The journal PostgreSQL already writes for crash recovery. Reading it adds no queries to the store database.">write-ahead log</abbr>, so the store applications do not change and the store databases get no extra queries. Apache Kafka keeps the events as an ordered log on disk, and each reader reads it at its own pace.
 
@@ -217,7 +216,7 @@ From here on, run every command from the root of this folder (`observable-invent
 ---
 ## 4. Build the stack
 
-You build everything with one configuration file and one command. This section shows the steps. [Section 5](#5-what-demo-does-step-by-step) explains what happens underneath.
+You build everything with one configuration file and one command. This section shows the steps. [Reference I](#i-what-demo-does-step-by-step) explains what happens underneath; you do not need it to follow the labs.
 
 ### 4.1 Configure `demo.yaml`
 
@@ -262,7 +261,7 @@ The make commands in this guide read `stack` (and the AWS profile, region and la
 
 | Where | How the build marks it | Example search |
 |---|---|---|
-| AWS | Tags on every resource: `project = dd-demo`, `stack = <name>` (`stack = account` for the account-wide pieces) and `owner = <your local user name>`. The VM's resources also carry `layer = core` | Resource Groups > Tag Editor with tag `project` = `dd-demo`, or `aws resourcegroupstaggingapi get-resources --tag-filters Key=project,Values=dd-demo --profile dd-demo --region eu-west-1`. This list lags behind deletions (see [Teardown](#8-teardown)) |
+| AWS | Tags on every resource: `project = dd-demo`, `stack = <name>` (`stack = account` for the account-wide pieces) and `owner = <your local user name>`. The VM's resources also carry `layer = core` | Resource Groups > Tag Editor with tag `project` = `dd-demo`, or `aws resourcegroupstaggingapi get-resources --tag-filters Key=project,Values=dd-demo --profile dd-demo --region eu-west-1`. This list lags behind deletions (see [Teardown](#7-teardown)) |
 | Datadog | Tags `project:dd-demo` and `stack:<name>`, plus `layer:<layer>` on the objects of optional layers. The telemetry `env` is `dd-demo-<name>` | Search `project:dd-demo stack:<name>` in Monitors and Synthetic tests, and `dd-demo-<name>` in Dashboards |
 | Confluent Cloud | The environment is named `dd-demo-<name>`. The build can also put Stream Catalog tags (project, stack, layer) on topics, but that option is off by default, so do not expect them | `confluent environment list`, or the environment list in the console |
 
@@ -304,7 +303,7 @@ Official docs: [Login for AWS local development using console credentials](https
 
 `allowed_cidr` is an address range in CIDR notation, where `/32` means exactly one address. It is the only source address that the security groups (AWS firewall rules) of the load balancer and the VM let through.
 
-If you leave it commented out (or empty), `./demo create` looks up your public IPv4 address once at `https://checkip.amazonaws.com` (5 second timeout) and uses it as a `/32`, before it writes or bills anything. If the lookup fails, it stops and creates nothing, and you set `allowed_cidr` yourself. `--dry-run` skips the lookup. The detected address is not saved to `demo.yaml`, so if your IP changes, set `allowed_cidr` or run `./demo create` again. If you run `make stack-preflight` or `make stack-up` directly with an empty CIDR, they stop with a clear message. See also [Troubleshooting](#7-troubleshooting).
+If you leave it commented out (or empty), `./demo create` looks up your public IPv4 address once at `https://checkip.amazonaws.com` (5 second timeout) and uses it as a `/32`, before it writes or bills anything. If the lookup fails, it stops and creates nothing, and you set `allowed_cidr` yourself. `--dry-run` skips the lookup. The detected address is not saved to `demo.yaml`, so if your IP changes, set `allowed_cidr` or run `./demo create` again. If you run `make stack-preflight` or `make stack-up` directly with an empty CIDR, they stop with a clear message. See also [Troubleshooting](#6-troubleshooting).
 
 To find your public IP yourself, open [https://checkip.amazonaws.com](https://checkip.amazonaws.com) in the browser you will use for the labs, or run `curl https://checkip.amazonaws.com`. Add `/32` to the address it shows, for example `203.0.113.7/32`.
 
@@ -392,7 +391,7 @@ Each `terraform/...: valid` line is one of the five Terraform configurations pas
 ### 4.3 Create the stack
 
 > [!WARNING]
-> As soon as you type `yes`, AWS and Confluent Cloud start billing you, about $1.50 to $2.50 per hour ([details](#d-cost-details)). Confluent Cloud bills a partial hour as a full hour. Set an AWS budget alert, plan to finish in one session, and run the [teardown](#8-teardown) at the end.
+> As soon as you type `yes`, AWS and Confluent Cloud start billing you, about $1.50 to $2.50 per hour ([details](#d-cost-details)). Confluent Cloud bills a partial hour as a full hour. Set an AWS budget alert, plan to finish in one session, and run the [teardown](#7-teardown) at the end.
 
 Run `./demo create` again and type `yes` at the question. Then, to follow the full log, open a second terminal in the repository root and run:
 
@@ -433,53 +432,27 @@ stack hybrid, core always on; optional layers:
 
 ![Stack-up success](img/build-01-stack-up-success.png)
 
-If a stage fails, the script stops with `stack.sh: step '<stage>' FAILED (command: ...)`. Read the lines above it, check [Troubleshooting](#7-troubleshooting), and keep the log. If you run `./demo create` again, it updates the existing stack to match the configuration instead of starting from zero. We have not measured how long a rerun after a partial failure takes.
+If a stage fails, the script stops with `stack.sh: step '<stage>' FAILED (command: ...)`. Read the lines above it, check [Troubleshooting](#6-troubleshooting), and keep the log. If you run `./demo create` again, it updates the existing stack to match the configuration instead of starting from zero. We have not measured how long a rerun after a partial failure takes.
 
-### 4.4 Read back the stack
+### 4.4 Open the shop, the control panel and Datadog
+
+You use three windows in the labs: the Online shop, the control panel and the Datadog stock dashboard. Open them now and keep them open.
+
+#### 1. Open the Online shop
+
+Print the stack's addresses:
 
 ```sh
 ./demo status
-./demo links
-make control
 ```
 
-`status` prints the summary above again. `links` prints the Datadog links for this stack:
+It prints the summary from the end of the build again. Open the `shop:` URL in your browser. You should see the UrbanStreet Online shop: one card per model (the 200 SKUs are grouped into 21 models), with the price and a dot for each colour. You open the product page in [Lab 1](#2-open-the-product-page). If the page does not load, your public IP has probably changed since the build; see [Troubleshooting](#6-troubleshooting). The product photos are AI-generated images of fictional, unbranded products ([how they are made](../storefront/assets-src/README.md)).
 
-```text
-stock dashboard: https://app.datadoghq.eu/dashboard/<id>/...
-online dashboard: https://app.datadoghq.eu/dashboard/<id>/...
-account-cost dashboard: https://app.datadoghq.eu/dashboard/<id>/...
-APM inventory-api 1.1.0: https://app.datadoghq.eu/apm/services/inventory-api?env=dd-demo-hybrid&version=1.1.0
-APM latency comparison: https://app.datadoghq.eu/apm/services/inventory-api?env=dd-demo-hybrid&compare_to=previous
-DSM map: https://app.datadoghq.eu/data-streams?env=dd-demo-hybrid
-control-center: http://<vm-public-ip>:9021
-```
+#### 2. Open the control panel
 
-`control` prints the control panel URL; see [Open the control panel](#open-the-control-panel) below.
+On the control panel path you run the labs from this page. On the terminal path you open it only in Labs 5 and 6, to change settings that have no make command.
 
-![Stack-status and links output](img/build-02-status-and-links.png)
-
-To see what the build created in AWS, open the AWS console in `eu-west-1` (Ireland). The ECS cluster lists the running services, including the three `inventory-api` releases side by side. On the load balancer, the listener rule for `/api/availability/*` sends traffic to three <abbr title="The set of containers that receives one release's share of the traffic.">target groups</abbr>, one per release, and the weight on each group sets its share. ElastiCache runs the Redis serving view.
-
-![ECS cluster services list](img/build-07-aws-ecs-services.png)
-
-![ALB listener rule with the three weighted target groups](img/build-08-aws-alb-weights.png)
-
-![ElastiCache cluster overview](img/build-09-aws-elasticache.png)
-
-Open the `shop:` URL in your browser. You should see the UrbanStreet Online shop: one card per model (the 200 SKUs are grouped into 21 models), with the price and a dot for each colour. Click a card to open the product page of one SKU ([Lab 1](#2-open-the-product-page)). If the page does not load, your public IP has probably changed since the build; see [Troubleshooting](#7-troubleshooting). The product photos are AI-generated images of fictional, unbranded products ([how they are made](../storefront/assets-src/README.md)).
-
-#### Open the control panel
-
-On the control panel path you run the labs from this page. On the terminal path you open it only in Labs 5 and 6, to change settings that have no make command. To open it:
-
-1. Print its address:
-
-   ```sh
-   ./demo status
-   ```
-
-   Look for the `control:` line:
+1. In the `./demo status` output, find the `control:` line:
 
    ```text
    control:  http://<alb-dns-name>/control/   (user demo, CONTROL_PASSWORD in .env.secrets)
@@ -492,189 +465,112 @@ On the control panel path you run the labs from this page. On the terminal path 
    ```
 
    It is a secret: do not paste it into a chat, a screenshot or a recording.
-3. Open the URL in your browser and sign in with user `demo` and that password. If the page does not load, check that your IP still matches `allowed_cidr` ([Troubleshooting](#7-troubleshooting)).
-
-#### The control panel and its cards
-
-Once you are signed in ([Open the control panel](#open-the-control-panel)), you see five action cards at the top; below them are the demo's settings by layer, which Labs 5 and 6 use. Each button does the same job as a make command:
-
-| Card | Buttons | Replaces |
-|---|---|---|
-| **Actions** (Source data actions) | **Sell out product**, **Reset demo data** | `sell-out`, the data part of `reset` |
-| Release routing | **Canary 1.1.0 (10%)**, **Canary 1.2.0 (10%)** / **(50%)** / **(100%)**, **Incident**, **Baseline**, **Rollback**, **Refresh weights** | `canary-110-10`, `canary-*`, `incident`, `route-baseline`, `rollback`, `route-show` |
-| Store feed | **Pause feed**, **Resume feed**, **Refresh state** | `store-pause`, `store-resume` |
-| Checks | **Run load (120 s, 5 rps)**, **Verify**, **Check canary**, **Refresh** | `load`, `verify`, `canary-check` |
-| Background sales | **Sales off**, **Sales on**, **Full reset** | `sales-off`, `sales-on`, `reset` |
-
-<div data-path="terminal" markdown="1">
-
-**With the terminal**
-
-You run the lab steps with the make commands in the right column, so you can skip the rest of this section and go to [4.5](#45-reset-verify-and-warm-up). You still open the panel's settings in Labs 5 and 6.
-
-</div>
+3. Open the URL in your browser and sign in with user `demo` and that password. If the page does not load, check that your IP still matches `allowed_cidr` ([Troubleshooting](#6-troubleshooting)).
 
 <div data-path="panel" markdown="1">
 
 **With the control panel**
 
-The **Actions** card (Source data actions) runs two steps of the labs:
+The panel shows five cards at the top and the demo's settings below them. You do not need to learn them now: each lab tells you which button to press and what the card shows afterwards.
 
-| Control | What it does |
+| Card | You use it in |
 |---|---|
-| Product field (default `P0042`) | The product to sell out, written as `P` and four digits |
-| **Sell out product** | Like `sell-out`: sells all of the product's stock in each of the five stores, one store at a time, and waits `sell_out_gap_s` seconds (1.5 by default) between stores |
-| **Reset demo data** | Like the data part of `reset`: writes the seeded stock back into the five Sources. Background sales must be off first, or it refuses to start (see below) |
+| **Background sales** (**Full reset**) | Every lab, to start from a clean state |
+| **Actions** (**Sell out product**) | Labs 1, 5 and 6 |
+| **Store feed** | Labs 1 and 2 |
+| **Release routing** | Labs 3 and 4 |
+| **Checks** (**Run load**, **Verify**, **Check canary**) | 4.5, Labs 1 to 4 |
 
-Both buttons ask you to confirm, and only one action runs at a time. The card shows a progress line such as `running: Sold out S01 (1/5); source verified` and ends with `succeeded: Source and Redis verification completed`: before it reports success, the panel reads the Sources back and checks that Redis has the same values.
-
-The actions change only PostgreSQL; the change travels through Debezium and Confluent Cloud as in Lab 1. **Reset demo data** refuses to run while background sales are on: press **Sales off** first, or use **Full reset** on the **Background sales** card.
-
-<details>
-<summary>Why Reset demo data refuses while sales are on</summary>
-
-Background sales keep changing the stock, so a reset could never match the baseline. **Reset demo data** does not stop background sales, does not change the load balancer routing and does not cancel restock purchase orders. **Full reset** does all of that: it turns sales off, sets routing to 100 / 0 / 0, cancels open purchase orders and then resets the data. `make reset` does the same from the terminal.
-
-</details>
-
-The **Release routing** card moves the inventory API traffic between the three releases, like the `canary-110-10`, `canary-*`, `incident`, `route-baseline` and `rollback` make commands:
-
-| Button | Weights 1.0.0 / 1.1.0 / 1.2.0 (%) |
-|---|---|
-| **Canary 1.1.0 (10%)** | 90 / 10 / 0 (Lab 3) |
-| **Canary 1.2.0 (10%)** | 90 / 0 / 10 (Lab 4) |
-| **Canary 1.2.0 (50%)** | 50 / 0 / 50 |
-| **Canary 1.2.0 (100%)** | 0 / 0 / 100 |
-| **Baseline (all to 1.0.0)** | 100 / 0 / 0 |
-| **Incident (all to 1.1.0)** | 0 / 100 / 0 (optional step at the end of Lab 3) |
-| **Rollback** | The split that was in place before the last routing change |
-| **Refresh weights** | Changes nothing. Reads the load balancer again |
-
-Each change asks you to confirm. The weight tiles show the live weights of the load balancer rule, and the line under them shows the live split and the previous one, for example `Live 90/10/0 · previous (for Rollback): 100/0/0`. The card reports success only after it has read the rule back and found the weights you asked for. The panel changes the rule from AWS itself, so routing from the panel needs no AWS login on your computer.
-
-The **Store feed** card pauses or resumes the Debezium connector of one store, like `store-pause` and `store-resume`. Pick a store, `S01` to `S05`, and press **Pause feed** or **Resume feed**. After a pause or resume, the card waits up to 20 seconds for the connector to report `PAUSED` or `RUNNING`, and shows an error if it does not. **Refresh state** reads the connector and task states again. The panel reaches Kafka Connect over the VPC's private network; port 8083 is never open to the internet (see [Reference B](#b-components-and-data-flow)).
-
-The **Checks** card runs three tools on the VM through the `scenario-api` service: the load generator, the comparison of the Sources with Redis, and the <abbr title="A pass or fail check of the canary's samples, errors, p95 latency and data correctness. You run it; it never runs by itself.">canary gate</abbr>. They work exactly like `load`, `verify` and `canary-check`, with the same files, output lines and results.
-
-| Button | What it does |
-|---|---|
-| **Run load (120 s, 5 rps)** | Sends steady load to the Online shop for 2 minutes. The card shows live progress lines, for example `Load 40/120 s, last window: 1.1.0 50 req p95 1450 ms; errors 0` with all traffic on 1.1.0 (your numbers will differ) |
-| **Verify** | Compares the Source of every store with Redis and ends with `VERIFY PASSED` or `VERIFY FAILED` |
-| **Check canary** | Checks the last load and verify results against the gates and ends with `CANARY GATES PASSED` or `CANARY GATES FAILED` (with the failed gates and `roll back`). It prints one `PASS` or `FAIL` line per gate, the samples per release and the p95 |
-| **Refresh** | Changes nothing. Reads the live routing and the last run again |
-
-**Check canary** picks the gate from the live routing and shows it below the buttons. At 90 / 10 / 0 (Lab 3) it checks 1.1.0 against 1.0.0. At 90 / 0 / 10 and 50 / 0 / 50 (Lab 4) it checks 1.2.0 against 1.0.0. At 0 / 0 / 100 it checks 1.2.0 alone. At 100 / 0 / 0 there is nothing to check, so it refuses. It also refuses if the routing changed since the last load you ran in the panel, because that load measured a different split. **Run load** blocks the cards for about 2 minutes.
-
-<details>
-<summary>How the panel's gate matches the make commands</summary>
-
-The canary is the newer release that receives traffic, and the baseline is the older one. When the canary has less than 50% of the traffic, the gate lowers the minimum number of samples from 100 to 30. These are the same gates as the `canary-check CHECK_ARGS=...` commands in Labs 3 and 4.
-
-</details>
-
-The **Background sales** card controls the sales generator, so you do not need a terminal. The rate tile shows the sales per minute per store (24 by default), or `OFF` with `rate 0 · Sales on restores 24/min` when sales are off.
-
-| Button | What it does |
-|---|---|
-| **Sales off** | Sets the sales rate to 0 in every store, remembers the old rate and checks that sales stop |
-| **Sales on** | Sets the remembered rate again, then waits for a real sale before it reports success |
-| **Full reset** | Like `make ... reset`: **Sales off**, then **Baseline** (100 / 0 / 0), then **Reset demo data**. When the restock layer runs, it also cancels open purchase orders before the data reset and clears the restock ETA keys after it. Otherwise its progress line says it did not change them. It needs the hybrid stack, which has the load balancer routing |
-
-The panel turns sales on and off by changing the rate, while the sales containers keep running.
-
-Every action also sends a Datadog event named `demo action: <name> started`, then `succeeded` or `failed` (see [Lab 7](#5-monitors)).
-
-![Actions card with the product field P0042, the Sell out product and Reset demo data buttons, and the status line succeeded: Source and Redis verification completed](img/build-04-control-actions.png)
-
-![Release routing and Store feed cards](img/build-05-routing-store-feed.png)
-
-![Checks and Background sales cards](img/build-06-checks-sales.png)
+[Reference H](#h-the-control-panel-button-by-button) describes every button, for when you want the details.
 
 </div>
 
+#### 3. Open the Datadog stock dashboard
+
+```sh
+./demo links
+```
+
+It prints the Datadog links for this stack:
+
+```text
+stock dashboard: https://app.datadoghq.eu/dashboard/<id>/...
+online dashboard: https://app.datadoghq.eu/dashboard/<id>/...
+account-cost dashboard: https://app.datadoghq.eu/dashboard/<id>/...
+APM inventory-api 1.1.0: https://app.datadoghq.eu/apm/services/inventory-api?env=dd-demo-hybrid&version=1.1.0
+APM latency comparison: https://app.datadoghq.eu/apm/services/inventory-api?env=dd-demo-hybrid&compare_to=previous
+DSM map: https://app.datadoghq.eu/data-streams?env=dd-demo-hybrid
+control-center: http://<vm-public-ip>:9021
+```
+
+![Stack-status and links output](img/build-02-status-and-links.png)
+
+Open the `stock dashboard:` link, "UrbanStreet stock service [dd-demo-hybrid]". Its charts fill up over the next minutes; you read them from Lab 1 on.
+
 <details>
-<summary>Why one path?</summary>
+<summary>Optional: see what the build created in AWS</summary>
 
-The panel stores the demo settings (key `demo:config`) and its **Rollback** memory (key `demo:routing-state`) in Redis, in the same ElastiCache instance that holds the serving view, under separate keys. `make rollback` keeps its memory in a local file on your computer, `.state/routing-<stack>`. So a **Rollback** in one does not know about a change made in the other: it restores what was live before the last change made by *that same* path.
+Open the AWS console in `eu-west-1` (Ireland). The ECS cluster lists the running services, including the three `inventory-api` releases side by side. On the load balancer, the listener rule for `/api/availability/*` sends traffic to three <abbr title="The set of containers that receives one release's share of the traffic.">target groups</abbr>, one per release, and the weight on each group sets its share. ElastiCache runs the Redis serving view.
 
-Background sales differ too. The panel turns sales on and off by changing the rate; `make sales-on` and `make sales-off` start and stop the containers. After the panel's **Sales off**, `make sales-on` starts containers that sell nothing until you press **Sales on**.
+![ECS cluster services list](img/build-07-aws-ecs-services.png)
+
+![ALB listener rule with the three weighted target groups](img/build-08-aws-alb-weights.png)
+
+![ElastiCache cluster overview](img/build-09-aws-elasticache.png)
 
 </details>
 
-### 4.5 Reset, verify and warm up
+### 4.5 Start from a clean state
 
-Every lab starts from a known state. A reset stops background sales, sends all stock lookups to release 1.0.0 and writes the seeded stock back into the five Sources. A verify then compares every store with Redis.
+When the build ends, background sales are running: every store sells a few products each minute, so the stock keeps changing. Every lab starts by stopping them and writing the seeded stock back, so that you know what the page should show. Do it once now, then check that Redis matches the stores.
 
 <div data-path="panel" markdown="1">
 
 **With the control panel**
 
-1. On the **Background sales** card, press **Full reset** and confirm. It runs **Sales off**, **Baseline (all to 1.0.0)** and **Reset demo data**, in that order. When it ends, the card reads `full-reset succeeded: Full reset done: background sales off (rate 0), routing 100/0/0 verified, demo data at the seeded baseline and Redis converged; ...`.
+1. On the **Background sales** card, press **Full reset** and confirm. It turns background sales off, sends all stock lookups to release 1.0.0 and writes the seeded stock back into the five stores. Wait until the card reads `full-reset succeeded: Full reset done: background sales off (rate 0), routing 100/0/0 verified, demo data at the seeded baseline and Redis converged; ...`.
 2. On the **Checks** card, press **Verify**. After a few seconds the result box shows `VERIFY PASSED`, and the status line reads `verify succeeded: Verify passed: 0 position mismatch(es), 0 sellable mismatch(es)`.
-3. Press **Sales on** on the **Background sales** card. The rate tile goes back to 24 and the card reads `sales-on succeeded: Background sales are on: 24/min per store; sale seen in ...`. Background sales never change product P0042, which the labs use.
-4. Look at the **Release routing** card. The tiles should read 100% for 1.0.0 and 0% for 1.1.0 and 1.2.0. Press **Refresh weights** to read the load balancer again.
+
+If you press **Verify** before **Full reset**, it can fail with a list such as `sellable P0011: sources sum 97, redis 96`. Nothing is broken: background sales were changing the stock while Verify compared it. Press **Full reset**, then **Verify** again.
 
 </div>
 
 <div data-path="terminal" markdown="1">
 
 **With the terminal**
-
-Three commands get you there:
-
-- `reset` stops background sales, sends all stock lookups to release 1.0.0 and writes the seeded stock back into the five Sources.
-- `verify` compares every store with Redis.
-- `smoke` checks the whole path the way a shopper uses it.
 
 ```sh
 make reset
 make verify
-make smoke
 ```
 
-`reset` first prints the AWS rule JSON that changes the routing, then the `alb-routing:` line. Among the output lines you should see:
+`reset` turns background sales off, sends all stock lookups to release 1.0.0 and writes the seeded stock back into the five stores. It first prints the AWS rule JSON that changes the routing. Among the output lines you should see:
 
 ```text
 alb-routing: weights 1.0.0/1.1.0/1.2.0 = 100 0 0%
 reset ok: scenario <id>, <n> positions at baseline, sellable caught up, feed ok, <n> open purchase order(s) cancelled, <n> restock:eta key(s) cleared
 == background sales are OFF now: make sales-on to restart them
 {"ok": true, "mismatches": 0, "sellable_mismatches": 0}
-PASS  connect: connectors and tasks RUNNING  ...
-...
-smoke: 9 passed, 0 failed
 ```
 
-![Reset, verify and smoke output](img/build-03-reset-verify-smoke.png)
+The last line is `verify`: every store matches Redis. If you run `verify` before `reset`, it can report mismatches, because background sales were changing the stock while it compared. Run `reset`, then `verify` again.
 
-Now turn background sales on again. They never change product P0042, which the labs use. Then check that your machine can read the live load balancer routing, which Labs 3 and 4 change:
-
-```sh
-make sales-on
-make route-check
-```
-
-The last line should read:
-
-```text
-alb-routing: live weights 1.0.0/1.1.0/1.2.0 = 100 0 0%
-```
-
-*What just happened:* the routing commands call the AWS API from your machine. `reset`, `verify` and `smoke` run as short-lived containers on the VM, next to the store databases.
+![Key lines of make reset and make verify](img/build-03-reset-verify-smoke.png)
 
 </div>
 
-Wait 10 to 15 minutes so that Datadog collects enough data before you rely on its charts.
+Background sales stay off until you turn them on; the labs do not need them. Datadog needs about 10 minutes of data before its charts are useful, and the freshness probe keeps sending data while sales are off. Start Lab 1 now: its first Datadog step comes after those minutes.
 
 ### 4.6 Checkpoint
 
 - [ ] The build ended with `smoke: 9 passed, 0 failed`.
+- [ ] The Online shop, the control panel and the Datadog stock dashboard are open.
 
 <div data-path="panel" markdown="1">
 
 **With the control panel**
 
-- [ ] **Verify** showed `VERIFY PASSED`.
-- [ ] The Online shop opens in your browser and the **Release routing** tiles read 100 / 0 / 0.
+- [ ] **Full reset** ended with `full-reset succeeded`, and **Verify** showed `VERIFY PASSED`.
 
 </div>
 
@@ -683,77 +579,29 @@ Wait 10 to 15 minutes so that Datadog collects enough data before you rely on it
 **With the terminal**
 
 - [ ] `verify` printed `"mismatches": 0, "sellable_mismatches": 0`.
-- [ ] The Online shop opens in your browser and `route-check` reads `100 0 0`.
 
 </div>
 
 ---
 
-## 5. What `./demo` does, step by step
+## 5. Labs
 
-You do not need to run anything in this section. Read it to understand the build or to debug a failed stage.
+The labs tell one story about UrbanStreet's Online shop. Do them in order: each lab uses what the one before showed you.
 
-### 5.1 The commands underneath
-
-`./demo` is a small script that checks your input and then runs make targets. Each action maps to one of them:
-
-| `./demo` action | Runs |
-|---|---|
-| `create` | `make secrets`, `make stack-preflight`, the cost question, then `make stack-up CONFIRM=yes` |
-| `status` | `make stack-status` |
-| `links` | `make links` |
-| `reset` | `make reset` |
-| `destroy` | A confirmation question, then `make stack-down CONFIRM=yes` |
-
-Every call adds `MODE=cloud TOPOLOGY=hybrid STACK=<stack>` and the profile, region and layers from `demo.yaml`. `./demo create --dry-run` prints the exact commands, with secrets masked. When you run `make <target>` yourself, the Makefile reads the same values from `demo.yaml`, so you do not need to add them.
-
-### 5.2 Where each secret goes
-
-You enter credentials for three accounts (AWS, Confluent Cloud, Datadog) and, optionally, the Jev key. The build generates everything else. Your AWS credentials stay in your AWS CLI profile. The others go in `demo.yaml`.
-
-| File or store | Contents | Created by |
+| Lab | What happens to the shop | What you show |
 |---|---|---|
-| `demo.yaml` (repository root, mode 600, ignored by git) | Your Datadog, Confluent Cloud and optional Jev keys | You |
-| `.env` (repository root, mode 600, ignored by git) | The same keys as environment variables | `./demo create`, from `demo.yaml` |
-| `.env.secrets` (mode 600) | Random database and control panel passwords, and `SCENARIO_API_TOKEN`, the token the control panel uses for the Checks card | `make secrets` |
-| `.env.cloud-hybrid` (mode 600) | Kafka and Schema Registry keys for each service, endpoints, ALB and Redis addresses | `stack-up`, from Terraform outputs |
-| AWS <abbr title="The AWS service that stores configuration values and secrets for the Fargate tasks.">SSM Parameter Store</abbr>, `/dd-demo/hybrid/` | The secrets that the Fargate tasks need, as encrypted SecureStrings, taken from an allowlist | `stack-up` |
+| [1](#lab-1-one-product-five-stores-one-online-number) | A product sells out in all five stores | The online number follows within seconds, without querying any store |
+| [1b](#lab-1b-optional-look-inside-confluent) (optional) | The same sale, seen from inside | The change event in Confluent Cloud and Control Center |
+| [2](#lab-2-unknown-is-not-zero) | One store stops reporting | The shop shows "at least" instead of a wrong number, and Datadog names the store |
+| [3](#lab-3-the-incident) | A new release is slow | The canary check stops it at 10% of traffic; APM shows why |
+| [4](#lab-4-canary-the-fix) | The fix goes out | The same check lets it through, step by step, with a way back |
+| [5](#lab-5-restock-that-learns) (optional layer) | A product runs out | The system orders more and the stock comes back |
+| [6](#lab-6-offers-with-a-safe-default) (optional layer) | A shopper's product sells out in their cart | An offer, chosen by AI only when it is confident enough |
+| [7](#lab-7-datadog-on-top-of-the-solution) | Nothing breaks | Datadog's view of the whole platform: integrations, tests, monitors, cost |
 
-`.gitignore` excludes all `.env*` files and `demo.yaml`, so `git add .` cannot add them.
+Every lab follows the same pattern: start from a clean state with **Full reset** (or `make reset`; Lab 4 continues from Lab 3 instead), do one thing to the shop, look at the result in the shop and in Datadog, then tick the checkpoint.
 
-### 5.3 The build stages
-
-`stack-up` runs these stages in order. The table groups them; the log prints one `== [stage]` line per step, for example `== [terraform vm (EC2 host)]`. Each `terraform` stage applies one of the five Terraform configurations.
-
-| # | Stages | What they do |
-|---|---|---|
-| 1 | preflight | The checks from [4.2](#42-run-the-preflight-no-cloud-costs-yet) |
-| 2 | terraform account | Resources for the whole account, kept across stacks: Cost and Usage Report export, Datadog AWS integration, read-only Confluent identity for cost data, account cost dashboard |
-| 3 | terraform cloud | Confluent environment `dd-demo-hybrid`, Basic cluster, Schema Registry, topics, keys and Flink pool. The Flink statements wait until stage 9 |
-| 4 | terraform vm | The EC2 VM, its security group (`allowed_cidr` only) and key pair |
-| 5 | env file, docker context, secrets | Writes `.env.cloud-hybrid`, waits for SSH, creates the <abbr title="Tells your local docker CLI to run commands on the VM over SSH.">Docker context</abbr> `dd-demo-hybrid`, generates `.env.secrets` |
-| 6 | terraform aws, SSM | <abbr title="The AWS registry that stores the container images.">ECR</abbr>, ElastiCache, ECS services, ALB and target groups. Copies the allowlisted secrets to SSM |
-| 7 | build and push | Builds every image on the ARM64 VM, pushes them to ECR, waits until every ECS service is stable |
-| 8 | VM services | Starts the on-premises services, seeds the five stores with data, registers the connectors and waits until they run |
-| 9 | schema priming and Flink | Writes a first record to each input topic, waits for its schema, then starts the Flink statements |
-| 10 | first data | Waits until Redis holds sellable stock for all 200 products, resets, verifies, turns sales on |
-| 11 | terraform datadog | Dashboards, monitors, Synthetics, RUM, Confluent integration. Deploys the Online shop again with the RUM settings |
-| 12 | smoke | The end-to-end smoke test, then the status summary |
-
-<details>
-<summary>Why the Flink statements wait until stage 9</summary>
-
-Confluent Cloud Flink reads a table's columns from the topic's Schema Registry subject (`<topic>-value`), and that subject exists only after the first record arrives. A statement created earlier fails. So the script first writes a record to each input topic ("priming"), waits up to 300 s for the subjects, and only then creates the statements.
-
-</details>
-
-Every lifecycle command writes a log under `.state/logs/` (mode 600). Logs can contain operational details such as hostnames, so do not share them publicly.
-
----
-
-## 6. Labs
-
-Every lab expects the stack from [Section 4](#4-build-the-stack) to be running and warmed up. On the terminal path, run the commands from the repository root: the make commands read your stack name from `demo.yaml`. The examples use the stack name `hybrid`; if you chose another one ([4.1](#the-stack-name)), read `dd-demo-<your name>` for `dd-demo-hybrid` and `stack:<your name>` for `stack:hybrid`. Each lab first says what you will do and why, then shows the part of the architecture it uses. If something does not work, see [Troubleshooting](#7-troubleshooting).
+Every lab expects the stack from [Section 4](#4-build-the-stack) to be running and warmed up. On the terminal path, run the commands from the repository root: the make commands read your stack name from `demo.yaml`. The examples use the stack name `hybrid`; if you chose another one ([4.1](#the-stack-name)), read `dd-demo-<your name>` for `dd-demo-hybrid` and `stack:<your name>` for `stack:hybrid`. Each lab first says what you will do and why, then shows the part of the architecture it uses. If something does not work, see [Troubleshooting](#6-troubleshooting).
 
 ### Lab 1: One product, five stores, one online number
 
@@ -771,7 +619,7 @@ You follow product P0042, the Alpenpace Trailrunner GTX in Forest green, size EU
 
 **With the control panel**
 
-Press **Full reset** on the **Background sales** card of the control panel ([how to open it](#open-the-control-panel)) and confirm. Wait until the card reads `full-reset succeeded`. Background sales are now off. Do not use **Reset demo data** here: it refuses while background sales are on, and you turned them on in [4.5](#45-reset-verify-and-warm-up).
+Press **Full reset** on the **Background sales** card of the control panel ([how to open it](#2-open-the-control-panel)) and confirm. Wait until the card reads `full-reset succeeded`. Background sales are now off.
 
 </div>
 
@@ -783,7 +631,7 @@ Press **Full reset** on the **Background sales** card of the control panel ([how
 make reset
 ```
 
-You should see `reset ok: ...` as in [4.5](#45-reset-verify-and-warm-up). Background sales are now off.
+You should see `reset ok: ...` as in [4.5](#45-start-from-a-clean-state). Background sales are now off.
 
 </div>
 
@@ -997,7 +845,7 @@ flowchart TB
 
 **With the control panel**
 
-Press **Full reset** on the **Background sales** card of the control panel ([how to open it](#open-the-control-panel)) and confirm. Wait until the card reads `full-reset succeeded`. Background sales are now off. Do not use **Reset demo data** here: it refuses while background sales are on, and you turned them on in [4.5](#45-reset-verify-and-warm-up).
+Press **Full reset** on the **Background sales** card of the control panel ([how to open it](#2-open-the-control-panel)) and confirm. Wait until the card reads `full-reset succeeded`. Background sales are now off.
 
 </div>
 
@@ -1300,7 +1148,7 @@ Only the 10% of lookups that went to 1.1.0 during the canary were slow. The othe
 
 #### 6. Compare releases in APM
 
-Open the `APM inventory-api 1.1.0:` link, or APM > `inventory-api` with environment `dd-demo-hybrid`, past 15 minutes, operation `flask.request`. During the canary, 1.1.0 is far above 1.0.0 at p95: hundreds of milliseconds against about ten. In our run, with all traffic on one release at 5 rps, the server-side p95 was about 430 ms for 1.1.0 and about 4 ms for the fixed 1.2.0. Your numbers will differ.
+Open the `APM inventory-api 1.1.0:` link, or APM > `inventory-api` with environment `dd-demo-hybrid`, past 15 minutes, operation `flask.request`. During the canary, 1.1.0 is far above 1.0.0 at p95: around a second or more, against under ten milliseconds. In our run (2026-10-06, every release on 0.5 vCPU) the load script measured a client-side p95 of about 1.5 s for 1.1.0 and about 10 ms for 1.0.0 at 90 / 10 / 0. Your numbers will differ.
 
 You can read the comparison in three places:
 
@@ -1383,7 +1231,7 @@ make route-baseline
 
 </div>
 
-While the load runs, every lookup goes to 1.1.0, requests wait in a queue, and the client-side p95 becomes much worse than the APM span (in our run about 1.5 s against about 0.4 s). This run also gives you the CPU comparison under the same load that you use at the end of [Lab 4](#5-prove-it-latency-cpu-and-cost).
+While the load runs, every lookup goes to 1.1.0 and requests queue up. On 0.5 vCPU, 1.1.0 cannot keep up with 5 requests per second. In our run (2026-10-06) 532 of the 600 requests timed out on the client, the 15 that were answered had a p95 of about 9.4 s, the task used its whole 0.5 vCPU, and ECS replaced it after it failed its health check. This is what the 10% canary kept away from 90% of the lookups. ECS starts a new 1.1.0 task by itself; Lab 4 does not need it. This run also gives you the CPU comparison under the same load that you use at the end of [Lab 4](#5-prove-it-latency-cpu-and-cost).
 
 #### Checkpoint
 
@@ -1612,14 +1460,14 @@ You should see `PASS` for `min_samples_b`, `error_rate_b`, `p95_b` and `correctn
 
 You have now run the same load (120 s at 5 requests per second) with 1.2.0 taking all traffic. Compare it with 1.1.0 in Datadog:
 
-1. Latency: use the Metrics Explorer query from [Lab 3](#6-compare-releases-in-apm) and compare the versions. 1.2.0 should be much lower than 1.1.0. In our run the server-side p95 was about 4 ms for 1.2.0 and about 430 ms for 1.1.0.
+1. Latency: use the Metrics Explorer query from [Lab 3](#6-compare-releases-in-apm) and compare the versions. 1.2.0 should be much lower than 1.1.0. In our run the load script measured a client-side p95 of about 8 ms for 1.2.0 with all traffic (575 requests, no errors), and APM showed about 3 ms. 1.1.0 with all traffic timed out, as in Lab 3 step 9.
 2. CPU: open Metrics > Explorer and paste the query below. It is the query of the **Fargate CPU usage by service/version** widget on the stock dashboard (group *ElastiCache and VM host*, tags `service` and `version`). Replace `<stack>` with `hybrid`:
 
    ```text
    sum:ecs.fargate.cpu.usage{project:dd-demo,stack:<stack>} by {service,version}
    ```
 
-   The values are in nanocores (1 vCPU = 10⁹ nanocores), averaged over the whole task, including the Agent sidecar container. To compare fairly, each version must get the same load. The optional all-traffic step at the end of [Lab 3](#lab-3-the-incident) gives you that. In our run, with 5 requests per second sent to each release in turn, 1.1.0 used about 0.29 vCPU on average and 1.2.0 about 0.009 vCPU. That is about 30 times less CPU for the same traffic.
+   The values are in nanocores (1 vCPU = 10⁹ nanocores), averaged over the whole task, including the Agent sidecar container. To compare fairly, each version must get the same load. The optional all-traffic step at the end of [Lab 3](#lab-3-the-incident) gives you that. In our run, with 5 requests per second sent to each release in turn, 1.1.0 used its whole 0.5 vCPU until ECS replaced it, and 1.2.0 used about 0.02 vCPU (AWS Container Insights, `CpuUtilized`, 2026-10-06). That is at least 20 times less CPU for the same traffic; the real gap is larger, because 1.1.0 hit its limit.
 3. Cost: all three releases run on the same task size (0.5 vCPU / 1 GB in `service_sizing`, `terraform/aws/variables.tf`), so each task costs the same per hour on Fargate. The saving comes from capacity: the fix uses much less CPU per request, so the same tasks can serve more traffic before you need more tasks. We did not measure at what traffic level either release needs more tasks.
 
 #### Checkpoint
@@ -1696,7 +1544,7 @@ This is the loop that just ran:
 
 #### 3. Open the control panel
 
-Open the control panel in both paths ([how to open it](#open-the-control-panel)) and scroll below the cards to the `restock` settings. You should see the restock parameters: supplier lead time, lead time jitter, safety factor, coverage after delivery, minimum order quantity, demand window and the demo clock (`time_compression`, 60 by default). Each change you save is also sent to Datadog as an event.
+Open the control panel in both paths ([how to open it](#2-open-the-control-panel)) and scroll below the cards to the `restock` settings. You should see the restock parameters: supplier lead time, lead time jitter, safety factor, coverage after delivery, minimum order quantity, demand window and the demo clock (`time_compression`, 60 by default). Each change you save is also sent to Datadog as an event.
 
 ![Control panel restock parameters](img/lab5-03-control-panel.png)
 
@@ -1841,7 +1689,7 @@ The same request also appears in APM (service `offer-worker`, span `offer.proces
 
 #### 4. Lower the threshold, live
 
-This setting exists only in the control panel, so you use the panel in both paths ([how to open it](#open-the-control-panel)). In the `offers` settings, set **Jev minimum confidence** (`jev_min_confidence`) to `0.7` and press **Save**. Then reset, reload the page, add P0042 to the cart again, and sell it out.
+This setting exists only in the control panel, so you use the panel in both paths ([how to open it](#2-open-the-control-panel)). In the `offers` settings, set **Jev minimum confidence** (`jev_min_confidence`) to `0.7` and press **Save**. Then reset, reload the page, add P0042 to the cart again, and sell it out.
 
 <div data-path="panel" markdown="1">
 
@@ -2012,11 +1860,11 @@ You should see a `rum` block with an application ID and a client token. The clie
 - [ ] Both Synthetics tests have recent passing results.
 - [ ] The cost dashboard shows a current USD-per-hour value for `hybrid`.
 
-Across the labs, APM found the slow request, freshness and DSM showed that the data path was fine, version tags checked the canary, and the integrations and monitors gave you the view of the whole platform. **Next:** [Teardown](#8-teardown).
+Across the labs, APM found the slow request, freshness and DSM showed that the data path was fine, version tags checked the canary, and the integrations and monitors gave you the view of the whole platform. **Next:** [Teardown](#7-teardown).
 
 ---
 
-## 7. Troubleshooting
+## 6. Troubleshooting
 
 When a step fails, read the last lines before the failure. Every script prints the step, the command and, where it can, the fix. If a step fails twice, stop and read before you try a third time. Running the build again without knowing why it failed is the most expensive way to debug.
 
@@ -2076,7 +1924,7 @@ When a step fails, read the last lines before the failure. Every script prints t
 | The Lab 3 gate passes for 1.1.0 | The p95 of 1.1.0 stayed within the 200 ms budget for this load, for example because few lookups reached it | Press **Run load** and **Check canary** again. If it still passes, roll back anyway and use the APM comparison and the optional all-traffic step of Lab 3 |
 | **Sales on** fails with `no background sale was recorded in any store for ... s: the jr-sales containers are probably stopped` | The sales containers are stopped, for example after `make sales-off` or `reset` | Run `make sales-on` to start them, then press **Sales on** |
 | **Full reset** is disabled, or fails with `Full reset needs ALB release routing (hybrid stack)` | The control panel runs without the routing settings | Use `make ... reset`, or use the hybrid stack |
-| No data in Datadog charts | Telemetry needs a few minutes to fill a 15-minute window | Wait 10 to 15 minutes with `sales-on` running |
+| No data in Datadog charts | Telemetry needs a few minutes to fill a 15-minute window | Wait 10 to 15 minutes. The freshness probe sends data even while background sales are off |
 | `route-show` shows an unexpected split | Someone changed the ALB rule | Set the split you want with `route-baseline`, `canary-110-10`, `canary-*` or `incident` |
 | `canary-check` fails on samples at 10% | The canary (1.1.0 in Lab 3, 1.2.0 in Lab 4) received too few responses. A weight does not give an exact split | Run a longer `load`, or pass `--min-samples` explicitly ([Lab 4](#lab-4-canary-the-fix)) |
 | `smoke` fails with a feed not ok | A store is paused (Lab 2) or a connector is down. Check: `status` | Run `make store-resume STORE=S0n`, then `reset` |
@@ -2099,7 +1947,7 @@ When a step fails, read the last lines before the failure. Every script prints t
 
 ---
 
-## 8. Teardown
+## 7. Teardown
 
 > [!WARNING]
 > `./demo destroy` deletes everything in the `hybrid` stack: the Datadog objects, the AWS online side with its images, the VM with its volumes, and the Confluent environment with all topics. The data is synthetic, but a rebuild takes about 36 minutes. Until you run it, the stack keeps costing about $1.50 to $2.50 per hour.
@@ -2189,7 +2037,7 @@ The teardown keeps the account-wide pieces on purpose: the Cost and Usage Report
 
 ---
 
-## 9. Recap and further reading
+## 8. Recap and further reading
 
 You streamed changes out of five store databases without changing them. You built a serving view that never queries the stores and never shows unknown stock as zero, and you used a probe to show that it stays fresh. Then you shipped a slow release as a 10% canary; the gate failed it, and you rolled it back before most lookups reached it. You found the cause with version-tagged traces, and you rolled out the fix through the same gate, with a tested way back. Two optional layers used the same stream for restocking and for AI offers that follow rules.
 
@@ -2361,8 +2209,8 @@ Every make target below reads the stack name and settings from `demo.yaml` ([4.1
 | `status`, `layers-status` | VM containers, routing, layers, connector status |
 | `control` | Control panel URL and where to find its password |
 | `layer-on L=<layer> CONFIRM=yes`, `layer-off L=<layer> CONFIRM=yes` | Switch one layer on or off on an existing stack (billed Terraform changes) |
-| `stack-preflight`, `stack-up`, `stack-status`, `stack-down` | The lifecycle targets that `./demo` runs ([Section 5](#5-what-demo-does-step-by-step)) |
-| `stack-leftovers` | Read-only leftover check, the last step of `stack-down` ([Teardown](#8-teardown)) |
+| `stack-preflight`, `stack-up`, `stack-status`, `stack-down` | The lifecycle targets that `./demo` runs ([Reference I](#i-what-demo-does-step-by-step)) |
+| `stack-leftovers` | Read-only leftover check, the last step of `stack-down` ([Teardown](#7-teardown)) |
 
 ### F. Remove the account-wide pieces
 
@@ -2377,3 +2225,156 @@ make MODE=cloud STACK=account account-down CONFIRM=yes ACCOUNT_DOWN_DESTROY=yes
 ### G. Other Datadog sites
 
 This guide supports only the Datadog EU site. `./demo` accepts other site names, but the Terraform providers, the FireLens log host, the Synthetics IP-range lookup and the link helper still point to `datadoghq.eu`. Changing them is untested.
+
+### H. The control panel, button by button
+
+The labs tell you which button to press. This section describes every card and button in one place. Sign in as in [Open the control panel](#2-open-the-control-panel). Five action cards sit at the top; below them are the demo's settings by layer, which Labs 5 and 6 use. Each button does the same job as a make command:
+
+| Card | Buttons | Replaces |
+|---|---|---|
+| **Actions** (Source data actions) | **Sell out product**, **Reset demo data** | `sell-out`, the data part of `reset` |
+| Release routing | **Canary 1.1.0 (10%)**, **Canary 1.2.0 (10%)** / **(50%)** / **(100%)**, **Incident**, **Baseline**, **Rollback**, **Refresh weights** | `canary-110-10`, `canary-*`, `incident`, `route-baseline`, `rollback`, `route-show` |
+| Store feed | **Pause feed**, **Resume feed**, **Refresh state** | `store-pause`, `store-resume` |
+| Checks | **Run load (120 s, 5 rps)**, **Verify**, **Check canary**, **Refresh** | `load`, `verify`, `canary-check` |
+| Background sales | **Sales off**, **Sales on**, **Full reset** | `sales-off`, `sales-on`, `reset` |
+
+The **Actions** card (Source data actions) runs two steps of the labs:
+
+| Control | What it does |
+|---|---|
+| Product field (default `P0042`) | The product to sell out, written as `P` and four digits |
+| **Sell out product** | Like `sell-out`: sells all of the product's stock in each of the five stores, one store at a time, and waits `sell_out_gap_s` seconds (1.5 by default) between stores |
+| **Reset demo data** | Like the data part of `reset`: writes the seeded stock back into the five Sources. Background sales must be off first, or it refuses to start (see below) |
+
+Both buttons ask you to confirm, and only one action runs at a time. The card shows a progress line such as `running: Sold out S01 (1/5); source verified` and ends with `succeeded: Source and Redis verification completed`: before it reports success, the panel reads the Sources back and checks that Redis has the same values.
+
+The actions change only PostgreSQL; the change travels through Debezium and Confluent Cloud as in Lab 1. **Reset demo data** refuses to run while background sales are on: press **Sales off** first, or use **Full reset** on the **Background sales** card.
+
+<details>
+<summary>Why Reset demo data refuses while sales are on</summary>
+
+Background sales keep changing the stock, so a reset could never match the baseline. **Reset demo data** does not stop background sales, does not change the load balancer routing and does not cancel restock purchase orders. **Full reset** does all of that: it turns sales off, sets routing to 100 / 0 / 0, cancels open purchase orders and then resets the data. `make reset` does the same from the terminal.
+
+</details>
+
+The **Release routing** card moves the inventory API traffic between the three releases, like the `canary-110-10`, `canary-*`, `incident`, `route-baseline` and `rollback` make commands:
+
+| Button | Weights 1.0.0 / 1.1.0 / 1.2.0 (%) |
+|---|---|
+| **Canary 1.1.0 (10%)** | 90 / 10 / 0 (Lab 3) |
+| **Canary 1.2.0 (10%)** | 90 / 0 / 10 (Lab 4) |
+| **Canary 1.2.0 (50%)** | 50 / 0 / 50 |
+| **Canary 1.2.0 (100%)** | 0 / 0 / 100 |
+| **Baseline (all to 1.0.0)** | 100 / 0 / 0 |
+| **Incident (all to 1.1.0)** | 0 / 100 / 0 (optional step at the end of Lab 3) |
+| **Rollback** | The split that was in place before the last routing change |
+| **Refresh weights** | Changes nothing. Reads the load balancer again |
+
+Each change asks you to confirm. The weight tiles show the live weights of the load balancer rule, and the line under them shows the live split and the previous one, for example `Live 90/10/0 · previous (for Rollback): 100/0/0`. The card reports success only after it has read the rule back and found the weights you asked for. The panel changes the rule from AWS itself, so routing from the panel needs no AWS login on your computer.
+
+The **Store feed** card pauses or resumes the Debezium connector of one store, like `store-pause` and `store-resume`. Pick a store, `S01` to `S05`, and press **Pause feed** or **Resume feed**. After a pause or resume, the card waits up to 20 seconds for the connector to report `PAUSED` or `RUNNING`, and shows an error if it does not. **Refresh state** reads the connector and task states again. The panel reaches Kafka Connect over the VPC's private network; port 8083 is never open to the internet (see [Reference B](#b-components-and-data-flow)).
+
+The **Checks** card runs three tools on the VM through the `scenario-api` service: the load generator, the comparison of the Sources with Redis, and the <abbr title="A pass or fail check of the canary's samples, errors, p95 latency and data correctness. You run it; it never runs by itself.">canary gate</abbr>. They work exactly like `load`, `verify` and `canary-check`, with the same files, output lines and results.
+
+| Button | What it does |
+|---|---|
+| **Run load (120 s, 5 rps)** | Sends steady load to the Online shop for 2 minutes. The card shows live progress lines, for example `Load 40/120 s, last window: ...` with the requests, p95 and errors per release |
+| **Verify** | Compares the Source of every store with Redis and ends with `VERIFY PASSED` or `VERIFY FAILED` |
+| **Check canary** | Checks the last load and verify results against the gates and ends with `CANARY GATES PASSED` or `CANARY GATES FAILED` (with the failed gates and `roll back`). It prints one `PASS` or `FAIL` line per gate, the samples per release and the p95 |
+| **Refresh** | Changes nothing. Reads the live routing and the last run again |
+
+**Check canary** picks the gate from the live routing and shows it below the buttons. At 90 / 10 / 0 (Lab 3) it checks 1.1.0 against 1.0.0. At 90 / 0 / 10 and 50 / 0 / 50 (Lab 4) it checks 1.2.0 against 1.0.0. At 0 / 0 / 100 it checks 1.2.0 alone. At 100 / 0 / 0 there is nothing to check, so it refuses. It also refuses if the routing changed since the last load you ran in the panel, because that load measured a different split. **Run load** blocks the cards for about 2 minutes.
+
+<details>
+<summary>How the panel's gate matches the make commands</summary>
+
+The canary is the newer release that receives traffic, and the baseline is the older one. When the canary has less than 50% of the traffic, the gate lowers the minimum number of samples from 100 to 30. These are the same gates as the `canary-check CHECK_ARGS=...` commands in Labs 3 and 4.
+
+</details>
+
+The **Background sales** card controls the sales generator, so you do not need a terminal. The rate tile shows the sales per minute per store (24 by default), or `OFF` with `rate 0 · Sales on restores 24/min` when sales are off.
+
+| Button | What it does |
+|---|---|
+| **Sales off** | Sets the sales rate to 0 in every store, remembers the old rate and checks that sales stop |
+| **Sales on** | Sets the remembered rate again, then waits for a real sale before it reports success |
+| **Full reset** | Like `make ... reset`: **Sales off**, then **Baseline** (100 / 0 / 0), then **Reset demo data**. When the restock layer runs, it also cancels open purchase orders before the data reset and clears the restock ETA keys after it. Otherwise its progress line says it did not change them. It needs the hybrid stack, which has the load balancer routing |
+
+The panel turns sales on and off by changing the rate, while the sales containers keep running.
+
+Every action also sends a Datadog event named `demo action: <name> started`, then `succeeded` or `failed` (see [Lab 7](#5-monitors)).
+
+![Actions card with the product field P0042, the Sell out product and Reset demo data buttons, and the status line succeeded: Source and Redis verification completed](img/build-04-control-actions.png)
+
+![Release routing and Store feed cards](img/build-05-routing-store-feed.png)
+
+![Checks and Background sales cards](img/build-06-checks-sales.png)
+
+<details>
+<summary>Why one path?</summary>
+
+The panel stores the demo settings (key `demo:config`) and its **Rollback** memory (key `demo:routing-state`) in Redis, in the same ElastiCache instance that holds the serving view, under separate keys. `make rollback` keeps its memory in a local file on your computer, `.state/routing-<stack>`. So a **Rollback** in one does not know about a change made in the other: it restores what was live before the last change made by *that same* path.
+
+Background sales differ too. The panel turns sales on and off by changing the rate; `make sales-on` and `make sales-off` start and stop the containers. After the panel's **Sales off**, `make sales-on` starts containers that sell nothing until you press **Sales on**.
+
+</details>
+
+### I. What `./demo` does, step by step
+
+You do not need to run anything in this section. Read it to understand the build or to debug a failed stage.
+
+#### I.1 The commands underneath
+
+`./demo` is a small script that checks your input and then runs make targets. Each action maps to one of them:
+
+| `./demo` action | Runs |
+|---|---|
+| `create` | `make secrets`, `make stack-preflight`, the cost question, then `make stack-up CONFIRM=yes` |
+| `status` | `make stack-status` |
+| `links` | `make links` |
+| `reset` | `make reset` |
+| `destroy` | A confirmation question, then `make stack-down CONFIRM=yes` |
+
+Every call adds `MODE=cloud TOPOLOGY=hybrid STACK=<stack>` and the profile, region and layers from `demo.yaml`. `./demo create --dry-run` prints the exact commands, with secrets masked. When you run `make <target>` yourself, the Makefile reads the same values from `demo.yaml`, so you do not need to add them.
+
+#### I.2 Where each secret goes
+
+You enter credentials for three accounts (AWS, Confluent Cloud, Datadog) and, optionally, the Jev key. The build generates everything else. Your AWS credentials stay in your AWS CLI profile. The others go in `demo.yaml`.
+
+| File or store | Contents | Created by |
+|---|---|---|
+| `demo.yaml` (repository root, mode 600, ignored by git) | Your Datadog, Confluent Cloud and optional Jev keys | You |
+| `.env` (repository root, mode 600, ignored by git) | The same keys as environment variables | `./demo create`, from `demo.yaml` |
+| `.env.secrets` (mode 600) | Random database and control panel passwords, and `SCENARIO_API_TOKEN`, the token the control panel uses for the Checks card | `make secrets` |
+| `.env.cloud-hybrid` (mode 600) | Kafka and Schema Registry keys for each service, endpoints, ALB and Redis addresses | `stack-up`, from Terraform outputs |
+| AWS <abbr title="The AWS service that stores configuration values and secrets for the Fargate tasks.">SSM Parameter Store</abbr>, `/dd-demo/hybrid/` | The secrets that the Fargate tasks need, as encrypted SecureStrings, taken from an allowlist | `stack-up` |
+
+`.gitignore` excludes all `.env*` files and `demo.yaml`, so `git add .` cannot add them.
+
+#### I.3 The build stages
+
+`stack-up` runs these stages in order. The table groups them; the log prints one `== [stage]` line per step, for example `== [terraform vm (EC2 host)]`. Each `terraform` stage applies one of the five Terraform configurations.
+
+| # | Stages | What they do |
+|---|---|---|
+| 1 | preflight | The checks from [4.2](#42-run-the-preflight-no-cloud-costs-yet) |
+| 2 | terraform account | Resources for the whole account, kept across stacks: Cost and Usage Report export, Datadog AWS integration, read-only Confluent identity for cost data, account cost dashboard |
+| 3 | terraform cloud | Confluent environment `dd-demo-hybrid`, Basic cluster, Schema Registry, topics, keys and Flink pool. The Flink statements wait until stage 9 |
+| 4 | terraform vm | The EC2 VM, its security group (`allowed_cidr` only) and key pair |
+| 5 | env file, docker context, secrets | Writes `.env.cloud-hybrid`, waits for SSH, creates the <abbr title="Tells your local docker CLI to run commands on the VM over SSH.">Docker context</abbr> `dd-demo-hybrid`, generates `.env.secrets` |
+| 6 | terraform aws, SSM | <abbr title="The AWS registry that stores the container images.">ECR</abbr>, ElastiCache, ECS services, ALB and target groups. Copies the allowlisted secrets to SSM |
+| 7 | build and push | Builds every image on the ARM64 VM, pushes them to ECR, waits until every ECS service is stable |
+| 8 | VM services | Starts the on-premises services, seeds the five stores with data, registers the connectors and waits until they run |
+| 9 | schema priming and Flink | Writes a first record to each input topic, waits for its schema, then starts the Flink statements |
+| 10 | first data | Waits until Redis holds sellable stock for all 200 products, resets, verifies, turns sales on |
+| 11 | terraform datadog | Dashboards, monitors, Synthetics, RUM, Confluent integration. Deploys the Online shop again with the RUM settings |
+| 12 | smoke | The end-to-end smoke test, then the status summary |
+
+<details>
+<summary>Why the Flink statements wait until stage 9</summary>
+
+Confluent Cloud Flink reads a table's columns from the topic's Schema Registry subject (`<topic>-value`), and that subject exists only after the first record arrives. A statement created earlier fails. So the script first writes a record to each input topic ("priming"), waits up to 300 s for the subjects, and only then creates the statements.
+
+</details>
+
+Every lifecycle command writes a log under `.state/logs/` (mode 600). Logs can contain operational details such as hostnames, so do not share them publicly.

@@ -12,7 +12,7 @@ from typing import Callable
 
 from flask import Flask, jsonify
 
-from .actions import ActionError, Operation
+from .actions import ActionError, Operation, OperationFailed
 from .checks import LOAD_DURATION_S, LOAD_RPS, CheckError, Checks, gate_for
 from .routing import PRESETS
 from .sales import BackgroundSales, SalesError
@@ -24,6 +24,8 @@ FULL_RESET_OFF = ("Full reset needs ALB release routing (hybrid stack); in this 
                   "(or Sales off, make route-baseline, Reset demo data).")
 BASELINE = "route-baseline"
 SALES_ON_RESET = "Background sales are on ({rate:g}/min per store): press Sales off first, or use Full reset"
+SALES_ON_VERIFY = ("Background sales are on ({rate:g}/min per store) and kept changing the stock while Verify "
+                   "compared it: press Full reset, then Verify again")
 
 
 def make_check_operations(checks: Checks | None, sales: BackgroundSales | None, alb,
@@ -86,6 +88,20 @@ def make_check_operations(checks: Checks | None, sales: BackgroundSales | None, 
             raise ActionError(SALES_ON_RESET.format(rate=rate))
         return {}
 
+    def run_verify(params: dict, progress):
+        try:
+            return need_checks().verify(progress)
+        except OperationFailed as exc:
+            if sales is None:
+                raise
+            try:
+                rate = sales.rate()
+            except SalesError as read_exc:
+                raise OperationFailed(f"{exc} (background sales rate unreadable: {read_exc})", exc.result) from exc
+            if rate > 0:
+                raise OperationFailed(f"{exc}. {SALES_ON_VERIFY.format(rate=rate)}", exc.result) from exc
+            raise
+
     def fixed(need: Callable[[], object], params: dict) -> Callable[[dict], dict]:
         def parse(body: dict) -> dict:
             need()  # raises ActionError when the card is not configured here
@@ -95,7 +111,7 @@ def make_check_operations(checks: Checks | None, sales: BackgroundSales | None, 
     ops = {
         "load": Operation(fixed(need_checks, {"duration_s": LOAD_DURATION_S, "rps": LOAD_RPS}),
                           lambda p, progress: need_checks().load(progress)),
-        "verify": Operation(fixed(need_checks, {}), lambda p, progress: need_checks().verify(progress)),
+        "verify": Operation(fixed(need_checks, {}), run_verify),
         "canary-check": Operation(parse_canary, run_canary),
         "sales-off": Operation(fixed(need_sales, {}), lambda p, progress: need_sales().off(progress)),
         "sales-on": Operation(fixed(need_sales, {}), lambda p, progress: need_sales().on(progress)),
