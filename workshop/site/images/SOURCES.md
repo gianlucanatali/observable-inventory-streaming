@@ -13,3 +13,13 @@ Common style for every prompt: photorealistic editorial photo, modern sportswear
 | spot-canary.jpg | Ship a release safely | A person from behind on a sofa completing an online shoe purchase on a laptop |
 | spot-shelves.jpg | Shelves refill on time | A store worker from behind placing shoe boxes on a nearly empty shelf, a trolley of plain boxes beside them |
 | spot-dashboard.jpg | See it all in Datadog | Two colleagues from behind looking at an abstract monitoring dashboard on a wall screen |
+
+## Screens showing this project's real UI
+
+`spot-stock.jpg`, `spot-canary.jpg` and `spot-dashboard.jpg` keep the AI-generated scenes above, but the phone, laptop and wall screens show real screenshots of this project, composited with a 4-point perspective warp, a rounded screen mask, brightness matched to the original screen and the people or fingers kept in front (2026-10-06):
+
+| File | Screen content | Source |
+|---|---|---|
+| spot-stock.jpg | Online shop product page, mobile layout (P0042, 9 available online) | Storefront screenshot at phone width, captured for this project |
+| spot-canary.jpg | Online shop product page, desktop layout | Storefront screenshot at desktop width, captured for this project |
+| spot-dashboard.jpg | Datadog stock dashboard, Freshness group | `workshop/img/lab1-07-freshness-group.png` (already redacted), guide annotation boxes removed |

@@ -77,7 +77,8 @@ Third-party material included in this repository
 10. Landing page photographs (workshop/site/images/*.jpg and their copies in docs/images/)
     AI-generated images, created for this project (OpenAI image generation through Codex CLI).
     Fictional scenes with no real brands, logos or identifiable people
-    (see workshop/site/images/SOURCES.md).
+    Three of them show real screenshots of this project's UI (online shop, Datadog dashboard)
+    on their screens (see workshop/site/images/SOURCES.md).
 
 ------------------------------------------------------------------------------
 Software downloaded at build or run time (not included in this repository)
