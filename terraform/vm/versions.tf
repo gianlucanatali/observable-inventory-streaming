@@ -17,7 +17,7 @@ terraform {
 provider "aws" {
   region = var.region
   # Empty = use stack.sh's generated credential_process profile, which refreshes the short-lived
-  # credentials from the presenter's longer `aws login` session during Terraform operations.
+  # credentials from the operator's longer `aws login` session during Terraform operations.
   profile = var.aws_profile == "" ? null : var.aws_profile
 
   default_tags {

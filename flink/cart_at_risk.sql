@@ -7,7 +7,7 @@
 --                    event_type ('ADD' | 'ABANDON'), event_time (Avro timestamp-millis -> TIMESTAMP_LTZ(3)).
 --   `stock.sellable` compacted upsert table keyed by product_id: product_id, sellable BIGINT,
 --                    stores_reporting INT, last_changed_at_ms BIGINT (plain longs, contract section 2).
---   Assumption A1: the table for `stock.sellable` is already an upsert table keyed by product_id; verify this in the first run.
+--   Assumption A1: the table for `stock.sellable` is already an upsert table keyed by product_id, verify this in the first run.
 --   (key schema {product_id}), if CC infers it as append, run
 --   ALTER TABLE `stock.sellable` SET ('changelog.mode' = 'upsert') first, and check it has PRIMARY KEY (product_id).
 --   Assumption A2: an ABANDON event carries the product_id of the item that was abandoned (one event per
@@ -61,7 +61,7 @@ WITH latest_cart_item AS (
     SELECT *,
       ROW_NUMBER() OVER (PARTITION BY scenario_id, cart_id, product_id ORDER BY `$rowtime` DESC) AS rn
     FROM `carts.events`
-    WHERE store_id = 'ONLINE'            -- carts are online only; store-level events never fire this
+    WHERE store_id = 'ONLINE'            -- carts are online only, store-level events never fire this
   )
   WHERE rn = 1
 ),
@@ -95,4 +95,4 @@ WHERE s.sellable = 0;
 --  * Scenario reset: this query retains older ADD rows by design, but the offer-worker compares every risk's
 --    scenario_id with Redis scenario:current before deduplication or Jev. Older-scenario rows are logically expired
 --    and cannot publish an offer when a later sell-out reactivates their join output.
---  * Bedrock/Jev are never called from Flink; the offer-worker owns both.
+--  * Bedrock/Jev are never called from Flink, the offer-worker owns both.

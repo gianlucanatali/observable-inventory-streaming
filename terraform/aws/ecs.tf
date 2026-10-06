@@ -83,6 +83,58 @@ resource "aws_iam_role_policy" "task_firelens_cloudwatch" {
   policy = data.aws_iam_policy_document.task_firelens_cloudwatch.json
 }
 
+# demo-control has its own task role so that no other task can change ALB routing.
+# Credentials reach boto3 through the ECS container credential provider (SDK default chain); no keys in env or files.
+resource "aws_iam_role" "demo_control_task" {
+  name               = "${local.name}-demo-control-task"
+  assume_role_policy = data.aws_iam_policy_document.ecs_assume.json
+  tags               = local.layer_tags
+}
+
+data "aws_iam_policy_document" "demo_control_routing" {
+  # ModifyRule supports the listener-rule/app resource type: only this stack's inventory rule can be changed.
+  statement {
+    sid       = "SetInventoryCanaryWeightsOnThisStacksRule"
+    actions   = ["elasticloadbalancing:ModifyRule"]
+    resources = [aws_lb_listener_rule.inventory.arn]
+  }
+
+  # DescribeRules defines no resource types in the Service Authorization Reference, so it cannot be ARN-scoped.
+  # Read-only; used to read the weights back after every change and for the panel's live view.
+  statement {
+    sid       = "ReadBackListenerRuleWeights"
+    actions   = ["elasticloadbalancing:DescribeRules"]
+    resources = ["*"]
+  }
+}
+
+data "aws_iam_policy_document" "demo_control_firelens" {
+  # The task's log-router (FireLens) uses the task role to copy demo-control logs to its own CloudWatch group.
+  statement {
+    sid       = "WriteDemoControlLogsThroughFireLens"
+    actions   = ["logs:CreateLogStream", "logs:PutLogEvents"]
+    resources = ["${aws_cloudwatch_log_group.app["demo-control"].arn}:*"]
+  }
+
+  statement {
+    sid       = "DescribeApplicationLogStreams"
+    actions   = ["logs:DescribeLogStreams"]
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_role_policy" "demo_control_routing" {
+  name   = "set-inventory-canary-weights"
+  role   = aws_iam_role.demo_control_task.id
+  policy = data.aws_iam_policy_document.demo_control_routing.json
+}
+
+resource "aws_iam_role_policy" "demo_control_firelens" {
+  name   = "write-demo-control-logs-through-firelens"
+  role   = aws_iam_role.demo_control_task.id
+  policy = data.aws_iam_policy_document.demo_control_firelens.json
+}
+
 resource "aws_cloudwatch_log_group" "app" {
   for_each          = local.applications
   name              = "/ecs/${local.name}/${each.key}"
@@ -112,7 +164,7 @@ locals {
     name == "stock-projector" ? [{ name = "KAFKA_GROUP_ID", value = "stock-projector" }, { name = "MOVEMENTS_TOPIC", value = "stock.movements" }] : [],
     name == "storefront" ? concat([{ name = "OFFERS_ENABLED", value = tostring(var.enable_offers) }, { name = "DD_SITE", value = var.dd_site }, { name = "STACK", value = var.stack }], var.enable_dd_rum ? [{ name = "DD_RUM_APPLICATION_ID", value = var.rum_application_id }] : []) : [],
     name == "offer-worker" ? concat(var.enable_llmobs ? [{ name = "DD_LLMOBS_ENABLED", value = "1" }, { name = "DD_LLMOBS_ML_APP", value = "urbanstreet-offers" }] : [], [{ name = "KAFKA_GROUP_ID", value = "offer-worker" }, { name = "RISK_TOPIC", value = "carts.at-risk" }, { name = "OFFERS_TOPIC", value = "offers" }, { name = "BEDROCK_ENABLED", value = "false" }, { name = "AWS_REGION", value = var.region }, { name = "OFFERS_KILL_SWITCH", value = "false" }]) : [],
-    name == "demo-control" ? [{ name = "STACK", value = var.stack }, { name = "CONFIG_TOPIC", value = "demo.config" }, { name = "PG_PORT", value = "5432" }, { name = "PG_DATABASE", value = "inventory" }, { name = "PG_WRITER_USER", value = "stock_writer" }, { name = "PROCUREMENT_HOST", value = var.on_prem_private_ip }, { name = "PROCUREMENT_PORT", value = "15436" }, { name = "PROCUREMENT_DATABASE", value = "procurement" }, { name = "PROCUREMENT_USER", value = "procurement" }] : [],
+    name == "demo-control" ? [{ name = "STACK", value = var.stack }, { name = "CONFIG_TOPIC", value = "demo.config" }, { name = "PG_PORT", value = "5432" }, { name = "PG_DATABASE", value = "inventory" }, { name = "PG_WRITER_USER", value = "stock_writer" }, { name = "PROCUREMENT_HOST", value = var.on_prem_private_ip }, { name = "PROCUREMENT_PORT", value = "15436" }, { name = "PROCUREMENT_DATABASE", value = "procurement" }, { name = "PROCUREMENT_USER", value = "procurement" }, { name = "CONNECT_URL", value = "http://${var.on_prem_private_ip}:8083" }, { name = "SCENARIO_API_URL", value = "http://${var.on_prem_private_ip}:8090" }, { name = "ALB_INVENTORY_RULE_ARN", value = aws_lb_listener_rule.inventory.arn }, { name = "ALB_INVENTORY_100_TARGET_GROUP_ARN", value = aws_lb_target_group.inventory["100"].arn }, { name = "ALB_INVENTORY_110_TARGET_GROUP_ARN", value = aws_lb_target_group.inventory["110"].arn }, { name = "ALB_INVENTORY_120_TARGET_GROUP_ARN", value = aws_lb_target_group.inventory["120"].arn }] : [],
     name == "cost-meter" ? [{ name = "STACK", value = var.stack }, { name = "CONFLUENT_ENVIRONMENT_ID", value = var.confluent_environment_id }, { name = "KAFKA_CLUSTER_ID", value = var.kafka_cluster_id }, { name = "FLINK_COMPUTE_POOL_ID", value = var.flink_compute_pool_id }, { name = "COST_EC2_INSTANCE_TYPE", value = "" }, { name = "COST_EBS_GB", value = "" }, { name = "COST_REMOTE_EC2_INSTANCE_TYPE", value = var.remote_ec2_instance_type }, { name = "COST_REMOTE_EBS_GB", value = tostring(var.remote_ebs_gb) }, { name = "COST_REMOTE_PUBLIC_IPV4_COUNT", value = "1" }, { name = "AWS_REGION", value = var.region }, { name = "COST_ECS_CLUSTER", value = aws_ecs_cluster.main.name }, { name = "COST_ELASTICACHE_NODES", value = "1" }, { name = "COST_ALB_COUNT", value = "1" }] : [],
   ) }
 
@@ -134,7 +186,7 @@ resource "aws_ecs_task_definition" "app" {
   cpu                      = tostring(var.service_sizing[each.key].cpu)
   memory                   = tostring(var.service_sizing[each.key].memory)
   execution_role_arn       = aws_iam_role.execution.arn
-  task_role_arn            = aws_iam_role.task.arn
+  task_role_arn            = each.key == "demo-control" ? aws_iam_role.demo_control_task.arn : aws_iam_role.task.arn
   runtime_platform {
     cpu_architecture        = "ARM64"
     operating_system_family = "LINUX"
@@ -240,7 +292,7 @@ resource "aws_ecs_service" "app" {
 
   network_configuration {
     subnets          = data.aws_subnets.default.ids
-    security_groups  = [aws_security_group.tasks.id]
+    security_groups  = each.key == "demo-control" ? [aws_security_group.tasks.id, aws_security_group.demo_control.id] : [aws_security_group.tasks.id]
     assign_public_ip = true
   }
 
@@ -253,5 +305,5 @@ resource "aws_ecs_service" "app" {
     }
   }
 
-  depends_on = [aws_iam_role_policy.execution_secrets, aws_iam_role_policy.task_firelens_cloudwatch, terraform_data.workspace_guard]
+  depends_on = [aws_iam_role_policy.execution_secrets, aws_iam_role_policy.task_firelens_cloudwatch, aws_iam_role_policy.demo_control_firelens, aws_iam_role_policy.demo_control_routing, terraform_data.workspace_guard]
 }

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import ipaddress
+
 import os
 import re
 import shlex
@@ -11,12 +12,14 @@ import stat
 import subprocess
 import sys
 import tempfile
+import urllib.request
 from pathlib import Path
 
+IP_LOOKUP_URL = "https://checkip.amazonaws.com"
 ROOT = Path(__file__).resolve().parent
 CONFIG = ROOT / "demo.yaml"
 REQUIRED = {"stack", "aws_profile", "aws_region", "layers", "datadog_site", "dd_api_key", "dd_app_key", "confluent_cloud_api_key", "confluent_cloud_api_secret"}
-OPTIONAL = {"presenter_cidr", "jev_api_key"}
+OPTIONAL = {"allowed_cidr", "presenter_cidr", "jev_api_key"}
 ALLOWED = REQUIRED | OPTIONAL
 LAYERS = {"core", "releases", "restock", "offers", "dd-streams", "dd-synthetics", "dd-rum", "control-center"}
 SECRET_KEYS = {"dd_api_key", "dd_app_key", "confluent_cloud_api_key", "confluent_cloud_api_secret", "jev_api_key"}
@@ -56,6 +59,10 @@ def parse_yaml(path: Path) -> dict[str, str]:
         fail("demo.yaml has unknown key(s): " + ", ".join(unknown))
     if missing:
         fail("demo.yaml is missing required key(s): " + ", ".join(missing))
+    if "allowed_cidr" in values and "presenter_cidr" in values:
+        fail("demo.yaml may contain only one of allowed_cidr or presenter_cidr")
+    if "presenter_cidr" in values:  # compatibility for existing private configs
+        values["allowed_cidr"] = values.pop("presenter_cidr")
     for key, value in values.items():
         if not value and key not in OPTIONAL:
             fail(f"demo.yaml: '{key}' cannot be empty")
@@ -76,11 +83,15 @@ def validate(values: dict[str, str]) -> None:
     selected = values["layers"].split(",")
     if not selected or any(layer not in LAYERS for layer in selected) or len(selected) != len(set(selected)):
         fail("demo.yaml: layers must be a unique comma-separated list of supported layers")
-    if values.get("presenter_cidr"):
+
+    if values.get("allowed_cidr"):
         try:
-            ipaddress.ip_network(values["presenter_cidr"], strict=False)
+            network = ipaddress.IPv4Network(values["allowed_cidr"], strict=True)
         except ValueError:
-            fail("demo.yaml: presenter_cidr must be a valid CIDR")
+            network = None
+        if network is None or network.prefixlen != 32 or not values["allowed_cidr"].endswith("/32"):
+            fail("demo.yaml: allowed_cidr must be a single IPv4 address in /32 form, for example 203.0.113.7/32 (or empty to auto-detect)")
+
     for key in SECRET_KEYS - {"jev_api_key"}:
         if not re.fullmatch(r"[A-Za-z0-9_+=./:-]{8,512}", values[key]):
             fail(f"demo.yaml: {key} has an invalid credential shape")
@@ -116,9 +127,34 @@ def write_env(values: dict[str, str]) -> None:
 
 def make_base(values: dict[str, str]) -> list[str]:
     args = ["make", "--no-print-directory", "-C", str(ROOT), "MODE=cloud", "TOPOLOGY=hybrid", f"STACK={values['stack']}", f"AWS_PROFILE={values['aws_profile']}", f"AWS_REGION={values['aws_region']}", f"ENV_DIR={ROOT}", f"LAYERS={values['layers']}"]
-    if values.get("presenter_cidr"):
-        args.append(f"TF_VAR_presenter_cidr={values['presenter_cidr']}")
+    if values.get("allowed_cidr"):
+        args.extend((f"PRESENTER_CIDR={values['allowed_cidr']}", f"TF_VAR_presenter_cidr={values['allowed_cidr']}"))
     return args
+
+
+def detect_public_ipv4() -> str:
+    """Return this machine's public IPv4 as seen by checkip.amazonaws.com; raise ValueError if it cannot be determined."""
+    try:
+        with urllib.request.urlopen(IP_LOOKUP_URL, timeout=5) as response:
+            text = response.read(64).decode("ascii", "replace").strip()
+        return str(ipaddress.IPv4Address(text))
+    except (OSError, ValueError) as error:
+        raise ValueError(
+            f"allowed_cidr is not set and your public IPv4 could not be detected via {IP_LOOKUP_URL} ({error}); "
+            "set allowed_cidr in demo.yaml to your public IPv4 as a.b.c.d/32 (nothing was created)"
+        ) from error
+
+
+def resolve_allowed_cidr(values: dict[str, str], lookup: bool) -> None:
+    """Fill an empty allowed_cidr with the caller's current IP/32 (create only). Runs before anything billable."""
+    if values.get("allowed_cidr"):
+        return
+    if not lookup:  # dry run stays offline
+        print("demo: allowed_cidr not set; create will use your current public IP as /32 (not looked up in a dry run)", file=sys.stderr)
+        return
+    address = detect_public_ipv4()
+    print(f"demo: allowed_cidr not set; using your current IP {address}/32")
+    values["allowed_cidr"] = f"{address}/32"
 
 
 def display(command: list[str]) -> str:
@@ -148,6 +184,8 @@ def main() -> int:
     try:
         values = parse_yaml(CONFIG)
         validate(values)
+        if args.action == "create":
+            resolve_allowed_cidr(values, lookup=not args.dry_run)
         base = make_base(values)
         if args.action == "create":
             if args.dry_run:
@@ -158,7 +196,7 @@ def main() -> int:
             write_env(values)
             invoke([*base, "secrets"], False)
             invoke([*base, "stack-preflight"], False)
-            prompt("This creates billed Confluent Cloud and AWS resources. Rough default burn is ~US$1.70/hour, pre-tax estimate; actual varies. Remaining trial credit is account-specific and must be checked.", args.yes)
+            prompt("This creates billed AWS and Confluent Cloud resources: about $1.50 to $2.50 per hour (AWS about $0.50, Confluent Cloud about $1 to $2; Datadog on its trial). This is an estimate, not a bill. Trial credit depends on your accounts, so check it.", args.yes)
             invoke([*base, "stack-up", "CONFIRM=yes"], False)
         elif args.action == "destroy":
             if not args.dry_run:

@@ -1,12 +1,16 @@
 """Environment configuration. Fails at startup naming every missing or invalid variable."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Mapping
 
 PROTOCOLS = ("SASL_SSL", "PLAINTEXT")
 REQUIRED = ("CONTROL_PASSWORD", "REDIS_URL", "KAFKA_BOOTSTRAP", "SR_URL", "STACK")
 REQUIRED_AUTH = ("KAFKA_API_KEY", "KAFKA_API_SECRET", "SR_API_KEY", "SR_API_SECRET")
+# Hybrid ALB routing contract (same names as the stack env file alb-routing.sh sources). All or none.
+ALB_ROUTING = ("ALB_INVENTORY_RULE_ARN", "ALB_INVENTORY_100_TARGET_GROUP_ARN",
+               "ALB_INVENTORY_110_TARGET_GROUP_ARN", "ALB_INVENTORY_120_TARGET_GROUP_ARN")
+MIN_SCENARIO_TOKEN = 32  # same floor as the scenario API (scenario/api.py MIN_TOKEN_LEN)
 
 
 class ConfigError(RuntimeError):
@@ -65,6 +69,11 @@ class Config:
     procurement_password: str | None
     statsd_host: str
     statsd_port: int
+    connect_url: str | None = None          # Kafka Connect REST base URL (store feed pause/resume); None = card disabled
+    alb_rule_arn: str | None = None         # inventory listener rule; None = routing card disabled
+    alb_target_groups: tuple[tuple[str, str], ...] = ()  # (("100", arn), ("110", arn), ("120", arn))
+    scenario_api_url: str | None = None     # scenario API on the VM (Checks card); None = card disabled
+    scenario_api_token: str | None = field(default=None, repr=False)
 
     @classmethod
     def from_env(cls, env: Mapping[str, str]) -> "Config":
@@ -100,6 +109,23 @@ class Config:
         auto = (env.get("SR_AUTO_REGISTER") or "true").strip().lower()
         if auto not in ("true", "false", "1", "0"):
             errors.append(f"SR_AUTO_REGISTER={auto!r} is not true/false")
+        alb_set = [n for n in ALB_ROUTING if env.get(n)]
+        if alb_set and len(alb_set) != len(ALB_ROUTING):
+            errors += [f"{n} is required when any ALB_INVENTORY_* routing variable is set"
+                       for n in ALB_ROUTING if not env.get(n)]
+        rule = env.get("ALB_INVENTORY_RULE_ARN") or ""
+        if rule and not rule.startswith("arn:aws:elasticloadbalancing:"):
+            errors.append(f"ALB_INVENTORY_RULE_ARN={rule!r} is not an elasticloadbalancing listener-rule ARN")
+        connect_url = env.get("CONNECT_URL") or None
+        if connect_url and not connect_url.startswith("http://") and not connect_url.startswith("https://"):
+            errors.append(f"CONNECT_URL={connect_url!r} must start with http:// or https://")
+        api_url, api_token = env.get("SCENARIO_API_URL") or None, env.get("SCENARIO_API_TOKEN") or None
+        if bool(api_url) != bool(api_token):
+            errors.append("SCENARIO_API_URL and SCENARIO_API_TOKEN must be set together (run make secrets)")
+        if api_url and not api_url.startswith(("http://", "https://")):
+            errors.append(f"SCENARIO_API_URL={api_url!r} must start with http:// or https://")
+        if api_token and len(api_token) < MIN_SCENARIO_TOKEN:
+            errors.append(f"SCENARIO_API_TOKEN must be at least {MIN_SCENARIO_TOKEN} characters (run make secrets)")
         if errors:
             raise ConfigError("demo-control configuration invalid: " + "; ".join(errors))
         return cls(
@@ -119,4 +145,8 @@ class Config:
             procurement_user=env.get("PROCUREMENT_USER") or None,
             procurement_password=env.get("PROCUREMENT_PASSWORD") or None,
             statsd_host=env.get("DD_AGENT_HOST", "localhost"), statsd_port=statsd_port,
+            connect_url=connect_url, alb_rule_arn=rule or None,
+            alb_target_groups=tuple((k, env[f"ALB_INVENTORY_{k}_TARGET_GROUP_ARN"]) for k in ("100", "110", "120"))
+            if rule else (),
+            scenario_api_url=api_url, scenario_api_token=api_token,
         )

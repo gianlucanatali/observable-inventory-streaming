@@ -1,0 +1,2 @@
+/* Without JavaScript: show the banner without the entrance animation. */
+body.is-preload #banner h2, body.is-preload #banner p, body.is-preload #banner .actions { opacity: 1; transform: none; filter: none; }

@@ -8,8 +8,8 @@ locals {
   svc    = "service:${var.service},${local.scope}"
   dscope = "$env"
   dsvc   = "service:${var.service},$env"
-  # The integration uses kafka_id for cluster scoping; fall back to everything when unset until the first live metric confirms the tag.
-  confluent_scope = var.confluent_cluster_id != null ? "kafka_id:${var.confluent_cluster_id}" : "*"
+  # Live check (2026-10-06): the integration tags the cluster as resource_id:<lkc-...>; kafka_id is N/A.
+  confluent_scope = var.confluent_cluster_id != null ? "resource_id:${var.confluent_cluster_id}" : "*"
 
   base_tags = ["project:dd-demo", "stack:${var.stack}", local.scope]
   notify    = length(var.notification_handles) == 0 ? "" : "\n${join(" ", var.notification_handles)}"
@@ -155,10 +155,13 @@ locals {
     }
   }
 
-  # Demo config changes (contracts section 12): demo-control sends a Datadog event titled "demo config: <key> = <value>"
-  # tagged project:dd-demo stack:<stack>. The stack is a literal here (the dashboard template variable is only env).
-  # Confirm the event search syntax against the live account before relying on this widget.
-  demo_config_query = "tags:project:dd-demo tags:stack:${var.stack} \"demo config:\""
+  # Demo panel events (contracts section 12): demo-control sends "demo config: <key> = <value>" on every saved
+  # parameter (tag demo_event:config) and "demo action: <name> started|succeeded|failed" for panel actions
+  # (tag demo_event:action), both tagged project:dd-demo stack:<stack>. Tags only: a free-text title phrase
+  # matched nothing in the live account (2026-10-06), and project/stack alone would also match monitor alerts.
+  # The stack is a literal here (the dashboard template variable is only env).
+  demo_config_query = "project:dd-demo stack:${var.stack} demo_event:config"
+  demo_panel_query  = "project:dd-demo stack:${var.stack} (demo_event:config OR demo_event:action)"
 
   widgets = merge(local.ts, {
     # same chart as ts.restock_open with the config changes overlaid as event markers
@@ -170,8 +173,8 @@ locals {
     demo_config_events = {
       definition = {
         type           = "event_stream"
-        title          = "Demo config changes"
-        query          = local.demo_config_query
+        title          = "Demo panel: config changes and actions"
+        query          = local.demo_panel_query
         event_size     = "l"
         tags_execution = "and"
       }
@@ -194,6 +197,15 @@ resource "datadog_metric_tag_configuration" "stock_freshness_apply_delay" {
   metric_name         = "stock.freshness.apply_delay"
   metric_type         = "distribution"
   tags                = ["env", "service", "version", "is_probe"]
+  include_percentiles = true
+}
+
+# stock.display.delay is emitted as a distribution by the storefront beacon; the p95 widget needs percentiles enabled
+# (otherwise the widget shows "Percentiles Misconfiguration"). Tags are those the dashboard scope uses.
+resource "datadog_metric_tag_configuration" "stock_display_delay" {
+  metric_name         = "stock.display.delay"
+  metric_type         = "distribution"
+  tags                = ["env", "service", "version"]
   include_percentiles = true
 }
 

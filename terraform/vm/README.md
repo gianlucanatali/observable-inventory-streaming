@@ -8,7 +8,7 @@ One EC2 instance for the whole overlay stack. Default VPC and subnet, no NAT gat
 - Latest Ubuntu 24.04 LTS AMI (Canonical, owner 099720109477) for that architecture.
 - gp3 root volume (default 40 GB), encrypted. IMDSv2 required.
 - `user_data.sh`: Docker Engine and compose plugin from Docker's official apt repo; log at `/var/log/dd-demo-bootstrap.log`.
-- Security group: TCP 22, 80, 443 from `presenter_cidr` only; all egress.
+- Security group: TCP 22, 80, 443 from the configured `allowed_cidr` only; all egress.
 - Key pair from `ssh_public_key_path`.
 - IAM role + instance profile: `AmazonSSMManagedInstanceCore`; Bedrock `InvokeModel`/`InvokeModelWithResponseStream` only on `bedrock_model_arns` (default empty, no statement).
 - Names `dd-demo-<stack>`. Tags (provider `default_tags`): `project=dd-demo`, `stack=<stack>`, `owner=<var>`; per resource `layer=core`.
@@ -26,8 +26,8 @@ export AWS_PROFILE=dd-demo   # aws login --profile dd-demo if expired (~12 h)
 cd terraform/vm
 terraform init
 terraform workspace new <stack>   # once per stack; later: terraform workspace select <stack>
-terraform plan -var stack=<stack> -var owner=<your-name> -var presenter_cidr="$(curl -s https://checkip.amazonaws.com)/32"
-terraform apply  -var stack=<stack> -var owner=<your-name> -var presenter_cidr="<your-ip>/32"   # explicit approval + cost note first
+terraform plan -var stack=<stack> -var owner=<your-name> -var presenter_cidr="<allowed-cidr>"
+terraform apply  -var stack=<stack> -var owner=<your-name> -var presenter_cidr="<allowed-cidr>"   # explicit approval + cost note first
 terraform output -raw docker_context_hint        # then wait for cloud-init, see below
 ssh ubuntu@$(terraform output -raw public_ip) cloud-init status --wait
 ```
@@ -37,7 +37,7 @@ After a destroy, list leftover EC2, EBS, Elastic IPs, NAT gateways and RDS resou
 ## Notes
 
 - Only `terraform init -backend=false`, `fmt` and `validate` were run. Before deployment, run a plan to confirm that the `t4g` Ubuntu arm64 AMI name filter (`ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-arm64-server-*`) still matches an available 24.04 image.
-- Reaching the VM on 80/443 requires `presenter_cidr` to match your current public IP; update and re-apply if it changes.
+- Reaching the VM on 80/443 requires the configured `allowed_cidr` to include your current public IP; update and re-apply if it changes.
 - `stack` is required and must equal the Terraform workspace (precondition on the key pair). The variable `name` is gone: names are `dd-demo-<stack>`. No layer toggles here: the Synthetics private location runs as a container on this host. Run: `fmt`, `init -backend=false`, `validate` only.
 
 ## Layer dd-synthetics (contracts section 13b)

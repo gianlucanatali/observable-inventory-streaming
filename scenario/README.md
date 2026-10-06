@@ -18,6 +18,10 @@ Environment (untracked `.env`): `STORE_HOSTS` (`S01=store-s01,...`, strict; orde
 | `load --duration S [--rps 20] [--seed 42] [--window 10] [--output f]` | Open-loop generator against `BASE_URL/api/availability/{product_id}` (P0001..P0200, Zipf-like weight 1/rank, seeded) at a fixed arrival rate. Counts by `X-Release` and status; transport failures count as errors under release `unknown`. Prints one JSON line per window, then a final summary; `--output` saves it. |
 | `canary-check SUMMARY --release-b 1.2.0 [--release-a 1.1.0] [--min-samples 100] [--max-error-rate 0] [--p95-budget-ms 200] [--verify-file f]` | Gates: min samples per release, error rate per release, p95 of b vs budget, correctness from the `verify --json-out` file (no file = fail, never green from missing data). Omit `--release-a` at 100% when no baseline traffic exists. Exit 1 if any gate fails. |
 
+| `api [--port 8090]` | Long-running REST API for the control panel's Checks card, compose service `scenario-api`. Needs `SCENARIO_API_TOKEN` (>= 32 chars, `make secrets`), `BASE_URL`, `STORE_HOSTS`, `PG_*`, `REDIS_URL` and a writable `/out`. `POST /runs {"kind": "load"\|"verify"\|"canary-check", "params": {...}}` (bearer token; one run at a time, 409 otherwise), `GET /runs`, `GET /runs/<id>` (status, progress, the same output lines as the CLI, result), `GET /healthz`. Bounded params: load `duration_s` 10..600 (120), `rps` 0.5..50 (5); verify `settle_s` 0..120 (30); canary-check `release_b`, optional `release_a`, `min_samples`, `max_error_rate`, `p95_budget_ms`. Files are fixed: `/out/last.json`, `/out/verify.json`. |
+
+The CLI and the API share `scenario/runs.py`, so `make load|verify|canary-check` and the panel print and write the same thing.
+
 Typical canary step: `load --duration 60 --output s.json`, `verify --json-out v.json`, `canary-check s.json --release-a 1.1.0 --release-b 1.2.0 --verify-file v.json`.
 
 ## Restock layer commands

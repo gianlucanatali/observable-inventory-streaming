@@ -1,18 +1,47 @@
 # Thin wrappers around docker compose for the demo. Run from overlay/ :  make <target>
 # Nothing here provisions cloud resources (no terraform). `up-*` start containers: the human runs them.
 #
-#   MODE=dev             local rehearsal in the Lima VM `dd-demo`, local Kafka + Schema Registry (compose.dev.yaml)
+#   MODE=dev             local development in the Lima VM `dd-demo`, local Kafka + Schema Registry (compose.dev.yaml)
 #   MODE=cloud           the same stack on EC2 through `docker --context $(CTX)`, Confluent Cloud (compose.cloud.yaml)
 #                       TOPOLOGY=hybrid (default for cloud) adds compose.hybrid.yaml: only the on-prem VM lane runs here.
 #
 # Env files (all untracked except compose/dev.env): see compose/compose.yaml header.
 
 # STACK names the stack; DD_ENV=dd-demo-$(STACK), compose project dd-demo-$(STACK), Terraform workspace $(STACK).
-# Default dev locally; in cloud mode it must be given explicitly (make MODE=cloud STACK=<name> ...).
+# Default dev locally; in cloud mode it must be given explicitly (make MODE=cloud STACK=<name> ...) or come from demo.yaml.
+#
+# demo.yaml (the file ./demo reads, next to this Makefile; DEMO_YAML overrides the path) makes `make <target>` act on
+# the configured cloud stack with the values ./demo passes: MODE=cloud TOPOLOGY=hybrid STACK=<stack>, ENV_DIR=<its folder>
+# (unless ENV_DIR is already set),
+# PRESENTER_CIDR from allowed_cidr, and for the stack-* targets AWS_PROFILE/AWS_REGION (stack-up also LAYERS).
+# Values given on the command line win. MODE=dev, up-dev and down-dev ignore demo.yaml. Without demo.yaml nothing changes.
+DEMO_YAML ?= $(CURDIR)/demo.yaml
+DEMO_DEFAULTS :=
+ifneq ($(wildcard $(DEMO_YAML)),)
+ifneq ($(MODE),dev)
+ifeq ($(filter up-dev down-dev,$(MAKECMDGOALS)),)
+DEMO_DEFAULTS := $(shell python3 $(CURDIR)/compose/scripts/demo-yaml.py '$(DEMO_YAML)')
+ifneq ($(words $(DEMO_DEFAULTS)),5)
+$(error $(DEMO_YAML) is not usable (see the message above); fix it, or run local targets with MODE=dev)
+endif
+MODE := cloud
+TOPOLOGY := hybrid
+STACK := $(word 1,$(DEMO_DEFAULTS))
+ifeq ($(strip $(ENV_DIR)),)
+ENV_DIR := $(patsubst %/,%,$(dir $(abspath $(DEMO_YAML))))
+endif
+ifneq ($(word 5,$(DEMO_DEFAULTS)),-)
+PRESENTER_CIDR := $(word 5,$(DEMO_DEFAULTS))
+TF_VAR_presenter_cidr := $(PRESENTER_CIDR)
+export PRESENTER_CIDR TF_VAR_presenter_cidr
+endif
+endif
+endif
+endif
 MODE ?= dev
 ifeq ($(MODE),cloud)
 ifeq ($(origin STACK),undefined)
-$(error STACK is required in MODE=cloud: make MODE=cloud STACK=<name> <target>)
+$(error STACK is required in MODE=cloud: make MODE=cloud STACK=<name> <target>, or set stack in demo.yaml)
 endif
 endif
 STACK ?= dev
@@ -43,7 +72,7 @@ export ENV_DIR
 # Cloud calibration follows hardware, never STACK. Validate before including any
 # file: unknown/untracked sizes fail before credentials or provisioning are touched.
 TF_VAR_instance_type ?= t4g.xlarge
-FARGATE_SIZE ?= 2048-4096
+FARGATE_SIZE ?= 512-1024
 CALIBRATION_F :=
 ifeq ($(MODE),cloud)
 CALIBRATION_F := $(shell python3 $(COMPOSE_DIR)/scripts/calibration.py --instance-type '$(TF_VAR_instance_type)' --fargate-size '$(FARGATE_SIZE)')
@@ -68,7 +97,7 @@ else
 $(error MODE must be dev or cloud, got '$(MODE)')
 endif
 
-# Allow overriding both (e.g. DOCKER_ENV_FILES for a rehearsal with dummy files outside the repo).
+# Allow overriding both (e.g. DOCKER_ENV_FILES for local development with dummy files outside the repo).
 ENV_F := $(if $(ENV_FILES),$(foreach f,$(ENV_FILES),--env-file $(f)),$(ENV_F))
 # layer.sh keeps layer-dependent compose variables (RESTOCK_TOPIC, OFFERS_ENABLED) in .state/layers-<stack>.env; always passed last, created empty here.
 STATE_ENV := $(CURDIR)/.state/layers-$(STACK).env
@@ -105,24 +134,29 @@ LOAD_DURATION ?= 120
 LOAD_RPS ?= 5
 LOAD_ARGS ?= --duration $(LOAD_DURATION) --rps $(LOAD_RPS)
 # Every `make load` writes its summary to /out/last.json (volume scenario-out); `make canary-check` gates on it.
-CHECK_ARGS ?= --release-a 1.1.0 --release-b 1.2.0 --verify-file /out/verify.json
+# Empty CHECK_ARGS (default): read the live routing (`route-show` sync) and let scenario pick the releases: canary = the
+# newer release with traffic, baseline = the older one (90/10/0 gates 1.1.0 vs 1.0.0, 90/0/10 gates 1.2.0 vs 1.0.0).
+CHECK_ARGS ?=
 
 .DEFAULT_GOAL := help
 .PHONY: help secrets build config config-all up-dev down-dev up-cloud down-cloud register-connector seed reset \
-        sell-out verify load route-baseline incident canary-10 canary-50 canary-100 rollback route-check route-show status \
+        sell-out verify load route-baseline canary-110-10 incident canary-10 canary-50 canary-100 rollback route-check route-show status \
         sales-on sales-off canary-check offers-on offers-off layer-on layer-off layers-status lead-time control \
-        store-pause store-resume smoke links stack-preflight stack-up stack-down stack-status account-up account-down
+        store-pause store-resume smoke links stack-preflight stack-up stack-down stack-leftovers stack-status account-up account-down
 
 help:
 	 @echo "targets: secrets build config config-all up-dev down-dev up-cloud down-cloud register-connector seed reset"
-	 @echo "         sell-out verify load route-baseline incident canary-10 canary-50 canary-100 rollback route-check route-show status sales-on sales-off canary-check offers-on offers-off"
+	 @echo "         sell-out verify load route-baseline canary-110-10 incident canary-10 canary-50 canary-100 rollback route-check route-show status sales-on sales-off canary-check offers-on offers-off"
+	 @echo "  release flow: route-baseline (100/0/0) -> canary-110-10 (90/10/0) -> load -> verify -> canary-check (gates 1.1.0 vs 1.0.0) -> rollback"
+	 @echo "                -> canary-10 (90/0/10, fix 1.2.0 vs 1.0.0) -> canary-50 (50/0/50) -> canary-100 (0/0/100); incident (0/100/0) shows the full impact of 1.1.0"
 	 @echo "         layer-on L=<releases|restock|offers|control-center|dd-synthetics|dd-streams|dd-rum>  layer-off L=...  layers-status  lead-time SECONDS=<n>  control"
 	 @echo "         store-pause|store-resume STORE=S03"
 	 @echo "         smoke [SMOKE_ARGS=--offers]   (browser + API + Connect + control panel; exit 1 on any FAIL)"
 
 	 @echo "         links   (MODE=cloud STACK=<s>; print state-derived Datadog dashboard, APM and DSM URLs)"
-	 @echo "  cloud:  stack-preflight | stack-up [LAYERS=all|core|<comma list>] | stack-status | stack-down   (MODE=cloud STACK=<s>; up/down need CONFIRM=yes)"
+	 @echo "  cloud:  stack-preflight | stack-up [LAYERS=all|core|<comma list>] | stack-status | stack-down | stack-leftovers   (MODE=cloud STACK=<s>; up/down need CONFIRM=yes)"
 	 @echo "  account-down: MODE=cloud STACK=account CONFIRM=yes ACCOUNT_DOWN_DESTROY=yes (permanently deletes account CCM resources after plan review)"
+	 @echo "  with demo.yaml (as ./demo): MODE=cloud TOPOLOGY=hybrid STACK=<stack from demo.yaml> unless given on the command line; MODE=dev ignores it"
 	 @echo "MODE=$(MODE) STACK=$(STACK)  docker='$(DOCKER)'"
 
 secrets:
@@ -209,33 +243,44 @@ verify:
 	 @echo "== compare source and Redis for all seeded keys"
 	 $(SCEN) verify --json-out /out/verify.json
 load:
-	 @echo "== lookup load through nginx: scenario load $(LOAD_ARGS)   (override with LOAD_ARGS='--duration 300 --rps 40 --output /tmp/x.json')"
+	 @echo "== lookup load through $(if $(filter cloud,$(MODE)),the ALB,nginx reverse proxy): scenario load $(LOAD_ARGS)   (override with LOAD_ARGS='--duration 300 --rps 40 --output /tmp/x.json')"
 	 $(SCEN) load --output /out/last.json $(LOAD_ARGS)
 smoke:
 	 @echo "== smoke test: Connect, availability API, storefront in a browser, control panel   (SMOKE_ARGS=--offers adds a cart ADD/ABANDON)"
 	 $(DC) --profile tools run --rm -T smoke $(SMOKE_ARGS)
 
-# Read-only presenter links. This never loads env files or prints secret outputs.
+# Read-only demo links. This never loads env files or prints secret outputs.
 links:
 	 @test "$(MODE)" = cloud || { echo "links: run with MODE=cloud STACK=<name>" >&2; exit 2; }
 	 $(CURDIR)/compose/scripts/links.sh
 canary-check:
+ifneq ($(strip $(CHECK_ARGS)),)
 	 @echo "== gate the last load summary: scenario canary-check /out/last.json $(CHECK_ARGS)"
 	 $(SCEN) canary-check /out/last.json $(CHECK_ARGS)
+else
+	 @out="$$($(ROUTE) --sync)" || { echo "canary-check: could not read the live routing (route-show)" >&2; exit 1; }; \
+	  live="$$(printf '%s\n' "$$out" | tail -n1 | grep -oE '[0-9]+ [0-9]+ [0-9]+%?$$' | tr -d %)"; \
+	  [ -n "$$live" ] || { echo "canary-check: no weights in the routing read-back: $$out" >&2; exit 1; }; \
+	  echo "== gate the last load summary at live routing $$live: scenario canary-check /out/last.json --routing '$$live' --verify-file /out/verify.json"; \
+	  $(SCEN) canary-check /out/last.json --routing "$$live" --verify-file /out/verify.json
+endif
 
 # Routing: weights for inventory-api 1.0.0 / 1.1.0 / 1.2.0 (exact split, see nginx/render-routing.sh)
 route-baseline:
 	 @echo "== route 100/0/0 (healthy 1.0.0)"
 	 $(ROUTE) 100 0 0
+canary-110-10:
+	 @echo "== route 90/10/0 (canary: 10% to new release 1.1.0)"
+	 $(ROUTE) 90 10 0
 incident:
 	 @echo "== route 0/100/0 (regressed 1.1.0 takes everything: the Incident)"
 	 $(ROUTE) 0 100 0
 canary-10:
-	 @echo "== route 0/90/10 (canary: 10% to fixed 1.2.0)"
-	 $(ROUTE) 0 90 10
+	 @echo "== route 90/0/10 (canary: 10% to fixed 1.2.0, the rest on 1.0.0)"
+	 $(ROUTE) 90 0 10
 canary-50:
-	 @echo "== route 0/50/50"
-	 $(ROUTE) 0 50 50
+	 @echo "== route 50/0/50 (canary: 50% to fixed 1.2.0, the rest on 1.0.0)"
+	 $(ROUTE) 50 0 50
 canary-100:
 	 @echo "== route 0/0/100 (all traffic on 1.2.0)"
 	 $(ROUTE) 0 0 100
@@ -274,13 +319,19 @@ layers-status:
 
 lead-time:
 	 @test -n "$(SECONDS)" || { echo "usage: make lead-time SECONDS=<n>   (restock lead time; default 172800 = 48 h)" >&2; exit 2; }
-	 @echo "== procurement lead time -> $(SECONDS) s (applies to every open purchase order on supplier-sim's next cycle)"
+	 @echo "== procurement lead time -> $(SECONDS) s (applies to every open purchase order on supplier-sim's next cycle, every second)"
 	 $(SCEN) lead-time --seconds $(SECONDS)
 
 control:
 	 @echo "== control panel (basic auth)"
-	 @if [ "$(TOPOLOGY)" = hybrid ]; then echo "URL:      $$(terraform -chdir=$(CURDIR)/terraform/aws output -raw alb_url)/control/  (ALB; the security group admits only the presenter)"; \
-	  elif [ "$(MODE)" = cloud ]; then echo "URL:      $$(terraform -chdir=$(CURDIR)/terraform/vm output -raw ingress_base_url)/control/  (the security group admits only the presenter)"; \
+	 @if [ "$(MODE)" = cloud ]; then \
+	    if [ "$(TOPOLOGY)" = hybrid ]; then dir=aws out=alb_url note="ALB; ingress is restricted to the configured CIDR"; \
+	    else dir=vm out=ingress_base_url note="ingress is restricted to the configured CIDR"; fi; \
+	    terraform -chdir=$(CURDIR)/terraform/$$dir workspace select $(STACK) >/dev/null \
+	      || { echo "control: Terraform workspace '$(STACK)' is unavailable in terraform/$$dir; state is required first" >&2; exit 1; }; \
+	    base="$$(terraform -chdir=$(CURDIR)/terraform/$$dir output -raw $$out)" \
+	      || { echo "control: terraform/$$dir output $$out is absent from workspace $(STACK)" >&2; exit 1; }; \
+	    echo "URL:      $$base/control/  ($$note)"; \
 	  else echo "URL:      http://localhost:$$(sed -n 's/^INGRESS_PORT=//p' $(COMPOSE_DIR)/dev.env)/control/"; fi
 	 @echo "user:     demo"
 	 @echo "password: CONTROL_PASSWORD in $(ENV_DIR)/.env.secrets (not printed here)"
@@ -292,7 +343,15 @@ store-pause store-resume:
 	 $(DC) exec -T connect python3 -c "import urllib.request,sys; n='inventory-'+'$(STORE)'.lower(); a='$(subst store-,,$@)'; r=urllib.request.urlopen(urllib.request.Request('http://localhost:8083/connectors/'+n+'/'+a, method='PUT'), timeout=10); print(n, a, r.status)"
 
 # --- cloud stack lifecycle: compose/scripts/stack.sh. Terraform plans are shown and confirmed step by step. ---
-STACK_SH := $(COMPOSE_DIR)/scripts/stack.sh
+# demo.yaml: the AWS profile and region reach stack.sh only. alb-routing.sh (route-*, reset, layer sync) must keep
+# its default refresh profile dd-demo-auto, which a global AWS_PROFILE=<source profile> would replace.
+DEMO_STACK_ENV := $(if $(DEMO_DEFAULTS),$(if $(filter command line,$(origin AWS_PROFILE)),,AWS_PROFILE=$(word 2,$(DEMO_DEFAULTS))) $(if $(filter command line,$(origin AWS_REGION)),,AWS_REGION=$(word 3,$(DEMO_DEFAULTS))))
+STACK_SH := $(if $(strip $(DEMO_STACK_ENV)),env $(strip $(DEMO_STACK_ENV)) )$(COMPOSE_DIR)/scripts/stack.sh
+ifneq ($(DEMO_DEFAULTS),)
+ifneq ($(origin LAYERS),command line)
+stack-up: export LAYERS := $(word 4,$(DEMO_DEFAULTS))
+endif
+endif
 .PHONY: calibration-check
 calibration-check:
 	@printf '%s\n' $(CALIBRATION_F)
@@ -314,6 +373,9 @@ account-up:
 account-down:
 	 @test "$(MODE)" = cloud -a "$(STACK)" = account || { echo "account-down: run with MODE=cloud STACK=account" >&2; exit 2; }
 	 $(STACK_SH) account-down
+stack-leftovers:
+	 @test "$(MODE)" = cloud || { echo "stack-leftovers: run with MODE=cloud STACK=<name>" >&2; exit 2; }
+	 $(STACK_SH) leftovers
 stack-status:
 	 @test "$(MODE)" = cloud || { echo "stack-status: run with MODE=cloud STACK=<name>" >&2; exit 2; }
 	 $(STACK_SH) status

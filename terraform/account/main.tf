@@ -19,7 +19,7 @@ locals {
 }
 
 # ---------------------------------------------------------------------------------------------
-# Account-wide Confluent/Datadog cost identity. The presenter created the service account and
+# Account-wide Confluent/Datadog cost identity. The operator created the service account and
 # exactly these organization-level role bindings before this directory managed them. Import them
 # before the first apply; do not replace either binding with a new grant.
 # ---------------------------------------------------------------------------------------------

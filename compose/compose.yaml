@@ -7,7 +7,7 @@
 #   <repo>/.env          DD_API_KEY (required), DD_SITE (default datadoghq.eu)         hand-edited, untracked
 #   <repo>/.env.cloud    KAFKA_BOOTSTRAP, SR_URL, {CONNECT,PROJECTOR,STOREFRONT,OFFERS,DEMO_CONTROL}_{KAFKA,SR}_API_{KEY,SECRET},
 #                        CONNECT_GROUP_ID, PROJECTOR_GROUP_ID                          `terraform output -raw env_file`
-#   <repo>/.env.secrets  PG_SUPERUSER_PASSWORD, PG_DEBEZIUM_PASSWORD, PG_WRITER_PASSWORD, PG_DATADOG_PASSWORD, PG_PROCUREMENT_PASSWORD, CONTROL_PASSWORD
+#   <repo>/.env.secrets  PG_SUPERUSER_PASSWORD, PG_DEBEZIUM_PASSWORD, PG_WRITER_PASSWORD, PG_DATADOG_PASSWORD, PG_PROCUREMENT_PASSWORD, CONTROL_PASSWORD, SCENARIO_API_TOKEN
 #                                                                                      `make secrets`
 #   overlay/compose/dev.env  same Kafka/SR names with local no-auth values             tracked, no secrets (dev only)
 # Layers = compose profiles: core (no profile), releases, restock, offers; plus tools and jr. dd-synthetics has no containers (Datadog public locations, Terraform only).
@@ -599,6 +599,9 @@ services:
       PROCUREMENT_DATABASE: procurement
       PROCUREMENT_USER: procurement
       PROCUREMENT_PASSWORD: ${PG_PROCUREMENT_PASSWORD:?PG_PROCUREMENT_PASSWORD missing (run make secrets)}
+      CONNECT_URL: http://connect:8083   # Store feed card; ALB routing is hybrid-only (nginx routing stays a make target)
+      SCENARIO_API_URL: http://scenario-api:8090   # Checks card
+      SCENARIO_API_TOKEN: ${SCENARIO_API_TOKEN:?SCENARIO_API_TOKEN missing (run make secrets)}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/control/healthz', timeout=3)"]
       interval: 10s
@@ -670,7 +673,7 @@ services:
       dockerfile: scenario/Dockerfile
     image: dd-scenario:${IMAGE_TAG:-dev}
     pull_policy: never
-    environment:
+    environment: &scenario-env
       <<: [*pg-client, *store-hosts]
       PG_WRITER_USER: stock_writer
       PG_WRITER_PASSWORD: ${PG_WRITER_PASSWORD:?PG_WRITER_PASSWORD missing (run make secrets)}
@@ -690,6 +693,42 @@ services:
       nginx: {condition: service_healthy}
     cpus: 1.0
     mem_limit: 512m
+
+  # The same scenario image as a small long-running REST API: the control panel's Checks card runs
+  # load / verify / canary-check here, writing the same /out/last.json and /out/verify.json as the make targets.
+  # Bearer token SCENARIO_API_TOKEN (.env.secrets, `make secrets`). No docker socket: it can only run those three
+  # scenario functions. Not published in vm/dev mode (demo-control reaches it by service name); hybrid publishes it
+  # to the demo-control security group only (compose.hybrid.yaml, terraform/aws on_prem_scenario_api).
+  scenario-api:
+    <<: *restart
+    build:
+      context: ..
+      dockerfile: scenario/Dockerfile
+    image: dd-scenario:${IMAGE_TAG:-dev}
+    pull_policy: never
+    command: ["api", "--port", "8090"]
+    environment:
+      <<: *scenario-env
+      SCENARIO_API_TOKEN: ${SCENARIO_API_TOKEN:?SCENARIO_API_TOKEN missing (run make secrets)}
+    volumes:
+      - scenario-out:/out
+    depends_on:
+      nginx: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/healthz', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 10s
+    cpus: 1.0
+    mem_limit: 512m
+    labels:
+      com.datadoghq.tags.env: dd-demo-${STACK}
+      com.datadoghq.tags.project: dd-demo
+      com.datadoghq.tags.stack: ${STACK}
+      com.datadoghq.tags.layer: core
+      com.datadoghq.tags.service: scenario-api
+      com.datadoghq.ad.logs: '[{"source":"python","service":"scenario-api"}]'
 
   # Smoke test of the running stack (browser + API + Connect + control panel): `make smoke`. Changes no demo state except an optional cart event.
   smoke:

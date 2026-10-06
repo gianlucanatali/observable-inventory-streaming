@@ -8,10 +8,10 @@ from dataclasses import dataclass
 from typing import Any, Callable
 
 from werkzeug.exceptions import HTTPException, NotFound
-from flask import Flask, Response, jsonify, request, send_from_directory
+from flask import Flask, Response, jsonify, request, send_file, send_from_directory
 
 from .beacon import BeaconRejected, display_delay_seconds
-from .catalogue import get_product, load_products
+from .catalogue import get_product, load_products, model_variants, product_image_path
 from .cart import ValidationError, build_cart_event
 from .config import Config
 from .illustrations import render_svg
@@ -176,7 +176,7 @@ def create_app(cfg: Config, deps: Deps) -> Flask:
         product = get_product(product_id)
         if product is None:
             return _error(404, "not_found", f"unknown product {product_id}")
-        return jsonify(product)
+        return jsonify({**product, "variants": model_variants(product)})
 
     @app.get("/img/<product_id>.svg")
     def product_image(product_id: str):
@@ -185,6 +185,15 @@ def create_app(cfg: Config, deps: Deps) -> Flask:
             return _error(404, "not_found", "unknown product image")
         return Response(render_svg(product), mimetype="image/svg+xml",
                         headers={"Cache-Control": "public, max-age=86400"})
+
+    @app.get("/img/<product_id>.jpg")
+    def product_photo(product_id: str):
+        image_path = product_image_path(product_id) if re.match(r"^P\d{4}$", product_id) else None
+        if image_path is None:
+            return _error(404, "not_found", "unknown product image or no approved photo mapping")
+        response = send_file(image_path, mimetype="image/jpeg")
+        response.headers["Cache-Control"] = "public, max-age=86400"
+        return response
 
     @app.get("/", defaults={"path": ""})
     @app.get("/<path:path>")

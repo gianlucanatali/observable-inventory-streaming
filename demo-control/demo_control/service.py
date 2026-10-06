@@ -40,9 +40,12 @@ class Control:
     ROUTING_KEY = "demo:routing"
 
     def __init__(self, registry: dict[str, Param], backends: dict[str, object], redis_client, statsd, stack: str,
-                 routing_file: str | None = None):
+                 routing_file: str | None = None, actions=None, alb=None, feeds=None, checks=None, sales=None):
         self.registry, self._backends, self._redis, self._statsd = registry, backends, redis_client, statsd
         self.stack, self._routing_file = stack, routing_file
+        self.actions = actions
+        self.alb, self.feeds = alb, feeds  # routing.AlbRouting / store_feed.ConnectFeeds, None when not configured
+        self.checks, self.sales = checks, sales  # checks.Checks / sales.BackgroundSales, None when not configured
 
     # --- reading ---------------------------------------------------------------------------------------------------
     def rows(self) -> list[Row]:
@@ -58,6 +61,11 @@ class Control:
                 log.error("parameter unreadable", extra={"fields": {"param": p.key, "store": p.store, "detail": r.detail}})
             readings[p.key] = r
         return [Row(p, readings[p.key]) for p in self.registry.values()]
+
+    def read(self, key: str) -> Reading:
+        """One parameter, read from every store that holds it (same merge rule as rows())."""
+        p = self.registry[key]
+        return self._merge(p, {st: self._backends[st].read([p])[key] for st in p.stores})
 
     @staticmethod
     def _merge(p: Param, by_store: dict[str, Reading]) -> Reading:
@@ -95,7 +103,7 @@ class Control:
 
     def _audit(self, p: Param, value: float, reading: Reading) -> None:
         title = f"demo config: {p.key} = {fmt(value)}"
-        tags = ["project:dd-demo", f"stack:{self.stack}", f"layer:{p.layer}", f"param:{p.key}"]
+        tags = ["project:dd-demo", f"stack:{self.stack}", f"layer:{p.layer}", f"param:{p.key}", "demo_event:config"]
         log.info(title, extra={"fields": {"event": "demo_config_changed", "param": p.key, "value": value, "unit": p.unit,
                                           "layer": p.layer, "stack": self.stack, "store": p.store,
                                           "read_back": reading.status if reading.value is None else reading.value}})

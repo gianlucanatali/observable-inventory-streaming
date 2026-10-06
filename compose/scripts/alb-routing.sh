@@ -21,6 +21,10 @@ require_env() {
 configure_aws() {
   : "${AWS_CONFIG_FILE:=$state_dir/aws-config}"
   : "${AWS_PROFILE:=dd-demo-auto}"
+  # ./demo exports the source profile (e.g. dd-demo); the generated config only defines its "-auto" twin.
+  case "$AWS_PROFILE" in *-auto) ;; *)
+    if [ -f "$AWS_CONFIG_FILE" ] && grep -q "^\[profile ${AWS_PROFILE}-auto\]" "$AWS_CONFIG_FILE"; then AWS_PROFILE="${AWS_PROFILE}-auto"; fi;;
+  esac
   : "${AWS_REGION:=$(printf '%s' "$ALB_INVENTORY_RULE_ARN" | cut -d: -f4)}"
   export AWS_CONFIG_FILE AWS_PROFILE AWS_REGION
   [ -n "$AWS_REGION" ] || { echo "alb-routing.sh: could not derive AWS region from $ALB_INVENTORY_RULE_ARN" >&2; exit 2; }
@@ -117,8 +121,16 @@ printf '%s' "{\"TargetGroupArn\":\"${ALB_INVENTORY_110_TARGET_GROUP_ARN}\",\"Wei
 printf '%s' "{\"TargetGroupArn\":\"${ALB_INVENTORY_120_TARGET_GROUP_ARN}\",\"Weight\":$3}" >> "$actions"
 printf '%s\n' ']},"Order":1}]' >> "$actions"
 
-aws elbv2 modify-rule --rule-arn "$ALB_INVENTORY_RULE_ARN" --actions "file://$actions" \
-  || { echo "alb-routing.sh: AWS rejected the weighted forward action for $ALB_INVENTORY_RULE_ARN" >&2; exit 1; }
+aws_err="$(mktemp "$state_dir/alb-routing-err.XXXXXX")"
+trap 'rm -f "$actions" "$aws_err"' EXIT
+if ! aws elbv2 modify-rule --rule-arn "$ALB_INVENTORY_RULE_ARN" --actions "file://$actions" 2> "$aws_err"; then
+  cat "$aws_err" >&2
+  echo "alb-routing.sh: AWS rejected the weighted forward action for $ALB_INVENTORY_RULE_ARN" >&2
+  if grep -qiE 'expired|ExpiredToken|login|sso|refresh token|credentials' "$aws_err"; then
+    echo "alb-routing.sh: the AWS session looks expired; run: aws login --profile ${AWS_PROFILE:-dd-demo}, then retry" >&2
+  fi
+  exit 1
+fi
 if [ "$new" != "$current" ]; then
   printf 'current=%s\nprevious=%s\n' "$new" "$current" > "$state"
 fi

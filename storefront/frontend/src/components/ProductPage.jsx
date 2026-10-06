@@ -2,22 +2,36 @@ import React, { useEffect, useRef, useState } from 'react';
 import { getProduct, getAvailability, postDisplayBeacon } from '../api.js';
 import { usePolling } from '../hooks.js';
 import StockPanel from './StockPanel.jsx';
+import ProductImage from './ProductImage.jsx';
 import { recordStockAnswer, recordStockError } from '../rum.js';
 import { formatPrice } from './ProductCard.jsx';
+import VariantPicker from './VariantPicker.jsx';
+import { sizeState } from '../variants.js';
 
-// One product, sold online. This is the only place that polls availability, and only for this product.
+// Sibling sizes (same model and colour) are checked once on arrival and then at this slower pace, never per poll:
+// at most one request per size in the colour's run, and they are not RUM stock answers (not what the shopper reads).
+export const SIBLING_REFRESH_MS = 10_000;
+
+// One SKU, sold online, with its model's colour and size variants. This is the only place that asks for availability:
+// the selected SKU every poll, its sibling sizes every SIBLING_REFRESH_MS.
 export default function ProductPage({ productId, config, cart, onCart, children }) {
   const [product, setProduct] = useState(null);
   const [productError, setProductError] = useState(null);
   const [stock, setStock] = useState(null);
   const [stockError, setStockError] = useState(null);
+  const [siblingStock, setSiblingStock] = useState({});
   // last_changed_at of the sellable answer last committed to the DOM; null until the first answer.
   const lastChanged = useRef(null);
 
   useEffect(() => {
     setProduct(null);
     setProductError(null);
-    getProduct(productId).then(setProduct).catch((err) => {
+    getProduct(productId).then((p) => {
+      if (!Array.isArray(p.variants) || !p.variants.some((v) => v.product_id === p.product_id)) {
+        throw new Error(`GET /api/products/${productId} has no variants list that includes it`);
+      }
+      setProduct(p);
+    }).catch((err) => {
       console.error(err);
       setProductError(err.message);
     });
@@ -51,6 +65,23 @@ export default function ProductPage({ productId, config, cart, onCart, children 
     },
   });
 
+  const siblings = product
+    ? product.variants.filter((v) => v.colour.name === product.colour.name && v.product_id !== productId).map((v) => v.product_id)
+    : [];
+  usePolling(async () => {
+    const settled = await Promise.allSettled(siblings.map((id) => getAvailability(id)));
+    return Object.fromEntries(siblings.map((id, i) => [id, settled[i].status === 'fulfilled'
+      ? { answer: settled[i].value, error: null }
+      : { answer: null, error: settled[i].reason.message }]));
+  }, SIBLING_REFRESH_MS, [productId, siblings.join(',')], {
+    enabled: Boolean(config) && siblings.length > 0,
+    onResult: (r) => {
+      Object.entries(r).forEach(([id, s]) => { if (s.error) console.error(`sibling size ${id} availability failed: ${s.error}`); });
+      setSiblingStock(r);
+    },
+    onError: (err) => console.error(err),
+  });
+
   // Display-delay beacon: runs after React committed a new sellable answer (changed last_changed_at) to the DOM.
   // The backend measures the delay from last_changed_at to its own receive time, so no browser timestamp is sent.
   useEffect(() => {
@@ -72,7 +103,7 @@ export default function ProductPage({ productId, config, cart, onCart, children 
       {productError && <div className="banner banner-error">Cannot load product {productId}: {productError}</div>}
       <section className="product">
         <div className="product-image">
-          {product ? <img src={`/img/${productId}.svg`} alt={`${product.brand} ${product.name}`} /> : <div className="placeholder" />}
+          {product ? <ProductImage productId={productId} alt={`${product.brand} ${product.name}`} /> : <div className="placeholder" />}
         </div>
         <div className="product-body">
           {product && <div className="brand-name">{product.brand}</div>}
@@ -80,8 +111,10 @@ export default function ProductPage({ productId, config, cart, onCart, children 
           {product && (
             <>
               <div className="price">{formatPrice(product.price_eur)}</div>
-              <div className="product-meta">Size {product.size} · {product.colour.name}</div>
+              <div className="product-meta" data-testid="product-sku">Item {product.product_id}</div>
               <p className="product-desc">{product.description}</p>
+              <VariantPicker product={product} siblingStock={siblingStock}
+                selectedState={sizeState(stock && stock.product_id === productId ? stock : null, stockError)} />
             </>
           )}
           <h2 className="avail-title">Availability online</h2>

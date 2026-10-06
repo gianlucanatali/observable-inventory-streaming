@@ -1,3 +1,4 @@
+# Write values as plain text, without quotes. Optional keys are commented out: remove the leading "# " to set one.
 # Copy to demo.yaml, replace every required value, then protect it:
 #   cp demo.example.yaml demo.yaml && chmod 600 demo.yaml
 # demo.yaml is deliberately ignored. This parser supports only top-level key: value.
@@ -7,8 +8,10 @@ stack: hybrid
 # Existing AWS CLI profile and deployment region.
 aws_profile: dd-demo
 aws_region: eu-west-1
-# Optional CIDR permitted to reach presenter-facing endpoints; omit or quote-empty to leave it unset.
-presenter_cidr: ""
+# Optional. The single IPv4 address allowed to reach the stack's public endpoints (ALB and VM), as a.b.c.d/32.
+# Leave empty and ./demo create detects your current public IP (via checkip.amazonaws.com), prints it and uses it as /32.
+# If detection fails, create stops before anything billable; then set this value yourself. Re-run create or update it if your IP changes.
+# allowed_cidr: 203.0.113.10/32
 # Hybrid layers, comma-separated. core and control-center are included with the default optional hybrid layers.
 layers: core,releases,restock,offers,dd-streams,dd-synthetics,dd-rum,control-center
 # Datadog account endpoint and API/application keys.
@@ -19,4 +22,4 @@ dd_app_key: REPLACE_WITH_DATADOG_APP_KEY
 confluent_cloud_api_key: REPLACE_WITH_CONFLUENT_API_KEY
 confluent_cloud_api_secret: REPLACE_WITH_CONFLUENT_API_SECRET
 # Optional: leave empty to use the deterministic rule-only offers path.
-jev_api_key: ""
+# jev_api_key: REPLACE_WITH_JEV_API_KEY

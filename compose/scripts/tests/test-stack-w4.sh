@@ -61,9 +61,9 @@ contains '"$OVERLAY/log-router"'
 contains 'repository_urls="$(tf_out_json aws ecr_repositories)"'
 contains 'detach_cloud_schemas_before_destroy'
 contains 'tf cloud state rm "$resource"'
-contains 'detach_cloud_schemas_before_destroy; step "destroy terraform cloud" tf_apply cloud destroy'
-contains "jq -er 'to_entries[] | .value | sub(\"^[^/]+/\"; \"\")'"
-contains 'for repository in $(printf '\''%s'\'' "$repository_urls" | jq -er '\''to_entries[] | .value | sub("^[^/]+/"; "")'\''); do'
+contains 'down_cloud() { detach_cloud_schemas_before_destroy || return 1; tf_apply cloud destroy; }'
+contains "jq -r 'to_entries[] | .value | sub(\"^[^/]+/\"; \"\")'"
+contains 'for repository in $repositories; do'
 contains 'inventory-api-100 inventory-api-110 inventory-api-120 storefront stock-projector offer-worker demo-control cost-meter'
 grep -Eq 'force_delete[[:space:]]*=[[:space:]]*true' "$AWS_MAIN" || fail "ECR repositories must be removable with populated images during stack-down"
 grep -Fq 'name = "OFFERS_ENABLED", value = tostring(var.enable_offers)' "$AWS_ECS" \

@@ -12,6 +12,7 @@ from scenario import cli
 from scenario.config import ConfigError, parse_store_hosts
 from scenario.redisview import (ResetTimeout, diff_source_vs_redis, feed_ok, fetch_positions,
                                 find_missing, reset, verify, wait_for_baseline)
+from scenario.presenter_actions import sell_out_sources
 from scenario.seed_data import (SELL_OUT_QUANTITIES, product_weights, expected_sellable, seed_hash, seed_rows,
                                 seed_rows_for)
 
@@ -311,6 +312,61 @@ def test_sell_out_sells_each_stores_whole_quantity_in_order(monkeypatch, capsys)
     assert [x["step"] for x in lines] == [1, 2, 3, 4, 5]
 
 
+def test_presenter_sell_out_waits_for_product_positions_and_sellable_without_real_sleep(monkeypatch):
+    import scenario.presenter_actions as presenter_actions
+    quantities = {"S01": 2, "S02": 1}
+    revisions = {"S01": 10, "S02": 20}
+    r = fakeredis.FakeRedis(decode_responses=True)
+    r.set("stock:active_ns", NS)
+    r.hset("demo:config", "sell_out_gap_s", "0")
+    put(r, ("S01", "P0042"), 2, 9)
+    put(r, ("S02", "P0042"), 1, 19)
+    r.hset("sellable:P0042", mapping={"sellable": 3})
+    ft = FakeTime()
+
+    monkeypatch.setattr(presenter_actions, "read_quantity", lambda conn, store, product: quantities[store])
+
+    def fake_sell(conn, store, product, quantity):
+        quantities[store] -= quantity
+        return (quantities[store], revisions[store], None)
+
+    def projector_catches_up():
+        put(r, ("S01", "P0042"), 0, 10)
+        put(r, ("S02", "P0042"), 0, 20)
+        r.hset("sellable:P0042", mapping={"sellable": 0})
+
+    ft.on_sleep = projector_catches_up
+    monkeypatch.setattr(presenter_actions, "sell", fake_sell)
+    monkeypatch.setattr(
+        presenter_actions,
+        "read_all",
+        lambda conn: {(store, "P0042"): (quantities[store], revisions[store], False)
+                      for store in quantities},
+    )
+    progress = []
+    sell_out_sources({"S01": object(), "S02": object()}, r, "P0042", progress.append,
+                     settle_timeout_s=5, clock=ft.clock, sleep=ft.sleep)
+    assert progress[-1] == "Sold out P0042 in 2 store(s); source and Redis verified"
+
+
+def test_presenter_sell_out_times_out_with_actionable_redis_mismatches(monkeypatch):
+    import scenario.presenter_actions as presenter_actions
+    quantities = {"S01": 1}
+    r = fakeredis.FakeRedis(decode_responses=True)
+    r.set("stock:active_ns", NS)
+    r.hset("demo:config", "sell_out_gap_s", "0")
+    put(r, ("S01", "P0042"), 1, 1)
+    r.hset("sellable:P0042", mapping={"sellable": 1})
+    ft = FakeTime()
+    monkeypatch.setattr(presenter_actions, "read_quantity", lambda conn, store, product: quantities[store])
+    monkeypatch.setattr(presenter_actions, "sell", lambda conn, store, product, quantity: (0, 2, None))
+    quantities["S01"] = 0
+    monkeypatch.setattr(presenter_actions, "read_all", lambda conn: {("S01", "P0042"): (0, 2, False)})
+    with pytest.raises(Exception, match="sell-out P0042 did not converge.*S01/P0042.*sellable P0042"):
+        sell_out_sources({"S01": object()}, r, "P0042", lambda message: None,
+                         settle_timeout_s=2, clock=ft.clock, sleep=ft.sleep)
+
+
 # --- restock layer (procurement) ---
 
 class FakeCursor:
@@ -416,6 +472,7 @@ def test_lead_time_command(monkeypatch, capsys):
     monkeypatch.setattr(cli, "procurement_connect", lambda: conn)
     args = cli.build_parser().parse_args(["lead-time", "--seconds", "60"])
     assert args.fn(args) == 0 and conn.executed[0][1] == ("60",) and conn.closed
+    assert "on supplier-sim's next cycle, every second)" in capsys.readouterr().out
     monkeypatch.delenv("PROCUREMENT_HOST")
     with pytest.raises(RuntimeError, match="PROCUREMENT_HOST"):
         args.fn(args)
@@ -513,3 +570,183 @@ def test_seed_command_writes_weights_with_skew_from_redis(monkeypatch, capsys):
     args = cli.build_parser().parse_args(["seed"])
     assert args.fn(args) == 0
     assert calls == [("c1", "seed"), ("c1", 1.0, 0.0), ("c2", "seed"), ("c2", 1.0, 0.0)]
+
+
+# --- Full reset: restock half of `make reset` (presenter_actions.RestockReset) ---
+
+class ProcDb:
+    """purchase_order rows as dicts; understands the cancel UPDATE and the open-orders count."""
+
+    def __init__(self, open_orders=2, stuck=False):
+        self.open, self.stuck, self.closed, self.sql = open_orders, stuck, False, []
+
+    def cursor(self):
+        db = self
+
+        class Cur:
+            rowcount = 0
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+            def execute(self, sql, params=None):
+                db.sql.append(" ".join(sql.split()))
+                if sql.startswith("UPDATE purchase_order"):
+                    self.rowcount = db.open
+                    if not db.stuck:
+                        db.open = 0
+                elif "count(*)" in sql:
+                    self.row = (db.open,)
+
+            def fetchone(self):
+                return self.row
+        return Cur()
+
+    def transaction(self):
+        import contextlib
+        return contextlib.nullcontext()
+
+    def close(self):
+        self.closed = True
+
+
+def test_restock_reset_cancels_open_orders_and_verifies():
+    from scenario.presenter_actions import RestockReset
+    db, progress = ProcDb(open_orders=3), []
+    rr = RestockReset(lambda: db, fakeredis.FakeRedis(decode_responses=True), lambda: ["core", "restock"],
+                      sleep=lambda s: None)
+    assert rr.skip_reason() is None
+    assert rr.cancel_orders(progress.append) == 3 and db.closed and db.open == 0
+    assert progress == ["Cancelled 3 open purchase order(s); procurement verified (0 open)"]
+
+
+def test_restock_reset_fails_loudly_when_orders_stay_open_or_db_is_down():
+    from scenario.presenter_actions import RestockReset
+    r = fakeredis.FakeRedis(decode_responses=True)
+    with pytest.raises(RuntimeError, match="2 purchase order\\(s\\) still open"):
+        RestockReset(lambda: ProcDb(2, stuck=True), r, lambda: None).cancel_orders(lambda m: None)
+
+    def down():
+        raise OSError("connection refused")
+    with pytest.raises(RuntimeError, match="cannot connect to the procurement database.*connection refused"):
+        RestockReset(down, r, lambda: None).cancel_orders(lambda m: None)
+
+
+def test_restock_reset_clears_eta_keys_and_tolerates_one_republish():
+    from scenario.presenter_actions import RestockReset
+    r = fakeredis.FakeRedis(decode_responses=True)
+    r.set("restock:eta:P1", "1")
+    r.set("restock:eta:P2", "2")
+    r.set("sellable:P1", "x")
+    republished = []
+
+    def sleep(s):  # supplier-sim republishes once from a cycle that started before the cancel
+        if not republished:
+            republished.append(s)
+            r.set("restock:eta:P1", "1")
+    progress = []
+    assert RestockReset(lambda: None, r, lambda: None, sleep=sleep).clear_etas(progress.append) == 3
+    assert r.keys("*") == ["sellable:P1"] and progress == ["Cleared 3 restock:eta key(s); none came back"]
+
+
+def test_restock_reset_eta_keys_that_keep_coming_back_fail():
+    from scenario.presenter_actions import RestockReset
+    r = fakeredis.FakeRedis(decode_responses=True)
+    rr = RestockReset(lambda: None, r, lambda: None, sleep=lambda s: r.set("restock:eta:P9", "1"))
+    with pytest.raises(RuntimeError, match="keep coming back.*restock:eta:P9"):
+        rr.clear_etas(lambda m: None)
+
+
+def test_restock_reset_skip_reasons():
+    from scenario.presenter_actions import RestockReset
+    r = fakeredis.FakeRedis(decode_responses=True)
+    assert "not configured" in RestockReset(None, r, lambda: ["restock"]).skip_reason()
+    assert RestockReset(lambda: None, r, lambda: ["core", "releases"]).skip_reason() == \
+        "the restock layer is off (running layers: core, releases)"
+    assert RestockReset(lambda: None, r, lambda: None).skip_reason() is None  # unknown layers: the database decides
+
+
+# --- canary releases from live routing (canary-first incident: 90/10/0 gates 1.1.0 against 1.0.0) --------------------
+from scenario.canary import gate_for_routing, parse_routing, verdict  # noqa: E402
+
+
+@pytest.mark.parametrize("weights,expected", [
+    ((90, 10, 0), {"release_a": "1.0.0", "release_b": "1.1.0", "label": "10%", "min_samples": 30}),
+    ((90, 0, 10), {"release_a": "1.0.0", "release_b": "1.2.0", "label": "10%", "min_samples": 30}),
+    ((50, 0, 50), {"release_a": "1.0.0", "release_b": "1.2.0", "label": "50%", "min_samples": None}),
+    ((0, 90, 10), {"release_a": "1.1.0", "release_b": "1.2.0", "label": "10%", "min_samples": 30}),
+    ((0, 50, 50), {"release_a": "1.1.0", "release_b": "1.2.0", "label": "50%", "min_samples": None}),
+    ((0, 0, 100), {"release_a": None, "release_b": "1.2.0", "label": "100%", "min_samples": None}),
+    ((0, 100, 0), {"release_a": None, "release_b": "1.1.0", "label": "100%", "min_samples": None}),
+    ((50, 50, 0), {"release_a": "1.0.0", "release_b": "1.1.0", "label": "50%", "min_samples": None}),
+])
+def test_gate_for_routing_canary_is_the_newer_release(weights, expected):
+    assert gate_for_routing(weights) == expected
+
+
+@pytest.mark.parametrize("weights", [(100, 0, 0), (20, 40, 40), (0, 90, 9), (0, -10, 110)])
+def test_gate_for_routing_refuses_non_canary_splits(weights):
+    with pytest.raises(ValueError):
+        gate_for_routing(weights)
+
+
+def test_parse_routing_accepts_spaces_or_slashes():
+    assert parse_routing("90 10 0") == parse_routing("90/10/0") == (90, 10, 0)
+    for bad in ("90 10", "a b c"):
+        with pytest.raises(ValueError):
+            parse_routing(bad)
+
+
+def bad_canary_summary(a_p95=40.0, b_p95=412.0, a_count=540, b_count=60):
+    def rel(count, p95):
+        return {"count": count, "errors": 0, "error_rate": 0, "status": {}, "p50_ms": 1, "p95_ms": p95, "p99_ms": p95}
+    return {"total": {"count": a_count + b_count, "releases": {"1.0.0": rel(a_count, a_p95), "1.1.0": rel(b_count, b_p95)}}}
+
+
+def run_cli_check(tmp_path, capsys, summary_doc, *args):
+    (tmp_path / "last.json").write_text(json.dumps(summary_doc))
+    (tmp_path / "verify.json").write_text(json.dumps({"ok": True, "mismatches": 0, "sellable_mismatches": 0}))
+    parsed = cli.build_parser().parse_args(["canary-check", str(tmp_path / "last.json"),
+                                            "--verify-file", str(tmp_path / "verify.json"), *args])
+    code = parsed.fn(parsed)
+    return code, capsys.readouterr().out.splitlines()
+
+
+def test_cli_routing_90_10_0_fails_the_slow_1_1_0_canary(tmp_path, capsys):
+    code, lines = run_cli_check(tmp_path, capsys, bad_canary_summary(), "--routing", "90 10 0")
+    assert code == 1
+    assert lines[0] == "routing 90/10/0 (1.0.0/1.1.0/1.2.0): canary 1.1.0 at 10%, baseline 1.0.0, min samples 30"
+    assert "PASS min_samples_a: release 1.0.0: 540 samples, need >= 30" in lines
+    assert "FAIL p95_b: release 1.1.0: p95 412 ms, budget 200 ms" in lines
+    assert lines[-1] == "CANARY GATES FAILED: p95 1.1.0 412 ms > budget 200 ms; roll back"
+
+
+def test_cli_routing_90_10_0_passes_a_fast_canary(tmp_path, capsys):
+    code, lines = run_cli_check(tmp_path, capsys, bad_canary_summary(b_p95=45.0), "--routing", "90/10/0")
+    assert code == 0 and lines[-1] == "CANARY GATES PASSED"
+
+
+def test_cli_explicit_releases_unchanged(tmp_path, capsys):
+    doc = summary(a_count=300, b_count=300, b_p95=23.0)
+    code, lines = run_cli_check(tmp_path, capsys, doc, "--release-a", "1.1.0", "--release-b", "1.2.0")
+    assert code == 0 and lines[-1] == "CANARY GATES PASSED" and "need >= 100" in lines[0]
+    code, lines = run_cli_check(tmp_path, capsys, doc, "--routing", "0 50 50")
+    assert code == 0 and lines[-1] == "CANARY GATES PASSED" and "need >= 100" in lines[1]
+
+
+def test_cli_routing_and_release_options_are_exclusive(tmp_path, capsys):
+    for args in ([], ["--routing", "90 10 0", "--release-b", "1.1.0"], ["--routing", "90 10 0", "--release-a", "1.0.0"]):
+        with pytest.raises(ValueError):
+            run_cli_check(tmp_path, capsys, bad_canary_summary(), *args)
+    with pytest.raises(ValueError, match="newer release"):
+        run_cli_check(tmp_path, capsys, bad_canary_summary(), "--routing", "100 0 0")
+
+
+def test_verdict_lists_every_failed_reason():
+    gates = evaluate(summary(b_count=10, b_p95=250.0), "1.1.0", "1.2.0", 100, 0.0, 200.0, None)
+    assert verdict(gates) == ("CANARY GATES FAILED: 1.2.0 10 samples < 100; p95 1.2.0 250 ms > budget 200 ms; "
+                              "no verify result; roll back")
+    assert verdict(evaluate(summary(), "1.1.0", "1.2.0", 100, 0.0, 200.0, {"ok": True})) == "CANARY GATES PASSED"

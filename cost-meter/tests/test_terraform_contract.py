@@ -22,7 +22,8 @@ def test_fargate_cost_meter_uses_task_role_and_runtime_inputs():
     stack = (TF.parent / "compose/scripts/stack.sh").read_text()
 
     assert 'actions   = ["ecs:ListTasks", "ecs:DescribeTasks"]' in ecs
-    assert 'task_role_arn            = aws_iam_role.task.arn' in ecs
+    # Every task except demo-control (own role) keeps the shared role holding the ECS read permissions.
+    assert 'task_role_arn            = each.key == "demo-control" ? aws_iam_role.demo_control_task.arn : aws_iam_role.task.arn' in ecs
     assert '{ name = "COST_ECS_CLUSTER", value = aws_ecs_cluster.main.name }' in ecs
     assert '{ name = "COST_ELASTICACHE_NODES", value = "1" }' in ecs
     assert '{ name = "COST_REMOTE_EC2_INSTANCE_TYPE", value = var.remote_ec2_instance_type }' in ecs

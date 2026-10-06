@@ -5,6 +5,7 @@
 #                                   schema priming, Flink statements, Terraform datadog, verify. LAYERS=all (default) | core | releases,restock,...
 #   make stack-status               Terraform outputs (non-sensitive), layers, containers
 #   make stack-down CONFIRM=yes     compose down -v, terraform destroy datadog, vm, cloud; leftover check
+#   make stack-leftovers            read-only: tagged AWS resources confirmed with their service APIs, Confluent environments
 # Internal (layer.sh, MODE=cloud): stack.sh layer-tf <layer> on|off ; stack.sh layer-post <layer> on|off
 #
 # Every Terraform step: init (once), workspace select/new <stack>, plan to a file, print the plan summary, ask "yes"
@@ -144,10 +145,10 @@ flink_dml_deferred_hcl() { # FLINK_DML_DEFERRED="a b" -> ["a","b"]
 
 # --- terraform ------------------------------------------------------------------------------------------------
 presenter_cidr() {
-  if [ -n "${PRESENTER_CIDR:-}" ]; then echo "$PRESENTER_CIDR"; return; fi
-  local ip; ip="$(curl -fsS --max-time 10 https://checkip.amazonaws.com | tr -d '[:space:]')" \
-    || die "could not read your public IP from checkip.amazonaws.com; set PRESENTER_CIDR=<ip>/32"
-  echo "$ip/32"
+  [ -n "${PRESENTER_CIDR:-}" ] || die "no allowed CIDR for public ingress: set allowed_cidr in demo.yaml (your public IPv4 as a.b.c.d/32) and rerun; ./demo create detects it when allowed_cidr is empty"
+  [[ "$PRESENTER_CIDR" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}/32$ ]] \
+    || die "allowed CIDR '$PRESENTER_CIDR' is not a single IPv4 address in /32 form (for example 203.0.113.7/32); fix allowed_cidr in demo.yaml"
+  echo "$PRESENTER_CIDR"
 }
 tf() { terraform -chdir="$TF/$1" "${@:2}"; }
 tf_out() { tf_workspace "$1"; tf "$1" output -raw "$2"; }   # always the stack's own workspace
@@ -197,6 +198,18 @@ vars_of() { # vars_of <dir> : prints one -var argument per line
     account)   # account-wide CCM for AWS: not per stack, workspace "account"
       printf '%s\n' "-var=aws_profile=" "-var=owner=$OWNER";;
     aws)
+      if [ "${TF_DESTROY:-}" = 1 ]; then
+        # Destroy plans act on state, never on these values. Fixed inert inputs let a rerun of stack-down destroy
+        # terraform/aws even after vm or cloud are gone (their outputs no longer exist). Validation-safe placeholders.
+        printf '%s\n' "-var=stack=$STACK" "-var=owner=$OWNER" "-var=aws_profile=" "-var=presenter_cidr=${PRESENTER_CIDR:-127.0.0.1/32}" \
+          "-var=on_prem_security_group_id=sg-00000000000000000" "-var=on_prem_private_ip=192.0.2.1" "-var=on_prem_public_ip=192.0.2.2" \
+          "-var=remote_ec2_instance_type=t4g.micro" "-var=remote_ebs_gb=1" "-var=datadog_synthetics_cidrs=[]" \
+          "-var=kafka_bootstrap=destroy.invalid:9092" "-var=schema_registry_url=https://destroy.invalid" \
+          "-var=confluent_environment_id=env-destroy" "-var=kafka_cluster_id=lkc-destroy" "-var=flink_compute_pool_id=lfcp-destroy" \
+          "-var=enable_releases=$(b releases)" "-var=enable_offers=$(b offers)" "-var=enable_jev=$ENABLE_JEV" \
+          "-var=enable_dd_rum=false" "-var=rum_application_id=" "-var=image_tag=${IMAGE_TAG:-dev}"
+        return 0
+      fi
       local cidr vm_instance vm_sg vm_private_ip vm_public_ip vm_cost_inputs vm_instance_type vm_root_ebs_gb cloud_env cloud_cluster cloud_bootstrap cloud_sr cloud_flink synthetics_cidrs rum_enabled rum_application_id
       cidr="${PRESENTER_CIDR:-$(presenter_cidr)}"
       vm_instance="$(tf_out vm instance_id)" || die "could not read VM instance_id for terraform/aws"
@@ -234,7 +247,9 @@ vars_of() { # vars_of <dir> : prints one -var argument per line
         "-var=enable_offers=$(b offers)" "-var=enable_dd_streams=$(b dd-streams)" \
         "-var=enable_dd_synthetics=$(b dd-synthetics)" "-var=enable_dd_rum=$(b dd-rum)"
       hybrid_enabled && printf '%s\n' "-var=enable_fargate=true"
-      if has dd-synthetics; then
+      if has dd-synthetics && [ "${TF_DESTROY:-}" = 1 ]; then
+        printf '%s\n' "-var=ingress_base_url=http://destroy.invalid"   # destroy acts on state; aws/vm may already be gone
+      elif has dd-synthetics; then
         if hybrid_enabled; then
           tf_has_state aws || die "layer dd-synthetics needs the AWS ALB (terraform/aws) of stack $STACK"
           printf '%s\n' "-var=ingress_base_url=$(tf_out aws alb_url)"
@@ -246,7 +261,11 @@ vars_of() { # vars_of <dir> : prints one -var argument per line
   esac
 }
 datadog_streams_env() { # the datadog dir reads the Confluent integration key from TF_VAR_* (never from files)
-  if has dd-streams; then
+  if has dd-streams && [ "${TF_DESTROY:-}" = 1 ]; then
+    # Destroy deletes by ID from state and never sends these; terraform/cloud may already be gone on a rerun.
+    TF_VAR_confluent_api_key=destroy-placeholder TF_VAR_confluent_api_secret=destroy-placeholder TF_VAR_confluent_cluster_id=lkc-destroy
+    export TF_VAR_confluent_api_key TF_VAR_confluent_api_secret TF_VAR_confluent_cluster_id
+  elif has dd-streams; then
     TF_VAR_confluent_api_key="$(tf_out cloud datadog_confluent_api_key)" || die "cloud output datadog_confluent_api_key missing (apply terraform/cloud with dd-streams on first)"
     TF_VAR_confluent_api_secret="$(tf_out cloud datadog_confluent_api_secret)" || die "cloud output datadog_confluent_api_secret missing"
     TF_VAR_confluent_cluster_id="$(tf_out cloud kafka_cluster_id)" || die "cloud output kafka_cluster_id missing"
@@ -378,14 +397,29 @@ aws_alb_url() {
 }
 
 delete_ecr_repositories() {
-  local repository region repository_urls
+  local repository region repository_urls repositories err state
   region="$(aws_region)"
-  repository_urls="$(tf_out_json aws ecr_repositories)" || die "could not read ECR repository output before stack-down"
-  for repository in $(printf '%s' "$repository_urls" | jq -er 'to_entries[] | .value | sub("^[^/]+/"; "")'); do
-    if aws ecr describe-repositories --repository-names "$repository" --region "$region" >/dev/null 2>&1; then
+  if ! repository_urls="$(tf_out_json aws ecr_repositories)"; then
+    # A rerun after a partial destroy may have lost the output; that is fine only when no repository is left in state.
+    state="$(tf aws state list)" || die "could not list terraform/aws state while looking for ECR repositories"
+    if printf '%s\n' "$state" | grep -q '^aws_ecr_repository\.'; then
+      die "could not read ECR repository output before stack-down, but terraform/aws state still holds ECR repositories"
+    fi
+    echo "   no ECR repositories left in terraform/aws state"
+    return 0
+  fi
+  repositories="$(printf '%s' "$repository_urls" | jq -r 'to_entries[] | .value | sub("^[^/]+/"; "")')" \
+    || die "could not parse the ECR repository output of terraform/aws"
+  for repository in $repositories; do
+    # Only "repository not found" means skip; any other error (expired login, denied, network) fails the aws layer.
+    if err="$(aws ecr describe-repositories --repository-names "$repository" --region "$region" 2>&1 >/dev/null)"; then
       aws ecr delete-repository --repository-name "$repository" --force --region "$region" >/dev/null \
         || die "could not force-delete populated ECR repository $repository"
       echo "   deleted ECR repository $repository (including images)"
+    elif printf '%s' "$err" | grep -q 'RepositoryNotFoundException'; then
+      echo "   ECR repository $repository already gone"
+    else
+      die "could not check ECR repository $repository (AWS error, not a missing repository): $err"
     fi
   done
 }
@@ -410,7 +444,7 @@ detach_cloud_schemas_before_destroy() {
 # allowlist narrow: endpoints and IDs from .env.cloud are not secrets and must not enter SSM.
 ssm_secret_key() {
   case "$1" in
-    DD_API_KEY|PROJECTOR_KAFKA_API_KEY|PROJECTOR_KAFKA_API_SECRET|PROJECTOR_SR_API_KEY|PROJECTOR_SR_API_SECRET|STOREFRONT_KAFKA_API_KEY|STOREFRONT_KAFKA_API_SECRET|STOREFRONT_SR_API_KEY|STOREFRONT_SR_API_SECRET|OFFERS_KAFKA_API_KEY|OFFERS_KAFKA_API_SECRET|OFFERS_SR_API_KEY|OFFERS_SR_API_SECRET|DEMO_CONTROL_KAFKA_API_KEY|DEMO_CONTROL_KAFKA_API_SECRET|DEMO_CONTROL_SR_API_KEY|DEMO_CONTROL_SR_API_SECRET|CONTROL_PASSWORD|PG_WRITER_PASSWORD|PG_PROCUREMENT_PASSWORD|COST_METER_API_KEY|COST_METER_API_SECRET|JEV_API_KEY|DD_RUM_CLIENT_TOKEN) return 0;;
+    DD_API_KEY|PROJECTOR_KAFKA_API_KEY|PROJECTOR_KAFKA_API_SECRET|PROJECTOR_SR_API_KEY|PROJECTOR_SR_API_SECRET|STOREFRONT_KAFKA_API_KEY|STOREFRONT_KAFKA_API_SECRET|STOREFRONT_SR_API_KEY|STOREFRONT_SR_API_SECRET|OFFERS_KAFKA_API_KEY|OFFERS_KAFKA_API_SECRET|OFFERS_SR_API_KEY|OFFERS_SR_API_SECRET|DEMO_CONTROL_KAFKA_API_KEY|DEMO_CONTROL_KAFKA_API_SECRET|DEMO_CONTROL_SR_API_KEY|DEMO_CONTROL_SR_API_SECRET|CONTROL_PASSWORD|SCENARIO_API_TOKEN|PG_WRITER_PASSWORD|PG_PROCUREMENT_PASSWORD|COST_METER_API_KEY|COST_METER_API_SECRET|JEV_API_KEY|DD_RUM_CLIENT_TOKEN) return 0;;
     *) return 1;;
   esac
 }
@@ -667,6 +701,8 @@ aws_session_ready() {
 
 preflight() {
   local ok=1 t d n
+  # First check, before any other work: an empty or malformed CIDR must stop here, never after billed stages.
+  presenter_cidr >/dev/null
   for t in terraform docker ssh curl make aws; do command -v "$t" >/dev/null || { echo "   MISSING tool: $t"; ok=0; }; done
   # The Mac drives the EC2 engine through an SSH context: client, compose and buildx plugins (brew install docker docker-compose docker-buildx).
   for t in compose buildx; do docker "$t" version >/dev/null 2>&1 || { echo "   MISSING docker $t plugin (cliPluginsExtraDirs in ~/.docker/config.json)"; ok=0; }; done
@@ -680,7 +716,7 @@ preflight() {
   [ -f "$ENV_DIR/.env.secrets" ] || echo "   note: .env.secrets absent; stack-up creates it (make secrets)"
   [ -f "$HOME/.ssh/id_ed25519.pub" ] || { echo "   MISSING ~/.ssh/id_ed25519.pub (terraform/vm key pair; or set TF_VAR_ssh_public_key_path)"; ok=0; }
   aws_session_ready
-  echo "   presenter CIDR: $(presenter_cidr)"
+  echo "   public ingress CIDR: $(presenter_cidr)"
   local tf_dirs="account cloud vm datadog"
   hybrid_enabled && tf_dirs="$tf_dirs aws"
   for d in $tf_dirs; do
@@ -875,47 +911,236 @@ account_down() {
   trap - EXIT
 }
 
+down_credentials_preflight() { # down_credentials_preflight "<layers with state>" : read-only, before any destroy or prompt
+  local found=" $1 " out code dd_url
+  load_env
+  # AWS: terraform aws and vm, and the final leftover check (Tagging API) always needs it.
+  out="$(aws sts get-caller-identity --profile "$AWS_PROFILE" --query Arn --output text 2>&1)" \
+    || die "AWS session expired or missing ($(printf '%s' "$out" | tail -n1)): run aws login --profile $AWS_SOURCE_PROFILE, then rerun stack-down. Nothing was destroyed."
+  echo "   AWS session ($AWS_SOURCE_PROFILE): ok"
+  case "$found" in *" cloud "*)
+    # terraform/cloud authenticates with the Cloud API key from .env, not with the CLI login. Key never on argv.
+    code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 -K - <<EOF
+user = "$CONFLUENT_CLOUD_API_KEY:$CONFLUENT_CLOUD_API_SECRET"
+url = "https://api.confluent.cloud/org/v2/environments?page_size=1"
+EOF
+)" || die "could not reach the Confluent Cloud API (network?): fix it, then rerun stack-down. Nothing was destroyed."
+    [ "$code" = 200 ] || die "Confluent Cloud API key in $ENV_DIR/.env rejected (HTTP $code): put a valid CONFLUENT_CLOUD_API_KEY/SECRET there, then rerun stack-down. Nothing was destroyed."
+    echo "   Confluent Cloud API key: ok";;
+  esac
+  # The final leftover check lists environments with the Confluent CLI (skipped there when the CLI is missing).
+  if command -v confluent >/dev/null; then
+    out="$(confluent environment list -o json 2>&1)" \
+      || die "Confluent CLI session expired or missing ($(printf '%s' "$out" | tail -n1)): run confluent login, then rerun stack-down. Nothing was destroyed."
+    echo "   Confluent CLI login: ok"
+  fi
+  case "$found" in *" datadog "*)
+    # Datadog has no hourly cost: a rejected key is a warning; the datadog layer then fails and keeps its state.
+    dd_url="${TF_VAR_datadog_api_url:-https://api.datadoghq.eu/}"
+    code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 -K - <<EOF
+header = "DD-API-KEY: $DD_API_KEY"
+url = "${dd_url%/}/api/v1/validate"
+EOF
+)" || code="unreachable"
+    if [ "$code" = 200 ]; then echo "   Datadog API key: ok"
+    else echo "WARNING: Datadog API key check returned $code; the datadog layer will likely fail (no hourly cost; fix DD_API_KEY/DD_APP_KEY in .env and rerun stack-down)" >&2; fi;;
+  esac
+}
+
+DOWN_FAILED=""
+down_layer() { # down_layer <layer> <function> : one layer's destroy in a subshell (die ends only that layer); failures collected
+  local layer="$1" s; shift
+  echo; echo "== [destroy $layer]"
+  s=$(date +%s)
+  if ( "$@" ); then
+    echo "   [destroy $layer] took $(( $(date +%s) - s )) s (stack $STACK, total $(( $(date +%s) - T0 )) s)"
+  else
+    echo "stack.sh: destroy of layer '$layer' FAILED (see the error above); continuing with the remaining layers" >&2
+    DOWN_FAILED="$DOWN_FAILED $layer"
+  fi
+}
+down_datadog() { tf_apply datadog destroy; }
+down_aws() {   # ECR images first (populated repositories), SSM parameters only after a successful destroy
+  delete_ecr_repositories || return 1
+  tf_apply aws destroy || return 1
+  delete_stack_ssm_parameters
+}
+down_vm() {
+  local ip
+  ip="$(tf_out vm public_ip 2>/dev/null)" || ip=""
+  tf_apply vm destroy || return 1
+  if [ -n "$ip" ]; then
+    if ssh-keygen -R "$ip" >/dev/null 2>&1; then echo "   removed $ip from known_hosts"; else echo "   note: could not remove $ip from known_hosts"; fi
+  fi
+}
+down_cloud() { detach_cloud_schemas_before_destroy || return 1; tf_apply cloud destroy; }
+
 down() {
   [ "${CONFIRM:-}" = yes ] || die "stack-down destroys stack $STACK: add CONFIRM=yes"
   # A mistyped STACK must not "succeed": the workspaces must exist and at least one must hold state.
-  local d found=""
+  # Read-only. Terraform state and workspaces are never deleted, so a failed run can always be rerun.
+  local d found="" workspaces state
   local tf_dirs="cloud vm datadog"
   hybrid_enabled && tf_dirs="$tf_dirs aws"
   for d in $tf_dirs; do
     [ -d "$TF/$d/.terraform" ] || tf "$d" init -input=false >/dev/null || die "terraform init failed in terraform/$d"
-    if tf "$d" workspace select "$STACK" >/dev/null 2>&1; then
-      [ -n "$(tf "$d" state list | head -n1)" ] && found="$found $d"
-    fi
+    workspaces="$(tf "$d" workspace list)" || die "could not list Terraform workspaces in terraform/$d"
+    printf '%s\n' "$workspaces" | tr -d '* ' | grep -qx "$STACK" || continue
+    tf "$d" workspace select "$STACK" >/dev/null || die "could not select workspace $STACK in terraform/$d"
+    state="$(tf "$d" state list)" || die "could not list the Terraform state of terraform/$d (workspace $STACK)"
+    [ -n "$state" ] && found="$found $d"
   done
   [ -n "$found" ] || die "no Terraform state for stack '$STACK' in cloud, vm or datadog (typo? workspaces: $(tf cloud workspace list | tr -d '* \n' | tr '\n' ' '))"
   echo "   stack $STACK has state in:$found"
+  # Credentials before the question and before any destroy: an expired login must stop here with nothing touched.
+  down_credentials_preflight "$found"
   confirm "Destroy EVERYTHING of stack $STACK (containers and volumes, Datadog objects, EC2, Confluent environment)?" || exit 1
-  if docker context inspect "$CTX" >/dev/null 2>&1 && [ -f "$ENV_CLOUD" ]; then
-    # Loud but not blocking: an unreachable host must not keep the billed resources alive.
-    mk _down PURGE=1 || echo "WARNING: compose down failed on the host (continuing: the host is destroyed next)" >&2
-  fi
+  case " $found " in *" vm "*)
+    if docker context inspect "$CTX" >/dev/null 2>&1 && [ -f "$ENV_CLOUD" ]; then
+      # Loud but not blocking: an unreachable host must not keep the billed resources alive.
+      mk _down PURGE=1 || echo "WARNING: compose down failed on the host (continuing: the host is destroyed next)" >&2
+    fi;;
+  esac
   [ -f "$LAYERS_FILE" ] || set_layers all   # destroy needs a variable set; all is the superset
   export TF_DESTROY=1
-  local ip=""; case "$found" in *vm*) ip="$(tf_out vm public_ip || true)";; esac
-  # datadog has no hourly cost: a failure there must never stop the EC2 and Confluent destroys.
-  # Subshell: tf_apply exits on failure (die), which must not end stack-down here.
-  case "$found" in *datadog*) ( tf_apply datadog destroy ) || echo "WARNING: terraform datadog destroy FAILED (no hourly cost; clean up later: terraform -chdir=terraform/datadog destroy)" >&2;; esac
-  case "$found" in *aws*) delete_ecr_repositories; step "destroy terraform aws" tf_apply aws destroy; delete_stack_ssm_parameters;; esac
-  case "$found" in *vm*) step "destroy terraform vm" tf_apply vm destroy;; esac
-  case "$found" in *cloud*) detach_cloud_schemas_before_destroy; step "destroy terraform cloud" tf_apply cloud destroy;; esac
-  if docker context inspect "$CTX" >/dev/null 2>&1; then docker context rm -f "$CTX" >/dev/null && echo "   removed docker context $CTX"; fi
-  if [ -n "$ip" ]; then ssh-keygen -R "$ip" >/dev/null 2>&1 && echo "   removed $ip from known_hosts"; fi
-  rm -f "$ENV_CLOUD" "$LAYERS_FILE" "$DEFER_FILE" "$DD_APPLIED" "$STATE_DIR/layers-$STACK.env" "$STATE_DIR/dd-layers-$STACK" "$STATE_DIR/routing-$STACK"
-  echo; echo "== leftover check: every AWS resource tagged project=dd-demo (all stacks; other running stacks show up here too)"
-  aws resourcegroupstaggingapi get-resources --tag-filters "Key=project,Values=dd-demo" \
-    --query 'ResourceTagMappingList[].[ResourceARN, Tags[?Key==`stack`].Value | [0]]' --output text \
-    || echo "WARNING: AWS leftover check failed; check the console (EC2, EBS, EIP)" >&2
-  if command -v confluent >/dev/null && confluent environment list >/dev/null 2>&1; then
-    confluent environment list | grep "dd-demo-" || echo "   no dd-demo-* Confluent environment"
-  else
-    echo "   (Confluent leftover check skipped: confluent CLI missing or not logged in; check the Cloud console for dd-demo-$STACK)"
+  # Order: datadog, aws, vm, cloud. Each layer runs even when an earlier one failed, except vm after aws:
+  # terraform/aws owns an ElastiCache rule that references the VM security group, and AWS refuses to delete
+  # a referenced group (DependencyViolation), so the vm destroy would stall and fail. aws reads no other
+  # layer's outputs while destroying, so cloud is still destroyed (it bills the most).
+  DOWN_FAILED=""
+  case " $found " in *" datadog "*) down_layer datadog down_datadog;; esac
+  case " $found " in *" aws "*) down_layer aws down_aws;; esac
+  case " $found " in *" vm "*)
+    case " $DOWN_FAILED " in
+      *" aws "*) echo; echo "== [destroy vm] SKIPPED: terraform/aws failed and still references the VM security group; the EC2 VM keeps billing until aws is fixed and stack-down is rerun" >&2
+                 DOWN_FAILED="$DOWN_FAILED vm(skipped)";;
+      *) down_layer vm down_vm;;
+    esac;;
+  esac
+  case " $found " in *" cloud "*) down_layer cloud down_cloud;; esac
+  if [ -n "$DOWN_FAILED" ]; then
+    echo >&2
+    echo "stack.sh: FAILED:$DOWN_FAILED; Terraform state, local env files and docker context kept. Fix the cause printed above (log: $LOG_DIR/$STACK-latest.log) and rerun stack-down: it resumes with the layers that still have state." >&2
+    exit 1
   fi
+  if docker context inspect "$CTX" >/dev/null 2>&1; then docker context rm -f "$CTX" >/dev/null && echo "   removed docker context $CTX"; fi
+  rm -f "$ENV_CLOUD" "$LAYERS_FILE" "$DEFER_FILE" "$DD_APPLIED" "$STATE_DIR/layers-$STACK.env" "$STATE_DIR/dd-layers-$STACK" "$STATE_DIR/routing-$STACK"
+  leftover_check || die "stack $STACK: resources still exist after the destroy (list above); delete them or rerun stack-down"
   echo "== stack $STACK destroyed in $(( $(date +%s) - T0 )) s"
+}
+
+# ---------------------------------------------------------------------------------------------- leftover check
+# The Resource Groups Tagging API lists deleted resources for a while (ECS services, volumes, security-group
+# rules) and keeps every deregistered ECS task-definition revision (INACTIVE, free). So it is only the candidate
+# list: task definitions are skipped and every other ARN is confirmed with its own service API.
+aws_count() { # aws_count <not-found error regex> <aws args...> : prints the --query count, 0 when the API says not found
+  local nf="$1" out rc=0
+  shift
+  out="$(aws "$@" --output text 2>&1)" || rc=$?
+  if [ "$rc" -eq 0 ]; then printf '%s\n' "$out"; return 0; fi
+  if [ -n "$nf" ] && printf '%s' "$out" | grep -Eq "$nf"; then echo 0; return 0; fi
+  echo "stack.sh: leftover check: 'aws $*' failed (exit $rc): $out" >&2
+  return 1
+}
+
+arn_exists() { # arn_exists <arn> : prints 1 (exists), 0 (gone) or "?" (type not verified here); returns 1 on API error
+  local arn="$1" svc region rest kind id r
+  IFS=: read -r _ _ svc region _ rest <<<"$arn"
+  r=(--region "${region:-$(aws_region)}")
+  case "$svc:$rest" in
+    ec2:instance/*) id="${rest#instance/}"
+      aws_count '' ec2 describe-instances "${r[@]}" --filters "Name=instance-id,Values=$id" \
+        "Name=instance-state-name,Values=pending,running,stopping,stopped,shutting-down" --query 'length(Reservations[].Instances[])';;
+    ec2:volume/*) aws_count '' ec2 describe-volumes "${r[@]}" --filters "Name=volume-id,Values=${rest#volume/}" --query 'length(Volumes)';;
+    ec2:elastic-ip/*) aws_count '' ec2 describe-addresses "${r[@]}" --filters "Name=allocation-id,Values=${rest#elastic-ip/}" --query 'length(Addresses)';;
+    ec2:natgateway/*) aws_count '' ec2 describe-nat-gateways "${r[@]}" --filter "Name=nat-gateway-id,Values=${rest#natgateway/}" \
+        "Name=state,Values=pending,available,deleting" --query 'length(NatGateways)';;
+    ec2:security-group/*) aws_count '' ec2 describe-security-groups "${r[@]}" --filters "Name=group-id,Values=${rest#security-group/}" --query 'length(SecurityGroups)';;
+    ec2:security-group-rule/*) aws_count '' ec2 describe-security-group-rules "${r[@]}" \
+        --filters "Name=security-group-rule-id,Values=${rest#security-group-rule/}" --query 'length(SecurityGroupRules)';;
+    ec2:key-pair/*) aws_count '' ec2 describe-key-pairs "${r[@]}" --filters "Name=key-pair-id,Values=${rest#key-pair/}" --query 'length(KeyPairs)';;
+    ecs:cluster/*) aws_count '' ecs describe-clusters "${r[@]}" --clusters "${rest#cluster/}" --query 'length(clusters[?status!=`INACTIVE`])';;
+    ecs:service/*) kind="${rest#service/}"   # <cluster>/<service>
+      aws_count 'ClusterNotFoundException' ecs describe-services "${r[@]}" --cluster "${kind%%/*}" --services "${kind#*/}" \
+        --query 'length(services[?status!=`INACTIVE`])';;
+    elasticloadbalancing:loadbalancer/*) aws_count 'LoadBalancerNotFound' elbv2 describe-load-balancers "${r[@]}" --load-balancer-arns "$arn" --query 'length(LoadBalancers)';;
+    elasticloadbalancing:targetgroup/*) aws_count 'TargetGroupNotFound' elbv2 describe-target-groups "${r[@]}" --target-group-arns "$arn" --query 'length(TargetGroups)';;
+    elasticloadbalancing:listener/*) aws_count 'ListenerNotFound' elbv2 describe-listeners "${r[@]}" --listener-arns "$arn" --query 'length(Listeners)';;
+    elasticloadbalancing:listener-rule/*) aws_count 'RuleNotFound|ListenerNotFound' elbv2 describe-rules "${r[@]}" --rule-arns "$arn" --query 'length(Rules)';;
+    elasticache:cluster:*) aws_count 'CacheClusterNotFound' elasticache describe-cache-clusters "${r[@]}" --cache-cluster-id "${rest#cluster:}" --query 'length(CacheClusters)';;
+    elasticache:replicationgroup:*) aws_count 'ReplicationGroupNotFound' elasticache describe-replication-groups "${r[@]}" --replication-group-id "${rest#replicationgroup:}" --query 'length(ReplicationGroups)';;
+    elasticache:subnetgroup:*) aws_count 'CacheSubnetGroupNotFound' elasticache describe-cache-subnet-groups "${r[@]}" --cache-subnet-group-name "${rest#subnetgroup:}" --query 'length(CacheSubnetGroups)';;
+    ecr:repository/*) aws_count 'RepositoryNotFoundException' ecr describe-repositories "${r[@]}" --repository-names "${rest#repository/}" --query 'length(repositories)';;
+    logs:log-group:*) id="${rest#log-group:}"; id="${id%:\*}"
+      aws_count '' logs describe-log-groups "${r[@]}" --log-group-name-prefix "$id" --query "length(logGroups[?logGroupName=='$id'])";;
+    ssm:parameter/*) aws_count 'ParameterNotFound' ssm get-parameter "${r[@]}" --name "/${rest#parameter/}" --query 'length([Parameter.Name])';;
+    iam:role/*) aws_count 'NoSuchEntity' iam get-role --role-name "${rest##*/}" --query 'length([Role.RoleName])';;
+    iam:instance-profile/*) aws_count 'NoSuchEntity' iam get-instance-profile --instance-profile-name "${rest##*/}" --query 'length([InstanceProfile.InstanceProfileName])';;
+    s3:*) aws_count '' s3api list-buckets --query "length(Buckets[?Name=='$rest'])";;
+    *) echo "?";;
+  esac
+}
+
+aws_leftovers() { # confirm every tagged project=dd-demo ARN; returns 1 when this stack still has resources
+  local tagged arn tag n=0 skipped=0 gone=0 exists mine=() other=() account=() unverified=()
+  echo "== leftover check: AWS resources tagged project=dd-demo, each confirmed with its service API"
+  tagged="$(aws resourcegroupstaggingapi get-resources --region "$(aws_region)" --tag-filters "Key=project,Values=dd-demo" \
+    --query 'ResourceTagMappingList[].[ResourceARN, Tags[?Key==`stack`].Value | [0]]' --output text)" \
+    || die "leftover check: Resource Groups Tagging API call failed (AWS_PROFILE=$AWS_PROFILE); check the EC2/ECS/ELB/ElastiCache consoles by hand"
+  while IFS=$'\t' read -r arn tag; do
+    [ -n "$arn" ] || continue
+    n=$((n + 1))
+    case "$arn" in *:task-definition/*) skipped=$((skipped + 1)); continue;; esac   # INACTIVE revisions: free, kept by AWS
+    exists="$(arn_exists "$arn")" || die "leftover check: could not confirm $arn (API error above)"
+    case "$exists" in
+      0) gone=$((gone + 1)); continue;;
+      "?") unverified+=("$arn	stack=$tag	(type not verified by this check: look it up by hand)"); continue;;
+      [1-9]*) ;;
+      *) die "leftover check: unexpected answer '$exists' for $arn";;
+    esac
+    case "$tag" in
+      account) account+=("$arn");;
+      "$STACK"|None|"") mine+=("$arn	stack=$tag");;
+      *) other+=("$arn	stack=$tag");;
+    esac
+  done <<<"$tagged"
+  echo "   $n tagged ARNs: $skipped ECS task-definition revisions skipped (free), $gone already deleted (Tagging API lags)"
+  [ "${#account[@]}" -eq 0 ] || printf '   account-owned, kept on purpose (make account-down removes it): %s\n' "${account[@]}"
+  [ "${#other[@]}" -eq 0 ] || printf '   other stack, not part of this teardown: %s\n' "${other[@]}"
+  [ "${#unverified[@]}" -eq 0 ] || printf 'WARNING: %s\n' "${unverified[@]}" >&2
+  if [ "${#mine[@]}" -eq 0 ]; then
+    echo "   no billable AWS leftovers for stack $STACK"
+    return 0
+  fi
+  echo "WARNING: ${#mine[@]} resource(s) of stack $STACK still exist and may bill:" >&2
+  printf 'WARNING:   %s\n' "${mine[@]}" >&2
+  return 1
+}
+
+confluent_leftovers() { # returns 1 when a dd-demo-* environment still exists
+  local envs
+  if ! command -v confluent >/dev/null; then
+    echo "   (Confluent leftover check skipped: confluent CLI missing; check the Cloud console for dd-demo-$STACK)"
+    return 0
+  fi
+  envs="$(confluent environment list -o json 2>&1)" \
+    || die "leftover check: 'confluent environment list' failed (not logged in? run: confluent login): $envs"
+  envs="$(printf '%s' "$envs" | python3 -c 'import json,sys; print("\n".join(e["name"] for e in json.load(sys.stdin) if e["name"].startswith("dd-demo-")))')" \
+    || die "leftover check: could not parse 'confluent environment list -o json'"
+  if [ -z "$envs" ]; then echo "   no dd-demo-* Confluent environment"; return 0; fi
+  if printf '%s\n' "$envs" | grep -qx "dd-demo-$STACK"; then
+    printf 'WARNING: Confluent environment still exists (billed hourly): %s\n' "$envs" >&2
+    return 1
+  fi
+  printf '   other stacks, not part of this teardown: Confluent environment %s\n' $envs
+}
+
+leftover_check() { # read-only; also standalone: make MODE=cloud STACK=<s> stack-leftovers
+  local rc=0
+  echo
+  aws_leftovers || rc=1
+  confluent_leftovers || rc=1
+  return "$rc"
 }
 
 dispatch_command() { # dispatch_command <command> [args...]
@@ -924,18 +1149,19 @@ dispatch_command() { # dispatch_command <command> [args...]
     preflight) preflight;;
     up) up;;
     down) down;;
+    leftovers) leftover_check;;
     status) load_env; status;;
     account-up)   [ "$STACK" = account ] || die "account-up: run with STACK=account (account-wide, not per stack)"; tf_apply account;;
     account-down) [ "$STACK" = account ] || die "account-down: run with STACK=account"; account_down;;
     layer-tf)   : "${3:?stack.sh layer-tf <layer> on|off}"; layer_tf "$2" "$3";;
     layer-post) : "${3:?stack.sh layer-post <layer> on|off}"; layer_post "$2" "$3";;
-    *) echo "usage: stack.sh preflight | up | down | status | account-up | account-down | layer-tf <layer> on|off | layer-post <layer> on|off" >&2; return 2;;
+    *) echo "usage: stack.sh preflight | up | down | leftovers | status | account-up | account-down | layer-tf <layer> on|off | layer-post <layer> on|off" >&2; return 2;;
   esac
 }
 
 command="${1:-usage}"
 case "$command" in
-  preflight|up|down|status|account-up|account-down|layer-tf|layer-post) ;;
+  preflight|up|down|leftovers|status|account-up|account-down|layer-tf|layer-post) ;;
   *) command=usage;;
 esac
 if [ "${STACK_SOURCE_ONLY:-}" = 1 ]; then

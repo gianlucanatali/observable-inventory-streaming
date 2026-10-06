@@ -94,6 +94,7 @@ export function describeStock(answer, fetchError, compression = null) {
     case 'available':
       return {
         tone: 'available',
+        warning: answer.at_least,
         title: answer.at_least ? `At least ${displayedSellable} available online` : `${displayedSellable} available online`,
         detail: null,
         qualifier: answer.at_least ? 'Some stores are not reporting live, so the real number may be higher' : null,

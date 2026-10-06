@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{title}}</title>
+<meta name="description" content="Hands-on workshop: stream stock changes from five PostgreSQL store databases through Debezium and Confluent Cloud into Redis on AWS, then find and fix a slow release with Datadog.">
+<meta name="color-scheme" content="light dark">
+<!-- Generated from workshop/README.md by workshop/site/build.py. Do not edit by hand. -->
+<script>
+// Set the lab path before the first paint, so the page never shows both paths and then hides one.
+(function () {
+  var d = document.documentElement, p = null;
+  d.classList.add("js");
+  var m = /[?&]path=(panel|terminal)(?:&|$)/.exec(location.search);
+  try {
+    if (m) { p = m[1]; localStorage.setItem("workshop-path", p); }
+    else { p = localStorage.getItem("workshop-path"); }
+  } catch (e) {
+    console.warn("workshop: localStorage unavailable, the path choice is not remembered:", e);
+    if (m) p = m[1];
+  }
+  if (p !== "panel" && p !== "terminal") p = null;
+  d.setAttribute("data-path-mode", p || "panel");
+  if (p) d.setAttribute("data-path-chosen", "");
+})();
+</script>
+<link rel="stylesheet" href="assets/fonts.css">
+<link rel="stylesheet" href="assets/site.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23632CA6'/%3E%3Cpath d='M8 21h4v-6H8zm6 0h4V10h-4zm6 0h4v-9h-4z' fill='white'/%3E%3C/svg%3E">
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<header class="topbar">
+  <button type="button" class="toc-toggle" aria-controls="toc" aria-expanded="false">
+    <span class="burger" aria-hidden="true"></span><span class="sr-only">Table of contents</span>
+  </button>
+  <a class="brand" href="index.html" title="Home"><span class="brand-mark" aria-hidden="true"></span><span>Observable inventory streaming</span></a>
+  <div class="path-switch" role="group" aria-label="Lab path">
+    <span class="path-switch-label" aria-hidden="true">Path</span>
+    <button type="button" data-set-path="panel" aria-pressed="true" title="Show the control panel steps">Panel</button>
+    <button type="button" data-set-path="terminal" aria-pressed="false" title="Show the terminal (make) steps">Terminal</button>
+  </div>
+  <nav class="topbar-links" aria-label="Site">
+    <a class="topbar-home" href="index.html">Home</a>
+    <a class="topbar-current" href="#top" aria-current="page">Workshop</a>
+    <a class="topbar-extra topbar-md" href="{{source_url}}">Markdown source</a>
+    <a class="topbar-extra" href="{{repo_url}}">GitHub</a>
+  </nav>
+</header>
+<div class="layout">
+  <nav id="toc" class="toc" aria-label="Table of contents">
+    <p class="toc-title">Contents</p>
+    {{toc}}
+  </nav>
+  <div class="scrim" hidden></div>
+  <main id="content" class="content" tabindex="-1">
+    <article id="top" class="doc">
+{{content}}
+    </article>
+    <footer class="doc-footer">
+      <p>Generated from <a href="{{source_url}}"><code>workshop/README.md</code></a>. Every product, store, sale and shopper in this workshop is synthetic.</p>
+      <p>Educational demo, not for production workloads. <a href="{{repo_url}}/blob/main/LICENSE">Apache License 2.0</a>, provided as is; trademarks and third-party notices in <a href="{{repo_url}}/blob/main/NOTICE">NOTICE</a>.</p>
+      <p><a href="#top">Back to top</a></p>
+    </footer>
+  </main>
+</div>
+<dialog class="lightbox" aria-label="Enlarged image">
+  <form method="dialog"><button class="lightbox-close" aria-label="Close">&times;</button></form>
+  <img alt="">
+  <p class="lightbox-caption"></p>
+</dialog>
+<dialog class="path-dialog" aria-labelledby="path-dialog-title" aria-describedby="path-dialog-text">
+  <h2 id="path-dialog-title">Switch to the <span class="path-dialog-other">terminal</span> path?</h2>
+  <p id="path-dialog-text">Pick one path and use it from start to finish. The control panel and the terminal each remember their own last routing for Rollback, so mixing them in one run can roll back to the wrong state. Switch only if you are starting a lab from a reset.</p>
+  <div class="path-dialog-buttons">
+    <button type="button" class="path-keep" autofocus>Keep control panel</button>
+    <button type="button" class="path-switch-confirm">Switch to terminal</button>
+  </div>
+</dialog>
+<div class="sr-only" aria-live="polite" id="live"></div>
+<script src="assets/site.js" defer></script>
+</body>
+</html>

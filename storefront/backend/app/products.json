@@ -1,536 +1,618 @@
 [
  {
   "product_id": "P0001",
-  "name": "Trail Cap GTX",
-  "brand": "Vetta",
-  "category": "accessories",
-  "size": "M",
-  "price_eur": 78.9,
+  "name": "Trailrunner GTX",
+  "brand": "Alpenpace",
+  "category": "footwear",
+  "size": "EU 39",
+  "price_eur": 219.9,
   "colour": {
-   "name": "Sand",
-   "hex": "#c8b38a"
+   "name": "Forest green",
+   "hex": "#2f6b4f"
   },
-  "description": "Compact and packable, built for long trail runs."
+  "description": "Balanced and responsive, built for early morning trail laps.",
+  "model_id": "alpenpace-trailrunner-gtx",
+  "variant_rank": 0
  },
  {
   "product_id": "P0002",
-  "name": "Pathfinder Lite",
-  "brand": "Vetta",
+  "name": "Trailrunner GTX",
+  "brand": "Alpenpace",
   "category": "footwear",
-  "size": "EU 37",
-  "price_eur": 190.9,
+  "size": "EU 40",
+  "price_eur": 219.9,
   "colour": {
-   "name": "Navy",
-   "hex": "#1f3a63"
+   "name": "Forest green",
+   "hex": "#2f6b4f"
   },
-  "description": "Warm without bulk, built for early morning trail laps."
+  "description": "Balanced and responsive, built for early morning trail laps.",
+  "model_id": "alpenpace-trailrunner-gtx",
+  "variant_rank": 1
  },
  {
   "product_id": "P0003",
-  "name": "Trekking Poles Pro",
-  "brand": "Sentiero",
-  "category": "accessories",
-  "size": "L",
-  "price_eur": 35.9,
+  "name": "Trailrunner GTX",
+  "brand": "Alpenpace",
+  "category": "footwear",
+  "size": "EU 41",
+  "price_eur": 219.9,
   "colour": {
-   "name": "Slate",
-   "hex": "#5a6678"
+   "name": "Forest green",
+   "hex": "#2f6b4f"
   },
-  "description": "Compact and packable, built for day hikes."
+  "description": "Balanced and responsive, built for early morning trail laps.",
+  "model_id": "alpenpace-trailrunner-gtx",
+  "variant_rank": 2
  },
  {
   "product_id": "P0004",
-  "name": "Trailrunner Pro",
-  "brand": "Nordvento",
+  "name": "Trailrunner GTX",
+  "brand": "Alpenpace",
   "category": "footwear",
-  "size": "EU 39",
-  "price_eur": 109.9,
+  "size": "EU 43",
+  "price_eur": 219.9,
   "colour": {
-   "name": "Sand",
-   "hex": "#c8b38a"
+   "name": "Forest green",
+   "hex": "#2f6b4f"
   },
-  "description": "Balanced and responsive, built for wet gravel descents."
+  "description": "Balanced and responsive, built for early morning trail laps.",
+  "model_id": "alpenpace-trailrunner-gtx",
+  "variant_rank": 4
  },
  {
   "product_id": "P0005",
-  "name": "Trekking Poles GTX",
-  "brand": "Aquila Nera",
-  "category": "accessories",
-  "size": "S",
-  "price_eur": 23.9,
+  "name": "Trailrunner GTX",
+  "brand": "Alpenpace",
+  "category": "footwear",
+  "size": "EU 44",
+  "price_eur": 219.9,
   "colour": {
-   "name": "Glacier blue",
-   "hex": "#4f93b8"
+   "name": "Forest green",
+   "hex": "#2f6b4f"
   },
-  "description": "Durable and dependable, built for day hikes."
+  "description": "Balanced and responsive, built for early morning trail laps.",
+  "model_id": "alpenpace-trailrunner-gtx",
+  "variant_rank": 5
  },
  {
   "product_id": "P0006",
-  "name": "Trekking Poles Air",
-  "brand": "Nordvento",
-  "category": "accessories",
-  "size": "L",
-  "price_eur": 25.9,
+  "name": "Trailrunner GTX",
+  "brand": "Alpenpace",
+  "category": "footwear",
+  "size": "EU 45",
+  "price_eur": 219.9,
   "colour": {
-   "name": "Navy",
-   "hex": "#1f3a63"
+   "name": "Forest green",
+   "hex": "#2f6b4f"
   },
-  "description": "Warm without bulk, built for day hikes."
+  "description": "Balanced and responsive, built for early morning trail laps.",
+  "model_id": "alpenpace-trailrunner-gtx",
+  "variant_rank": 6
  },
  {
   "product_id": "P0007",
-  "name": "Gaiters GTX",
-  "brand": "Corvina",
-  "category": "accessories",
-  "size": "XXL",
-  "price_eur": 66.9,
+  "name": "Trailrunner GTX",
+  "brand": "Alpenpace",
+  "category": "footwear",
+  "size": "EU 37",
+  "price_eur": 219.9,
   "colour": {
-   "name": "Glacier blue",
-   "hex": "#4f93b8"
+   "name": "Slate",
+   "hex": "#5a6678"
   },
-  "description": "Durable and dependable, built for alpine mornings."
+  "description": "Balanced and responsive, built for early morning trail laps.",
+  "model_id": "alpenpace-trailrunner-gtx",
+  "variant_rank": 7
  },
  {
   "product_id": "P0008",
-  "name": "Softshell Alpine",
-  "brand": "Corvina",
-  "category": "apparel",
-  "size": "S",
-  "price_eur": 113.9,
+  "name": "Trailrunner GTX",
+  "brand": "Alpenpace",
+  "category": "footwear",
+  "size": "EU 38",
+  "price_eur": 219.9,
   "colour": {
-   "name": "Forest green",
-   "hex": "#2f6b4f"
+   "name": "Slate",
+   "hex": "#5a6678"
   },
-  "description": "Durable and dependable, built for long days out."
+  "description": "Balanced and responsive, built for early morning trail laps.",
+  "model_id": "alpenpace-trailrunner-gtx",
+  "variant_rank": 8
  },
  {
   "product_id": "P0009",
-  "name": "Windshell Pro",
-  "brand": "Lagoverde",
-  "category": "apparel",
-  "size": "XS",
-  "price_eur": 152.9,
+  "name": "Trailrunner GTX",
+  "brand": "Alpenpace",
+  "category": "footwear",
+  "size": "EU 39",
+  "price_eur": 219.9,
   "colour": {
-   "name": "Ember red",
-   "hex": "#b73a2e"
+   "name": "Slate",
+   "hex": "#5a6678"
   },
-  "description": "Light and quick, built for long days out."
+  "description": "Balanced and responsive, built for early morning trail laps.",
+  "model_id": "alpenpace-trailrunner-gtx",
+  "variant_rank": 9
  },
  {
   "product_id": "P0010",
-  "name": "Softshell Plus",
-  "brand": "Tramonto",
-  "category": "apparel",
-  "size": "XS",
-  "price_eur": 80.9,
+  "name": "Trailrunner GTX",
+  "brand": "Alpenpace",
+  "category": "footwear",
+  "size": "EU 40",
+  "price_eur": 219.9,
   "colour": {
-   "name": "Glacier blue",
-   "hex": "#4f93b8"
+   "name": "Slate",
+   "hex": "#5a6678"
   },
-  "description": "Balanced and responsive, built for fast hikes in the wind."
+  "description": "Balanced and responsive, built for early morning trail laps.",
+  "model_id": "alpenpace-trailrunner-gtx",
+  "variant_rank": 10
  },
  {
   "product_id": "P0011",
-  "name": "Hydration Vest Zero",
-  "brand": "Ridgeline",
-  "category": "accessories",
-  "size": "L",
-  "price_eur": 42.9,
+  "name": "Trailrunner GTX",
+  "brand": "Alpenpace",
+  "category": "footwear",
+  "size": "EU 41",
+  "price_eur": 219.9,
   "colour": {
    "name": "Slate",
    "hex": "#5a6678"
   },
-  "description": "Durable and dependable, built for packing light."
+  "description": "Balanced and responsive, built for early morning trail laps.",
+  "model_id": "alpenpace-trailrunner-gtx",
+  "variant_rank": 11
  },
  {
   "product_id": "P0012",
-  "name": "Brenta Alpine",
-  "brand": "Faggeto",
+  "name": "Trailrunner GTX",
+  "brand": "Alpenpace",
   "category": "footwear",
-  "size": "EU 45",
-  "price_eur": 123.9,
+  "size": "EU 43",
+  "price_eur": 219.9,
   "colour": {
-   "name": "Navy",
-   "hex": "#1f3a63"
+   "name": "Burnt orange",
+   "hex": "#d2662d"
   },
-  "description": "Warm without bulk, built for early morning trail laps."
+  "description": "Balanced and responsive, built for early morning trail laps.",
+  "model_id": "alpenpace-trailrunner-gtx",
+  "variant_rank": 12
  },
  {
   "product_id": "P0013",
-  "name": "Rain Jacket Evo",
-  "brand": "Vetta",
-  "category": "apparel",
-  "size": "XS",
-  "price_eur": 151.9,
+  "name": "Trailrunner GTX",
+  "brand": "Alpenpace",
+  "category": "footwear",
+  "size": "EU 44",
+  "price_eur": 219.9,
   "colour": {
-   "name": "Ember red",
-   "hex": "#b73a2e"
+   "name": "Burnt orange",
+   "hex": "#d2662d"
   },
-  "description": "Durable and dependable, built for changeable mountain weather."
+  "description": "Balanced and responsive, built for early morning trail laps.",
+  "model_id": "alpenpace-trailrunner-gtx",
+  "variant_rank": 13
  },
  {
   "product_id": "P0014",
-  "name": "Dolomia Evo",
-  "brand": "Tramonto",
+  "name": "Trailrunner GTX",
+  "brand": "Alpenpace",
   "category": "footwear",
-  "size": "EU 37",
-  "price_eur": 135.9,
+  "size": "EU 45",
+  "price_eur": 219.9,
   "colour": {
-   "name": "Forest green",
-   "hex": "#2f6b4f"
+   "name": "Burnt orange",
+   "hex": "#d2662d"
   },
-  "description": "Balanced and responsive, built for technical scrambles."
+  "description": "Balanced and responsive, built for early morning trail laps.",
+  "model_id": "alpenpace-trailrunner-gtx",
+  "variant_rank": 14
  },
  {
   "product_id": "P0015",
-  "name": "Rifugio Pro",
-  "brand": "Lagoverde",
+  "name": "Trailrunner GTX",
+  "brand": "Alpenpace",
   "category": "footwear",
-  "size": "EU 40",
-  "price_eur": 143.9,
+  "size": "EU 46",
+  "price_eur": 219.9,
   "colour": {
-   "name": "Glacier blue",
-   "hex": "#4f93b8"
+   "name": "Burnt orange",
+   "hex": "#d2662d"
   },
-  "description": "Compact and packable, built for wet gravel descents."
+  "description": "Balanced and responsive, built for early morning trail laps.",
+  "model_id": "alpenpace-trailrunner-gtx",
+  "variant_rank": 15
  },
  {
   "product_id": "P0016",
-  "name": "Trek Shorts Storm",
-  "brand": "Corvina",
-  "category": "apparel",
-  "size": "M",
-  "price_eur": 55.9,
+  "name": "Brenta Storm",
+  "brand": "Alpenpace",
+  "category": "footwear",
+  "size": "EU 40",
+  "price_eur": 208.9,
   "colour": {
-   "name": "Slate",
-   "hex": "#5a6678"
+   "name": "Burnt orange",
+   "hex": "#d2662d"
   },
-  "description": "Compact and packable, built for long days out."
+  "description": "Durable and dependable, built for technical scrambles.",
+  "model_id": "alpenpace-brenta-storm",
+  "variant_rank": 0
  },
  {
   "product_id": "P0017",
-  "name": "Fleece Midlayer Alpine",
-  "brand": "Vetta",
-  "category": "apparel",
-  "size": "XXL",
-  "price_eur": 85.9,
+  "name": "Brenta Storm",
+  "brand": "Alpenpace",
+  "category": "footwear",
+  "size": "EU 41",
+  "price_eur": 208.9,
   "colour": {
-   "name": "Charcoal",
-   "hex": "#33373d"
+   "name": "Burnt orange",
+   "hex": "#d2662d"
   },
-  "description": "Warm without bulk, built for cold starts above the treeline."
+  "description": "Durable and dependable, built for technical scrambles.",
+  "model_id": "alpenpace-brenta-storm",
+  "variant_rank": 1
  },
  {
   "product_id": "P0018",
-  "name": "Trail Cap Plus",
-  "brand": "Faggeto",
-  "category": "accessories",
-  "size": "S",
-  "price_eur": 76.9,
+  "name": "Brenta Storm",
+  "brand": "Alpenpace",
+  "category": "footwear",
+  "size": "EU 43",
+  "price_eur": 208.9,
   "colour": {
-   "name": "Sand",
-   "hex": "#c8b38a"
+   "name": "Burnt orange",
+   "hex": "#d2662d"
   },
-  "description": "Warm without bulk, built for day hikes."
+  "description": "Durable and dependable, built for technical scrambles.",
+  "model_id": "alpenpace-brenta-storm",
+  "variant_rank": 3
  },
  {
   "product_id": "P0019",
-  "name": "Merino Beanie Lite",
-  "brand": "Montebruno",
-  "category": "accessories",
-  "size": "L",
-  "price_eur": 79.9,
+  "name": "Brenta Storm",
+  "brand": "Alpenpace",
+  "category": "footwear",
+  "size": "EU 44",
+  "price_eur": 208.9,
   "colour": {
-   "name": "Navy",
-   "hex": "#1f3a63"
+   "name": "Burnt orange",
+   "hex": "#d2662d"
   },
-  "description": "Balanced and responsive, built for packing light."
+  "description": "Durable and dependable, built for technical scrambles.",
+  "model_id": "alpenpace-brenta-storm",
+  "variant_rank": 4
  },
  {
   "product_id": "P0020",
-  "name": "Trek Shorts Zero",
-  "brand": "Nordvento",
-  "category": "apparel",
-  "size": "XXL",
-  "price_eur": 142.9,
+  "name": "Brenta Storm",
+  "brand": "Alpenpace",
+  "category": "footwear",
+  "size": "EU 37",
+  "price_eur": 208.9,
   "colour": {
-   "name": "Sand",
-   "hex": "#c8b38a"
+   "name": "Navy",
+   "hex": "#1f3a63"
   },
-  "description": "Compact and packable, built for changeable mountain weather."
+  "description": "Durable and dependable, built for technical scrambles.",
+  "model_id": "alpenpace-brenta-storm",
+  "variant_rank": 5
  },
  {
   "product_id": "P0021",
-  "name": "Windshell Evo",
+  "name": "Brenta Storm",
   "brand": "Alpenpace",
-  "category": "apparel",
-  "size": "M",
-  "price_eur": 173.9,
+  "category": "footwear",
+  "size": "EU 38",
+  "price_eur": 208.9,
   "colour": {
-   "name": "Slate",
-   "hex": "#5a6678"
+   "name": "Navy",
+   "hex": "#1f3a63"
   },
-  "description": "Balanced and responsive, built for long days out."
+  "description": "Durable and dependable, built for technical scrambles.",
+  "model_id": "alpenpace-brenta-storm",
+  "variant_rank": 6
  },
  {
   "product_id": "P0022",
-  "name": "Softshell Pro",
-  "brand": "Nordvento",
-  "category": "apparel",
-  "size": "XL",
-  "price_eur": 158.9,
+  "name": "Brenta Storm",
+  "brand": "Alpenpace",
+  "category": "footwear",
+  "size": "EU 39",
+  "price_eur": 208.9,
   "colour": {
-   "name": "Sand",
-   "hex": "#c8b38a"
+   "name": "Navy",
+   "hex": "#1f3a63"
   },
-  "description": "Compact and packable, built for cold starts above the treeline."
+  "description": "Durable and dependable, built for technical scrambles.",
+  "model_id": "alpenpace-brenta-storm",
+  "variant_rank": 7
  },
  {
   "product_id": "P0023",
-  "name": "Gaiters Evo",
-  "brand": "Faggeto",
-  "category": "accessories",
-  "size": "L",
-  "price_eur": 79.9,
+  "name": "Brenta Storm",
+  "brand": "Alpenpace",
+  "category": "footwear",
+  "size": "EU 40",
+  "price_eur": 208.9,
   "colour": {
-   "name": "Burnt orange",
-   "hex": "#d2662d"
+   "name": "Navy",
+   "hex": "#1f3a63"
   },
-  "description": "Durable and dependable, built for day hikes."
+  "description": "Durable and dependable, built for technical scrambles.",
+  "model_id": "alpenpace-brenta-storm",
+  "variant_rank": 8
  },
  {
   "product_id": "P0024",
-  "name": "Trek Shorts Max",
-  "brand": "Corvina",
-  "category": "apparel",
-  "size": "M",
-  "price_eur": 82.9,
+  "name": "Brenta Storm",
+  "brand": "Alpenpace",
+  "category": "footwear",
+  "size": "EU 41",
+  "price_eur": 208.9,
   "colour": {
-   "name": "Forest green",
-   "hex": "#2f6b4f"
+   "name": "Navy",
+   "hex": "#1f3a63"
   },
-  "description": "Balanced and responsive, built for cold starts above the treeline."
+  "description": "Durable and dependable, built for technical scrambles.",
+  "model_id": "alpenpace-brenta-storm",
+  "variant_rank": 9
  },
  {
   "product_id": "P0025",
-  "name": "Pathfinder Zero",
-  "brand": "Aquila Nera",
+  "name": "Pathfinder Air",
+  "brand": "Alpenpace",
   "category": "footwear",
   "size": "EU 40",
-  "price_eur": 133.9,
+  "price_eur": 204.9,
   "colour": {
-   "name": "Burnt orange",
-   "hex": "#d2662d"
+   "name": "Ember red",
+   "hex": "#b73a2e"
   },
-  "description": "Warm without bulk, built for technical scrambles."
+  "description": "Balanced and responsive, built for wet gravel descents.",
+  "model_id": "alpenpace-pathfinder-air",
+  "variant_rank": 0
  },
  {
   "product_id": "P0026",
-  "name": "Trekking Poles Air",
-  "brand": "Sentiero",
-  "category": "accessories",
-  "size": "L",
-  "price_eur": 77.9,
+  "name": "Pathfinder Air",
+  "brand": "Alpenpace",
+  "category": "footwear",
+  "size": "EU 41",
+  "price_eur": 204.9,
   "colour": {
-   "name": "Navy",
-   "hex": "#1f3a63"
+   "name": "Ember red",
+   "hex": "#b73a2e"
   },
-  "description": "Light and quick, built for long trail runs."
+  "description": "Balanced and responsive, built for wet gravel descents.",
+  "model_id": "alpenpace-pathfinder-air",
+  "variant_rank": 1
  },
  {
   "product_id": "P0027",
-  "name": "Fleece Midlayer Lite",
-  "brand": "Aquila Nera",
-  "category": "apparel",
-  "size": "L",
-  "price_eur": 157.9,
+  "name": "Pathfinder Air",
+  "brand": "Alpenpace",
+  "category": "footwear",
+  "size": "EU 43",
+  "price_eur": 204.9,
   "colour": {
-   "name": "Navy",
-   "hex": "#1f3a63"
+   "name": "Ember red",
+   "hex": "#b73a2e"
   },
-  "description": "Balanced and responsive, built for long days out."
+  "description": "Balanced and responsive, built for wet gravel descents.",
+  "model_id": "alpenpace-pathfinder-air",
+  "variant_rank": 3
  },
  {
   "product_id": "P0028",
-  "name": "Rifugio GTX",
-  "brand": "Ridgeline",
+  "name": "Pathfinder Air",
+  "brand": "Alpenpace",
   "category": "footwear",
-  "size": "EU 38",
-  "price_eur": 143.9,
+  "size": "EU 44",
+  "price_eur": 204.9,
   "colour": {
-   "name": "Burnt orange",
-   "hex": "#d2662d"
+   "name": "Ember red",
+   "hex": "#b73a2e"
   },
-  "description": "Balanced and responsive, built for long ridge runs."
+  "description": "Balanced and responsive, built for wet gravel descents.",
+  "model_id": "alpenpace-pathfinder-air",
+  "variant_rank": 4
  },
  {
   "product_id": "P0029",
-  "name": "Merino Beanie Air",
-  "brand": "Sentiero",
-  "category": "accessories",
-  "size": "XS",
-  "price_eur": 24.9,
+  "name": "Pathfinder Air",
+  "brand": "Alpenpace",
+  "category": "footwear",
+  "size": "EU 45",
+  "price_eur": 204.9,
   "colour": {
-   "name": "Charcoal",
-   "hex": "#33373d"
+   "name": "Ember red",
+   "hex": "#b73a2e"
   },
-  "description": "Balanced and responsive, built for long trail runs."
+  "description": "Balanced and responsive, built for wet gravel descents.",
+  "model_id": "alpenpace-pathfinder-air",
+  "variant_rank": 5
  },
  {
   "product_id": "P0030",
-  "name": "Base Layer Plus",
-  "brand": "Montebruno",
-  "category": "apparel",
-  "size": "XL",
-  "price_eur": 166.9,
+  "name": "Pathfinder Air",
+  "brand": "Alpenpace",
+  "category": "footwear",
+  "size": "EU 36",
+  "price_eur": 204.9,
   "colour": {
    "name": "Glacier blue",
    "hex": "#4f93b8"
   },
-  "description": "Compact and packable, built for long days out."
+  "description": "Balanced and responsive, built for wet gravel descents.",
+  "model_id": "alpenpace-pathfinder-air",
+  "variant_rank": 6
  },
  {
   "product_id": "P0031",
-  "name": "Rain Jacket GTX",
-  "brand": "Faggeto",
-  "category": "apparel",
-  "size": "XXL",
-  "price_eur": 87.9,
+  "name": "Pathfinder Air",
+  "brand": "Alpenpace",
+  "category": "footwear",
+  "size": "EU 37",
+  "price_eur": 204.9,
   "colour": {
-   "name": "Charcoal",
-   "hex": "#33373d"
+   "name": "Glacier blue",
+   "hex": "#4f93b8"
   },
-  "description": "Durable and dependable, built for changeable mountain weather."
+  "description": "Balanced and responsive, built for wet gravel descents.",
+  "model_id": "alpenpace-pathfinder-air",
+  "variant_rank": 7
  },
  {
   "product_id": "P0032",
-  "name": "Dolomia Zero",
-  "brand": "Tramonto",
+  "name": "Pathfinder Air",
+  "brand": "Alpenpace",
   "category": "footwear",
-  "size": "EU 46",
-  "price_eur": 196.9,
+  "size": "EU 38",
+  "price_eur": 204.9,
+  "colour": {
+   "name": "Glacier blue",
+   "hex": "#4f93b8"
+  },
+  "description": "Balanced and responsive, built for wet gravel descents.",
+  "model_id": "alpenpace-pathfinder-air",
+  "variant_rank": 8
+ },
+ {
+  "product_id": "P0033",
+  "name": "Pathfinder Air",
+  "brand": "Alpenpace",
+  "category": "footwear",
+  "size": "EU 39",
+  "price_eur": 204.9,
+  "colour": {
+   "name": "Glacier blue",
+   "hex": "#4f93b8"
+  },
+  "description": "Balanced and responsive, built for wet gravel descents.",
+  "model_id": "alpenpace-pathfinder-air",
+  "variant_rank": 9
+ },
+ {
+  "product_id": "P0034",
+  "name": "Pathfinder Air",
+  "brand": "Alpenpace",
+  "category": "footwear",
+  "size": "EU 40",
+  "price_eur": 204.9,
+  "colour": {
+   "name": "Glacier blue",
+   "hex": "#4f93b8"
+  },
+  "description": "Balanced and responsive, built for wet gravel descents.",
+  "model_id": "alpenpace-pathfinder-air",
+  "variant_rank": 10
+ },
+ {
+  "product_id": "P0035",
+  "name": "Sentinel Storm",
+  "brand": "Pietra Grigia",
+  "category": "footwear",
+  "size": "EU 40",
+  "price_eur": 180.9,
   "colour": {
    "name": "Forest green",
    "hex": "#2f6b4f"
   },
-  "description": "Light and quick, built for wet gravel descents."
+  "description": "Balanced and responsive, built for wet gravel descents.",
+  "model_id": "pietra-grigia-sentinel-storm",
+  "variant_rank": 0
  },
  {
-  "product_id": "P0033",
-  "name": "Windshell Alpine",
-  "brand": "Lagoverde",
-  "category": "apparel",
-  "size": "S",
-  "price_eur": 162.9,
+  "product_id": "P0036",
+  "name": "Sentinel Storm",
+  "brand": "Pietra Grigia",
+  "category": "footwear",
+  "size": "EU 41",
+  "price_eur": 180.9,
+  "colour": {
+   "name": "Forest green",
+   "hex": "#2f6b4f"
+  },
+  "description": "Balanced and responsive, built for wet gravel descents.",
+  "model_id": "pietra-grigia-sentinel-storm",
+  "variant_rank": 1
+ },
+ {
+  "product_id": "P0037",
+  "name": "Sentinel Storm",
+  "brand": "Pietra Grigia",
+  "category": "footwear",
+  "size": "EU 43",
+  "price_eur": 180.9,
+  "colour": {
+   "name": "Forest green",
+   "hex": "#2f6b4f"
+  },
+  "description": "Balanced and responsive, built for wet gravel descents.",
+  "model_id": "pietra-grigia-sentinel-storm",
+  "variant_rank": 3
+ },
+ {
+  "product_id": "P0038",
+  "name": "Sentinel Storm",
+  "brand": "Pietra Grigia",
+  "category": "footwear",
+  "size": "EU 44",
+  "price_eur": 180.9,
+  "colour": {
+   "name": "Forest green",
+   "hex": "#2f6b4f"
+  },
+  "description": "Balanced and responsive, built for wet gravel descents.",
+  "model_id": "pietra-grigia-sentinel-storm",
+  "variant_rank": 4
+ },
+ {
+  "product_id": "P0039",
+  "name": "Sentinel Storm",
+  "brand": "Pietra Grigia",
+  "category": "footwear",
+  "size": "EU 45",
+  "price_eur": 180.9,
+  "colour": {
+   "name": "Forest green",
+   "hex": "#2f6b4f"
+  },
+  "description": "Balanced and responsive, built for wet gravel descents.",
+  "model_id": "pietra-grigia-sentinel-storm",
+  "variant_rank": 5
+ },
+ {
+  "product_id": "P0040",
+  "name": "Sentinel Storm",
+  "brand": "Pietra Grigia",
+  "category": "footwear",
+  "size": "EU 43",
+  "price_eur": 180.9,
   "colour": {
    "name": "Slate",
    "hex": "#5a6678"
   },
-  "description": "Warm without bulk, built for fast hikes in the wind."
- },
- {
-  "product_id": "P0034",
-  "name": "Windshell Alpine",
-  "brand": "Aquila Nera",
-  "category": "apparel",
-  "size": "S",
-  "price_eur": 174.9,
-  "colour": {
-   "name": "Ember red",
-   "hex": "#b73a2e"
-  },
-  "description": "Warm without bulk, built for cold starts above the treeline."
- },
- {
-  "product_id": "P0035",
-  "name": "Trail Cap Alpine",
-  "brand": "Faggeto",
-  "category": "accessories",
-  "size": "XL",
-  "price_eur": 48.9,
-  "colour": {
-   "name": "Sand",
-   "hex": "#c8b38a"
-  },
-  "description": "Compact and packable, built for alpine mornings."
- },
- {
-  "product_id": "P0036",
-  "name": "Merino Beanie Lite",
-  "brand": "Pietra Grigia",
-  "category": "accessories",
-  "size": "S",
-  "price_eur": 23.9,
-  "colour": {
-   "name": "Burnt orange",
-   "hex": "#d2662d"
-  },
-  "description": "Balanced and responsive, built for packing light."
- },
- {
-  "product_id": "P0037",
-  "name": "Trekking Poles GTX",
-  "brand": "Sentiero",
-  "category": "accessories",
-  "size": "M",
-  "price_eur": 60.9,
-  "colour": {
-   "name": "Charcoal",
-   "hex": "#33373d"
-  },
-  "description": "Light and quick, built for day hikes."
- },
- {
-  "product_id": "P0038",
-  "name": "Windshell Pro",
-  "brand": "Pietra Grigia",
-  "category": "apparel",
-  "size": "M",
-  "price_eur": 43.9,
-  "colour": {
-   "name": "Forest green",
-   "hex": "#2f6b4f"
-  },
-  "description": "Balanced and responsive, built for long days out."
- },
- {
-  "product_id": "P0039",
-  "name": "Trailrunner Evo",
-  "brand": "Sentiero",
-  "category": "footwear",
-  "size": "EU 37",
-  "price_eur": 121.9,
-  "colour": {
-   "name": "Ember red",
-   "hex": "#b73a2e"
-  },
-  "description": "Balanced and responsive, built for technical scrambles."
- },
- {
-  "product_id": "P0040",
-  "name": "Dolomia Max",
-  "brand": "Ridgeline",
-  "category": "footwear",
-  "size": "EU 44",
-  "price_eur": 89.9,
-  "colour": {
-   "name": "Charcoal",
-   "hex": "#33373d"
-  },
-  "description": "Light and quick, built for long ridge runs."
+  "description": "Balanced and responsive, built for wet gravel descents.",
+  "model_id": "pietra-grigia-sentinel-storm",
+  "variant_rank": 6
  },
  {
   "product_id": "P0041",
-  "name": "Pathfinder Max",
-  "brand": "Aquila Nera",
+  "name": "Sentinel Storm",
+  "brand": "Pietra Grigia",
   "category": "footwear",
-  "size": "EU 38",
-  "price_eur": 162.9,
+  "size": "EU 44",
+  "price_eur": 180.9,
   "colour": {
-   "name": "Ember red",
-   "hex": "#b73a2e"
+   "name": "Slate",
+   "hex": "#5a6678"
   },
-  "description": "Balanced and responsive, built for early morning trail laps."
+  "description": "Balanced and responsive, built for wet gravel descents.",
+  "model_id": "pietra-grigia-sentinel-storm",
+  "variant_rank": 7
  },
  {
   "product_id": "P0042",
@@ -543,241 +625,279 @@
    "name": "Forest green",
    "hex": "#2f6b4f"
   },
-  "description": "Balanced and responsive, built for early morning trail laps."
+  "description": "Balanced and responsive, built for early morning trail laps.",
+  "model_id": "alpenpace-trailrunner-gtx",
+  "variant_rank": 3
  },
  {
   "product_id": "P0043",
-  "name": "Merino Beanie Alpine",
-  "brand": "Lagoverde",
-  "category": "accessories",
-  "size": "XXL",
-  "price_eur": 76.9,
+  "name": "Sentinel Storm",
+  "brand": "Pietra Grigia",
+  "category": "footwear",
+  "size": "EU 45",
+  "price_eur": 180.9,
   "colour": {
-   "name": "Ember red",
-   "hex": "#b73a2e"
+   "name": "Slate",
+   "hex": "#5a6678"
   },
-  "description": "Warm without bulk, built for packing light."
+  "description": "Balanced and responsive, built for wet gravel descents.",
+  "model_id": "pietra-grigia-sentinel-storm",
+  "variant_rank": 8
  },
  {
   "product_id": "P0044",
-  "name": "Gaiters Max",
-  "brand": "Aquila Nera",
-  "category": "accessories",
-  "size": "L",
-  "price_eur": 52.9,
+  "name": "Sentinel Storm",
+  "brand": "Pietra Grigia",
+  "category": "footwear",
+  "size": "EU 46",
+  "price_eur": 180.9,
   "colour": {
-   "name": "Burnt orange",
-   "hex": "#d2662d"
+   "name": "Slate",
+   "hex": "#5a6678"
   },
-  "description": "Balanced and responsive, built for packing light."
+  "description": "Balanced and responsive, built for wet gravel descents.",
+  "model_id": "pietra-grigia-sentinel-storm",
+  "variant_rank": 9
  },
  {
   "product_id": "P0045",
-  "name": "Pathfinder Evo",
+  "name": "Dolomia Evo",
   "brand": "Ridgeline",
   "category": "footwear",
-  "size": "EU 41",
-  "price_eur": 120.9,
+  "size": "EU 39",
+  "price_eur": 164.9,
   "colour": {
-   "name": "Navy",
-   "hex": "#1f3a63"
+   "name": "Charcoal",
+   "hex": "#33373d"
   },
-  "description": "Balanced and responsive, built for early morning trail laps."
+  "description": "Warm without bulk, built for wet gravel descents.",
+  "model_id": "ridgeline-dolomia-evo",
+  "variant_rank": 0
  },
  {
   "product_id": "P0046",
-  "name": "Brenta Zero",
-  "brand": "Nordvento",
+  "name": "Dolomia Evo",
+  "brand": "Ridgeline",
   "category": "footwear",
-  "size": "EU 45",
-  "price_eur": 158.9,
+  "size": "EU 40",
+  "price_eur": 164.9,
   "colour": {
-   "name": "Glacier blue",
-   "hex": "#4f93b8"
+   "name": "Charcoal",
+   "hex": "#33373d"
   },
-  "description": "Balanced and responsive, built for long ridge runs."
+  "description": "Warm without bulk, built for wet gravel descents.",
+  "model_id": "ridgeline-dolomia-evo",
+  "variant_rank": 1
  },
  {
   "product_id": "P0047",
-  "name": "Trailrunner Pro",
-  "brand": "Vetta",
+  "name": "Dolomia Evo",
+  "brand": "Ridgeline",
   "category": "footwear",
-  "size": "EU 46",
-  "price_eur": 98.9,
+  "size": "EU 41",
+  "price_eur": 164.9,
   "colour": {
-   "name": "Sand",
-   "hex": "#c8b38a"
+   "name": "Charcoal",
+   "hex": "#33373d"
   },
-  "description": "Balanced and responsive, built for early morning trail laps."
+  "description": "Warm without bulk, built for wet gravel descents.",
+  "model_id": "ridgeline-dolomia-evo",
+  "variant_rank": 2
  },
  {
   "product_id": "P0048",
-  "name": "Pathfinder Pro",
-  "brand": "Alpenpace",
+  "name": "Dolomia Evo",
+  "brand": "Ridgeline",
   "category": "footwear",
-  "size": "EU 41",
-  "price_eur": 184.9,
+  "size": "EU 42",
+  "price_eur": 164.9,
   "colour": {
-   "name": "Navy",
-   "hex": "#1f3a63"
+   "name": "Charcoal",
+   "hex": "#33373d"
   },
-  "description": "Durable and dependable, built for early morning trail laps."
+  "description": "Warm without bulk, built for wet gravel descents.",
+  "model_id": "ridgeline-dolomia-evo",
+  "variant_rank": 3
  },
  {
   "product_id": "P0049",
-  "name": "Brenta Evo",
-  "brand": "Tramonto",
+  "name": "Dolomia Evo",
+  "brand": "Ridgeline",
+  "category": "footwear",
+  "size": "EU 43",
+  "price_eur": 164.9,
+  "colour": {
+   "name": "Charcoal",
+   "hex": "#33373d"
+  },
+  "description": "Warm without bulk, built for wet gravel descents.",
+  "model_id": "ridgeline-dolomia-evo",
+  "variant_rank": 4
+ },
+ {
+  "product_id": "P0050",
+  "name": "Dolomia Evo",
+  "brand": "Ridgeline",
+  "category": "footwear",
+  "size": "EU 44",
+  "price_eur": 164.9,
+  "colour": {
+   "name": "Charcoal",
+   "hex": "#33373d"
+  },
+  "description": "Warm without bulk, built for wet gravel descents.",
+  "model_id": "ridgeline-dolomia-evo",
+  "variant_rank": 5
+ },
+ {
+  "product_id": "P0051",
+  "name": "Dolomia Evo",
+  "brand": "Ridgeline",
+  "category": "footwear",
+  "size": "EU 45",
+  "price_eur": 164.9,
+  "colour": {
+   "name": "Charcoal",
+   "hex": "#33373d"
+  },
+  "description": "Warm without bulk, built for wet gravel descents.",
+  "model_id": "ridgeline-dolomia-evo",
+  "variant_rank": 6
+ },
+ {
+  "product_id": "P0052",
+  "name": "Dolomia Evo",
+  "brand": "Ridgeline",
   "category": "footwear",
   "size": "EU 46",
-  "price_eur": 109.9,
+  "price_eur": 164.9,
+  "colour": {
+   "name": "Charcoal",
+   "hex": "#33373d"
+  },
+  "description": "Warm without bulk, built for wet gravel descents.",
+  "model_id": "ridgeline-dolomia-evo",
+  "variant_rank": 7
+ },
+ {
+  "product_id": "P0053",
+  "name": "Dolomia Evo",
+  "brand": "Ridgeline",
+  "category": "footwear",
+  "size": "EU 37",
+  "price_eur": 164.9,
   "colour": {
    "name": "Sand",
    "hex": "#c8b38a"
   },
-  "description": "Durable and dependable, built for long ridge runs."
+  "description": "Warm without bulk, built for wet gravel descents.",
+  "model_id": "ridgeline-dolomia-evo",
+  "variant_rank": 8
  },
  {
-  "product_id": "P0050",
-  "name": "Fleece Midlayer Zero",
-  "brand": "Corvina",
-  "category": "apparel",
-  "size": "XXL",
-  "price_eur": 64.9,
+  "product_id": "P0054",
+  "name": "Dolomia Evo",
+  "brand": "Ridgeline",
+  "category": "footwear",
+  "size": "EU 38",
+  "price_eur": 164.9,
+  "colour": {
+   "name": "Sand",
+   "hex": "#c8b38a"
+  },
+  "description": "Warm without bulk, built for wet gravel descents.",
+  "model_id": "ridgeline-dolomia-evo",
+  "variant_rank": 9
+ },
+ {
+  "product_id": "P0055",
+  "name": "Dolomia Evo",
+  "brand": "Ridgeline",
+  "category": "footwear",
+  "size": "EU 39",
+  "price_eur": 164.9,
+  "colour": {
+   "name": "Sand",
+   "hex": "#c8b38a"
+  },
+  "description": "Warm without bulk, built for wet gravel descents.",
+  "model_id": "ridgeline-dolomia-evo",
+  "variant_rank": 10
+ },
+ {
+  "product_id": "P0056",
+  "name": "Dolomia Evo",
+  "brand": "Ridgeline",
+  "category": "footwear",
+  "size": "EU 40",
+  "price_eur": 164.9,
+  "colour": {
+   "name": "Sand",
+   "hex": "#c8b38a"
+  },
+  "description": "Warm without bulk, built for wet gravel descents.",
+  "model_id": "ridgeline-dolomia-evo",
+  "variant_rank": 11
+ },
+ {
+  "product_id": "P0057",
+  "name": "Dolomia Evo",
+  "brand": "Ridgeline",
+  "category": "footwear",
+  "size": "EU 41",
+  "price_eur": 164.9,
+  "colour": {
+   "name": "Sand",
+   "hex": "#c8b38a"
+  },
+  "description": "Warm without bulk, built for wet gravel descents.",
+  "model_id": "ridgeline-dolomia-evo",
+  "variant_rank": 12
+ },
+ {
+  "product_id": "P0058",
+  "name": "Dolomia Evo",
+  "brand": "Ridgeline",
+  "category": "footwear",
+  "size": "EU 41",
+  "price_eur": 164.9,
   "colour": {
    "name": "Glacier blue",
    "hex": "#4f93b8"
   },
-  "description": "Compact and packable, built for long days out."
- },
- {
-  "product_id": "P0051",
-  "name": "Trekking Poles Max",
-  "brand": "Nordvento",
-  "category": "accessories",
-  "size": "L",
-  "price_eur": 23.9,
-  "colour": {
-   "name": "Charcoal",
-   "hex": "#33373d"
-  },
-  "description": "Balanced and responsive, built for long trail runs."
- },
- {
-  "product_id": "P0052",
-  "name": "Fleece Midlayer Pro",
-  "brand": "Ridgeline",
-  "category": "apparel",
-  "size": "XXL",
-  "price_eur": 189.9,
-  "colour": {
-   "name": "Charcoal",
-   "hex": "#33373d"
-  },
-  "description": "Durable and dependable, built for long days out."
- },
- {
-  "product_id": "P0053",
-  "name": "Softshell Air",
-  "brand": "Lagoverde",
-  "category": "apparel",
-  "size": "L",
-  "price_eur": 156.9,
-  "colour": {
-   "name": "Slate",
-   "hex": "#5a6678"
-  },
-  "description": "Warm without bulk, built for fast hikes in the wind."
- },
- {
-  "product_id": "P0054",
-  "name": "Trail Cap Pro",
-  "brand": "Alpenpace",
-  "category": "accessories",
-  "size": "L",
-  "price_eur": 17.9,
-  "colour": {
-   "name": "Sand",
-   "hex": "#c8b38a"
-  },
-  "description": "Warm without bulk, built for day hikes."
- },
- {
-  "product_id": "P0055",
-  "name": "Gaiters Pro",
-  "brand": "Nordvento",
-  "category": "accessories",
-  "size": "S",
-  "price_eur": 42.9,
-  "colour": {
-   "name": "Navy",
-   "hex": "#1f3a63"
-  },
-  "description": "Compact and packable, built for alpine mornings."
- },
- {
-  "product_id": "P0056",
-  "name": "Brenta Max",
-  "brand": "Corvina",
-  "category": "footwear",
-  "size": "EU 42",
-  "price_eur": 170.9,
-  "colour": {
-   "name": "Slate",
-   "hex": "#5a6678"
-  },
-  "description": "Balanced and responsive, built for wet gravel descents."
- },
- {
-  "product_id": "P0057",
-  "name": "Cresta Max",
-  "brand": "Nordvento",
-  "category": "footwear",
-  "size": "EU 37",
-  "price_eur": 159.9,
-  "colour": {
-   "name": "Sand",
-   "hex": "#c8b38a"
-  },
-  "description": "Compact and packable, built for early morning trail laps."
- },
- {
-  "product_id": "P0058",
-  "name": "Rain Jacket Pro",
-  "brand": "Alpenpace",
-  "category": "apparel",
-  "size": "XXL",
-  "price_eur": 109.9,
-  "colour": {
-   "name": "Forest green",
-   "hex": "#2f6b4f"
-  },
-  "description": "Balanced and responsive, built for long days out."
+  "description": "Warm without bulk, built for wet gravel descents.",
+  "model_id": "ridgeline-dolomia-evo",
+  "variant_rank": 13
  },
  {
   "product_id": "P0059",
-  "name": "Trail Cap Pro",
-  "brand": "Nordvento",
-  "category": "accessories",
-  "size": "S",
-  "price_eur": 26.9,
+  "name": "Dolomia Evo",
+  "brand": "Ridgeline",
+  "category": "footwear",
+  "size": "EU 42",
+  "price_eur": 164.9,
   "colour": {
-   "name": "Ember red",
-   "hex": "#b73a2e"
+   "name": "Glacier blue",
+   "hex": "#4f93b8"
   },
-  "description": "Warm without bulk, built for day hikes."
+  "description": "Warm without bulk, built for wet gravel descents.",
+  "model_id": "ridgeline-dolomia-evo",
+  "variant_rank": 14
  },
  {
   "product_id": "P0060",
-  "name": "Base Layer Max",
-  "brand": "Nordvento",
-  "category": "apparel",
-  "size": "L",
-  "price_eur": 133.9,
+  "name": "Dolomia Evo",
+  "brand": "Ridgeline",
+  "category": "footwear",
+  "size": "EU 43",
+  "price_eur": 164.9,
   "colour": {
-   "name": "Burnt orange",
-   "hex": "#d2662d"
+   "name": "Glacier blue",
+   "hex": "#4f93b8"
   },
-  "description": "Compact and packable, built for cold starts above the treeline."
+  "description": "Warm without bulk, built for wet gravel descents.",
+  "model_id": "ridgeline-dolomia-evo",
+  "variant_rank": 15
  },
  {
   "product_id": "P0061",
@@ -790,1099 +910,1269 @@
    "name": "Ember red",
    "hex": "#b73a2e"
   },
-  "description": "Warm without bulk, built for wet gravel descents."
+  "description": "Balanced and responsive, built for wet gravel descents.",
+  "model_id": "alpenpace-pathfinder-air",
+  "variant_rank": 2
  },
  {
   "product_id": "P0062",
-  "name": "Base Layer Alpine",
-  "brand": "Lagoverde",
-  "category": "apparel",
-  "size": "XXL",
-  "price_eur": 69.9,
+  "name": "Cresta Alpine",
+  "brand": "Montebruno",
+  "category": "footwear",
+  "size": "EU 40",
+  "price_eur": 289.9,
   "colour": {
-   "name": "Glacier blue",
-   "hex": "#4f93b8"
+   "name": "Ember red",
+   "hex": "#b73a2e"
   },
-  "description": "Durable and dependable, built for fast hikes in the wind."
+  "description": "Compact and packable, built for long ridge runs.",
+  "model_id": "montebruno-cresta-alpine",
+  "variant_rank": 0
  },
  {
   "product_id": "P0063",
-  "name": "Trekking Poles Max",
-  "brand": "Corvina",
-  "category": "accessories",
-  "size": "S",
-  "price_eur": 41.9,
+  "name": "Cresta Alpine",
+  "brand": "Montebruno",
+  "category": "footwear",
+  "size": "EU 41",
+  "price_eur": 289.9,
   "colour": {
-   "name": "Burnt orange",
-   "hex": "#d2662d"
+   "name": "Ember red",
+   "hex": "#b73a2e"
   },
-  "description": "Durable and dependable, built for packing light."
+  "description": "Compact and packable, built for long ridge runs.",
+  "model_id": "montebruno-cresta-alpine",
+  "variant_rank": 1
  },
  {
   "product_id": "P0064",
-  "name": "Fleece Midlayer GTX",
-  "brand": "Sentiero",
-  "category": "apparel",
-  "size": "XXL",
-  "price_eur": 170.9,
+  "name": "Cresta Alpine",
+  "brand": "Montebruno",
+  "category": "footwear",
+  "size": "EU 42",
+  "price_eur": 289.9,
   "colour": {
-   "name": "Forest green",
-   "hex": "#2f6b4f"
+   "name": "Ember red",
+   "hex": "#b73a2e"
   },
-  "description": "Balanced and responsive, built for long days out."
+  "description": "Compact and packable, built for long ridge runs.",
+  "model_id": "montebruno-cresta-alpine",
+  "variant_rank": 2
  },
  {
   "product_id": "P0065",
-  "name": "Trail Cap Storm",
-  "brand": "Alpenpace",
-  "category": "accessories",
-  "size": "XS",
-  "price_eur": 27.9,
+  "name": "Cresta Alpine",
+  "brand": "Montebruno",
+  "category": "footwear",
+  "size": "EU 43",
+  "price_eur": 289.9,
   "colour": {
-   "name": "Charcoal",
-   "hex": "#33373d"
+   "name": "Ember red",
+   "hex": "#b73a2e"
   },
-  "description": "Compact and packable, built for alpine mornings."
+  "description": "Compact and packable, built for long ridge runs.",
+  "model_id": "montebruno-cresta-alpine",
+  "variant_rank": 3
  },
  {
   "product_id": "P0066",
-  "name": "Hydration Vest Zero",
-  "brand": "Aquila Nera",
-  "category": "accessories",
-  "size": "S",
-  "price_eur": 57.9,
+  "name": "Cresta Alpine",
+  "brand": "Montebruno",
+  "category": "footwear",
+  "size": "EU 44",
+  "price_eur": 289.9,
   "colour": {
-   "name": "Navy",
-   "hex": "#1f3a63"
+   "name": "Ember red",
+   "hex": "#b73a2e"
   },
-  "description": "Durable and dependable, built for long trail runs."
+  "description": "Compact and packable, built for long ridge runs.",
+  "model_id": "montebruno-cresta-alpine",
+  "variant_rank": 4
  },
  {
   "product_id": "P0067",
-  "name": "Brenta Pro",
-  "brand": "Corvina",
+  "name": "Cresta Alpine",
+  "brand": "Montebruno",
   "category": "footwear",
-  "size": "EU 37",
-  "price_eur": 218.9,
+  "size": "EU 45",
+  "price_eur": 289.9,
   "colour": {
-   "name": "Forest green",
-   "hex": "#2f6b4f"
+   "name": "Ember red",
+   "hex": "#b73a2e"
   },
-  "description": "Light and quick, built for early morning trail laps."
+  "description": "Compact and packable, built for long ridge runs.",
+  "model_id": "montebruno-cresta-alpine",
+  "variant_rank": 5
  },
  {
   "product_id": "P0068",
-  "name": "Trail Cap Evo",
-  "brand": "Lagoverde",
-  "category": "accessories",
-  "size": "XS",
-  "price_eur": 19.9,
+  "name": "Cresta Alpine",
+  "brand": "Montebruno",
+  "category": "footwear",
+  "size": "EU 46",
+  "price_eur": 289.9,
   "colour": {
-   "name": "Charcoal",
-   "hex": "#33373d"
+   "name": "Ember red",
+   "hex": "#b73a2e"
   },
-  "description": "Warm without bulk, built for packing light."
+  "description": "Compact and packable, built for long ridge runs.",
+  "model_id": "montebruno-cresta-alpine",
+  "variant_rank": 6
  },
  {
   "product_id": "P0069",
-  "name": "Merino Beanie Plus",
-  "brand": "Sentiero",
-  "category": "accessories",
-  "size": "XS",
-  "price_eur": 28.9,
+  "name": "Cresta Alpine",
+  "brand": "Montebruno",
+  "category": "footwear",
+  "size": "EU 38",
+  "price_eur": 289.9,
   "colour": {
    "name": "Burnt orange",
    "hex": "#d2662d"
   },
-  "description": "Durable and dependable, built for alpine mornings."
+  "description": "Compact and packable, built for long ridge runs.",
+  "model_id": "montebruno-cresta-alpine",
+  "variant_rank": 7
  },
  {
   "product_id": "P0070",
-  "name": "Trail Cap Air",
-  "brand": "Faggeto",
-  "category": "accessories",
-  "size": "XL",
-  "price_eur": 53.9,
+  "name": "Cresta Alpine",
+  "brand": "Montebruno",
+  "category": "footwear",
+  "size": "EU 39",
+  "price_eur": 289.9,
   "colour": {
-   "name": "Navy",
-   "hex": "#1f3a63"
+   "name": "Burnt orange",
+   "hex": "#d2662d"
   },
-  "description": "Durable and dependable, built for long trail runs."
+  "description": "Compact and packable, built for long ridge runs.",
+  "model_id": "montebruno-cresta-alpine",
+  "variant_rank": 8
  },
  {
   "product_id": "P0071",
-  "name": "Trekking Poles Storm",
-  "brand": "Tramonto",
-  "category": "accessories",
-  "size": "S",
-  "price_eur": 18.9,
+  "name": "Cresta Alpine",
+  "brand": "Montebruno",
+  "category": "footwear",
+  "size": "EU 40",
+  "price_eur": 289.9,
   "colour": {
    "name": "Burnt orange",
    "hex": "#d2662d"
   },
-  "description": "Light and quick, built for alpine mornings."
+  "description": "Compact and packable, built for long ridge runs.",
+  "model_id": "montebruno-cresta-alpine",
+  "variant_rank": 9
  },
  {
   "product_id": "P0072",
-  "name": "Gaiters Evo",
-  "brand": "Tramonto",
-  "category": "accessories",
-  "size": "L",
-  "price_eur": 66.9,
+  "name": "Cresta Alpine",
+  "brand": "Montebruno",
+  "category": "footwear",
+  "size": "EU 41",
+  "price_eur": 289.9,
   "colour": {
-   "name": "Sand",
-   "hex": "#c8b38a"
+   "name": "Burnt orange",
+   "hex": "#d2662d"
   },
-  "description": "Durable and dependable, built for packing light."
+  "description": "Compact and packable, built for long ridge runs.",
+  "model_id": "montebruno-cresta-alpine",
+  "variant_rank": 10
  },
  {
   "product_id": "P0073",
-  "name": "Dolomia Alpine",
+  "name": "Cresta Alpine",
   "brand": "Montebruno",
   "category": "footwear",
-  "size": "EU 41",
-  "price_eur": 109.9,
+  "size": "EU 42",
+  "price_eur": 289.9,
   "colour": {
    "name": "Burnt orange",
    "hex": "#d2662d"
   },
-  "description": "Warm without bulk, built for wet gravel descents."
+  "description": "Compact and packable, built for long ridge runs.",
+  "model_id": "montebruno-cresta-alpine",
+  "variant_rank": 11
  },
  {
   "product_id": "P0074",
-  "name": "Trailrunner Max",
-  "brand": "Sentiero",
+  "name": "Cresta Alpine",
+  "brand": "Montebruno",
   "category": "footwear",
-  "size": "EU 45",
-  "price_eur": 103.9,
+  "size": "EU 43",
+  "price_eur": 289.9,
   "colour": {
-   "name": "Forest green",
-   "hex": "#2f6b4f"
+   "name": "Burnt orange",
+   "hex": "#d2662d"
   },
-  "description": "Balanced and responsive, built for early morning trail laps."
+  "description": "Compact and packable, built for long ridge runs.",
+  "model_id": "montebruno-cresta-alpine",
+  "variant_rank": 12
  },
  {
   "product_id": "P0075",
-  "name": "Trailrunner Zero",
+  "name": "Rifugio Pro",
   "brand": "Nordvento",
   "category": "footwear",
-  "size": "EU 44",
-  "price_eur": 103.9,
+  "size": "EU 38",
+  "price_eur": 149.9,
   "colour": {
    "name": "Slate",
    "hex": "#5a6678"
   },
-  "description": "Durable and dependable, built for early morning trail laps."
+  "description": "Balanced and responsive, built for long ridge runs.",
+  "model_id": "nordvento-rifugio-pro",
+  "variant_rank": 0
  },
  {
   "product_id": "P0076",
-  "name": "Fleece Midlayer Storm",
-  "brand": "Ridgeline",
-  "category": "apparel",
-  "size": "S",
-  "price_eur": 177.9,
-  "colour": {
-   "name": "Burnt orange",
-   "hex": "#d2662d"
-  },
-  "description": "Light and quick, built for cold starts above the treeline."
- },
- {
-  "product_id": "P0077",
-  "name": "Softshell Lite",
-  "brand": "Montebruno",
-  "category": "apparel",
-  "size": "XL",
-  "price_eur": 189.9,
-  "colour": {
-   "name": "Glacier blue",
-   "hex": "#4f93b8"
-  },
-  "description": "Durable and dependable, built for changeable mountain weather."
- },
- {
-  "product_id": "P0078",
-  "name": "Gaiters Plus",
-  "brand": "Faggeto",
-  "category": "accessories",
-  "size": "XL",
-  "price_eur": 55.9,
-  "colour": {
-   "name": "Charcoal",
-   "hex": "#33373d"
-  },
-  "description": "Compact and packable, built for day hikes."
- },
- {
-  "product_id": "P0079",
-  "name": "Dolomia Zero",
-  "brand": "Tramonto",
-  "category": "footwear",
-  "size": "EU 46",
-  "price_eur": 188.9,
-  "colour": {
-   "name": "Navy",
-   "hex": "#1f3a63"
-  },
-  "description": "Compact and packable, built for technical scrambles."
- },
- {
-  "product_id": "P0080",
-  "name": "Pathfinder Alpine",
-  "brand": "Ridgeline",
-  "category": "footwear",
-  "size": "EU 37",
-  "price_eur": 134.9,
-  "colour": {
-   "name": "Ember red",
-   "hex": "#b73a2e"
-  },
-  "description": "Balanced and responsive, built for wet gravel descents."
- },
- {
-  "product_id": "P0081",
-  "name": "Trekking Poles Lite",
-  "brand": "Tramonto",
-  "category": "accessories",
-  "size": "M",
-  "price_eur": 53.9,
-  "colour": {
-   "name": "Burnt orange",
-   "hex": "#d2662d"
-  },
-  "description": "Light and quick, built for packing light."
- },
- {
-  "product_id": "P0082",
-  "name": "Merino Beanie Storm",
+  "name": "Rifugio Pro",
   "brand": "Nordvento",
-  "category": "accessories",
-  "size": "XXL",
-  "price_eur": 69.9,
+  "category": "footwear",
+  "size": "EU 39",
+  "price_eur": 149.9,
   "colour": {
    "name": "Slate",
    "hex": "#5a6678"
   },
-  "description": "Warm without bulk, built for alpine mornings."
+  "description": "Balanced and responsive, built for long ridge runs.",
+  "model_id": "nordvento-rifugio-pro",
+  "variant_rank": 1
+ },
+ {
+  "product_id": "P0077",
+  "name": "Rifugio Pro",
+  "brand": "Nordvento",
+  "category": "footwear",
+  "size": "EU 40",
+  "price_eur": 149.9,
+  "colour": {
+   "name": "Slate",
+   "hex": "#5a6678"
+  },
+  "description": "Balanced and responsive, built for long ridge runs.",
+  "model_id": "nordvento-rifugio-pro",
+  "variant_rank": 2
+ },
+ {
+  "product_id": "P0078",
+  "name": "Rifugio Pro",
+  "brand": "Nordvento",
+  "category": "footwear",
+  "size": "EU 41",
+  "price_eur": 149.9,
+  "colour": {
+   "name": "Slate",
+   "hex": "#5a6678"
+  },
+  "description": "Balanced and responsive, built for long ridge runs.",
+  "model_id": "nordvento-rifugio-pro",
+  "variant_rank": 3
+ },
+ {
+  "product_id": "P0079",
+  "name": "Rifugio Pro",
+  "brand": "Nordvento",
+  "category": "footwear",
+  "size": "EU 42",
+  "price_eur": 149.9,
+  "colour": {
+   "name": "Slate",
+   "hex": "#5a6678"
+  },
+  "description": "Balanced and responsive, built for long ridge runs.",
+  "model_id": "nordvento-rifugio-pro",
+  "variant_rank": 4
+ },
+ {
+  "product_id": "P0080",
+  "name": "Rifugio Pro",
+  "brand": "Nordvento",
+  "category": "footwear",
+  "size": "EU 43",
+  "price_eur": 149.9,
+  "colour": {
+   "name": "Slate",
+   "hex": "#5a6678"
+  },
+  "description": "Balanced and responsive, built for long ridge runs.",
+  "model_id": "nordvento-rifugio-pro",
+  "variant_rank": 5
+ },
+ {
+  "product_id": "P0081",
+  "name": "Rifugio Pro",
+  "brand": "Nordvento",
+  "category": "footwear",
+  "size": "EU 44",
+  "price_eur": 149.9,
+  "colour": {
+   "name": "Slate",
+   "hex": "#5a6678"
+  },
+  "description": "Balanced and responsive, built for long ridge runs.",
+  "model_id": "nordvento-rifugio-pro",
+  "variant_rank": 6
+ },
+ {
+  "product_id": "P0082",
+  "name": "Rifugio Pro",
+  "brand": "Nordvento",
+  "category": "footwear",
+  "size": "EU 45",
+  "price_eur": 149.9,
+  "colour": {
+   "name": "Slate",
+   "hex": "#5a6678"
+  },
+  "description": "Balanced and responsive, built for long ridge runs.",
+  "model_id": "nordvento-rifugio-pro",
+  "variant_rank": 7
  },
  {
   "product_id": "P0083",
-  "name": "Gaiters Zero",
-  "brand": "Montebruno",
-  "category": "accessories",
-  "size": "M",
-  "price_eur": 45.9,
-  "colour": {
-   "name": "Burnt orange",
-   "hex": "#d2662d"
-  },
-  "description": "Compact and packable, built for day hikes."
- },
- {
-  "product_id": "P0084",
-  "name": "Trailrunner Air",
-  "brand": "Tramonto",
+  "name": "Rifugio Pro",
+  "brand": "Nordvento",
   "category": "footwear",
-  "size": "EU 36",
-  "price_eur": 144.9,
+  "size": "EU 39",
+  "price_eur": 149.9,
   "colour": {
    "name": "Forest green",
    "hex": "#2f6b4f"
   },
-  "description": "Durable and dependable, built for early morning trail laps."
+  "description": "Balanced and responsive, built for long ridge runs.",
+  "model_id": "nordvento-rifugio-pro",
+  "variant_rank": 8
+ },
+ {
+  "product_id": "P0084",
+  "name": "Rifugio Pro",
+  "brand": "Nordvento",
+  "category": "footwear",
+  "size": "EU 40",
+  "price_eur": 149.9,
+  "colour": {
+   "name": "Forest green",
+   "hex": "#2f6b4f"
+  },
+  "description": "Balanced and responsive, built for long ridge runs.",
+  "model_id": "nordvento-rifugio-pro",
+  "variant_rank": 9
  },
  {
   "product_id": "P0085",
-  "name": "Cresta Lite",
-  "brand": "Faggeto",
+  "name": "Rifugio Pro",
+  "brand": "Nordvento",
   "category": "footwear",
-  "size": "EU 40",
-  "price_eur": 177.9,
+  "size": "EU 41",
+  "price_eur": 149.9,
   "colour": {
-   "name": "Ember red",
-   "hex": "#b73a2e"
+   "name": "Forest green",
+   "hex": "#2f6b4f"
   },
-  "description": "Compact and packable, built for wet gravel descents."
+  "description": "Balanced and responsive, built for long ridge runs.",
+  "model_id": "nordvento-rifugio-pro",
+  "variant_rank": 10
  },
  {
   "product_id": "P0086",
-  "name": "Dolomia Max",
-  "brand": "Aquila Nera",
+  "name": "Rifugio Pro",
+  "brand": "Nordvento",
   "category": "footwear",
-  "size": "EU 47",
-  "price_eur": 201.9,
+  "size": "EU 42",
+  "price_eur": 149.9,
   "colour": {
-   "name": "Burnt orange",
-   "hex": "#d2662d"
+   "name": "Forest green",
+   "hex": "#2f6b4f"
   },
-  "description": "Balanced and responsive, built for technical scrambles."
+  "description": "Balanced and responsive, built for long ridge runs.",
+  "model_id": "nordvento-rifugio-pro",
+  "variant_rank": 11
  },
  {
   "product_id": "P0087",
-  "name": "Rain Jacket GTX",
-  "brand": "Ridgeline",
-  "category": "apparel",
-  "size": "XS",
-  "price_eur": 98.9,
+  "name": "Rifugio Pro",
+  "brand": "Nordvento",
+  "category": "footwear",
+  "size": "EU 43",
+  "price_eur": 149.9,
+  "colour": {
+   "name": "Forest green",
+   "hex": "#2f6b4f"
+  },
+  "description": "Balanced and responsive, built for long ridge runs.",
+  "model_id": "nordvento-rifugio-pro",
+  "variant_rank": 12
+ },
+ {
+  "product_id": "P0088",
+  "name": "Rifugio Pro",
+  "brand": "Nordvento",
+  "category": "footwear",
+  "size": "EU 44",
+  "price_eur": 149.9,
+  "colour": {
+   "name": "Forest green",
+   "hex": "#2f6b4f"
+  },
+  "description": "Balanced and responsive, built for long ridge runs.",
+  "model_id": "nordvento-rifugio-pro",
+  "variant_rank": 13
+ },
+ {
+  "product_id": "P0089",
+  "name": "Pathfinder Lite",
+  "brand": "Corvina",
+  "category": "footwear",
+  "size": "EU 39",
+  "price_eur": 119.9,
   "colour": {
    "name": "Navy",
    "hex": "#1f3a63"
   },
-  "description": "Light and quick, built for long days out."
- },
- {
-  "product_id": "P0088",
-  "name": "Merino Beanie Zero",
-  "brand": "Alpenpace",
-  "category": "accessories",
-  "size": "M",
-  "price_eur": 27.9,
-  "colour": {
-   "name": "Sand",
-   "hex": "#c8b38a"
-  },
-  "description": "Balanced and responsive, built for alpine mornings."
- },
- {
-  "product_id": "P0089",
-  "name": "Trekking Poles Lite",
-  "brand": "Lagoverde",
-  "category": "accessories",
-  "size": "S",
-  "price_eur": 36.9,
-  "colour": {
-   "name": "Burnt orange",
-   "hex": "#d2662d"
-  },
-  "description": "Compact and packable, built for long trail runs."
+  "description": "Balanced and responsive, built for technical scrambles.",
+  "model_id": "corvina-pathfinder-lite",
+  "variant_rank": 0
  },
  {
   "product_id": "P0090",
-  "name": "Cresta Storm",
-  "brand": "Alpenpace",
+  "name": "Pathfinder Lite",
+  "brand": "Corvina",
   "category": "footwear",
-  "size": "EU 41",
-  "price_eur": 193.9,
+  "size": "EU 40",
+  "price_eur": 119.9,
   "colour": {
-   "name": "Burnt orange",
-   "hex": "#d2662d"
+   "name": "Navy",
+   "hex": "#1f3a63"
   },
-  "description": "Compact and packable, built for early morning trail laps."
+  "description": "Balanced and responsive, built for technical scrambles.",
+  "model_id": "corvina-pathfinder-lite",
+  "variant_rank": 1
  },
  {
   "product_id": "P0091",
-  "name": "Dolomia Evo",
-  "brand": "Faggeto",
+  "name": "Pathfinder Lite",
+  "brand": "Corvina",
   "category": "footwear",
-  "size": "EU 37",
-  "price_eur": 159.9,
+  "size": "EU 41",
+  "price_eur": 119.9,
   "colour": {
-   "name": "Burnt orange",
-   "hex": "#d2662d"
+   "name": "Navy",
+   "hex": "#1f3a63"
   },
-  "description": "Balanced and responsive, built for long ridge runs."
+  "description": "Balanced and responsive, built for technical scrambles.",
+  "model_id": "corvina-pathfinder-lite",
+  "variant_rank": 2
  },
  {
   "product_id": "P0092",
-  "name": "Rain Jacket Air",
-  "brand": "Sentiero",
-  "category": "apparel",
-  "size": "XXL",
-  "price_eur": 88.9,
+  "name": "Pathfinder Lite",
+  "brand": "Corvina",
+  "category": "footwear",
+  "size": "EU 42",
+  "price_eur": 119.9,
   "colour": {
-   "name": "Glacier blue",
-   "hex": "#4f93b8"
+   "name": "Navy",
+   "hex": "#1f3a63"
   },
-  "description": "Warm without bulk, built for long days out."
+  "description": "Balanced and responsive, built for technical scrambles.",
+  "model_id": "corvina-pathfinder-lite",
+  "variant_rank": 3
  },
  {
   "product_id": "P0093",
   "name": "Pathfinder Lite",
   "brand": "Corvina",
   "category": "footwear",
-  "size": "EU 42",
-  "price_eur": 91.9,
+  "size": "EU 43",
+  "price_eur": 119.9,
   "colour": {
    "name": "Navy",
    "hex": "#1f3a63"
   },
-  "description": "Compact and packable, built for wet gravel descents."
+  "description": "Balanced and responsive, built for technical scrambles.",
+  "model_id": "corvina-pathfinder-lite",
+  "variant_rank": 4
  },
  {
   "product_id": "P0094",
-  "name": "Pathfinder Storm",
-  "brand": "Lagoverde",
+  "name": "Pathfinder Lite",
+  "brand": "Corvina",
   "category": "footwear",
-  "size": "EU 46",
-  "price_eur": 212.9,
+  "size": "EU 44",
+  "price_eur": 119.9,
   "colour": {
-   "name": "Slate",
-   "hex": "#5a6678"
+   "name": "Navy",
+   "hex": "#1f3a63"
   },
-  "description": "Durable and dependable, built for early morning trail laps."
+  "description": "Balanced and responsive, built for technical scrambles.",
+  "model_id": "corvina-pathfinder-lite",
+  "variant_rank": 5
  },
  {
   "product_id": "P0095",
-  "name": "Merino Beanie Alpine",
+  "name": "Pathfinder Lite",
   "brand": "Corvina",
-  "category": "accessories",
-  "size": "XXL",
-  "price_eur": 24.9,
-  "colour": {
-   "name": "Sand",
-   "hex": "#c8b38a"
-  },
-  "description": "Compact and packable, built for long trail runs."
- },
- {
-  "product_id": "P0096",
-  "name": "Sentinel GTX",
-  "brand": "Montebruno",
-  "category": "footwear",
-  "size": "EU 39",
-  "price_eur": 199.9,
-  "colour": {
-   "name": "Slate",
-   "hex": "#5a6678"
-  },
-  "description": "Light and quick, built for wet gravel descents."
- },
- {
-  "product_id": "P0097",
-  "name": "Rifugio Max",
-  "brand": "Pietra Grigia",
-  "category": "footwear",
-  "size": "EU 40",
-  "price_eur": 208.9,
-  "colour": {
-   "name": "Glacier blue",
-   "hex": "#4f93b8"
-  },
-  "description": "Compact and packable, built for technical scrambles."
- },
- {
-  "product_id": "P0098",
-  "name": "Pathfinder GTX",
-  "brand": "Faggeto",
-  "category": "footwear",
-  "size": "EU 39",
-  "price_eur": 175.9,
-  "colour": {
-   "name": "Slate",
-   "hex": "#5a6678"
-  },
-  "description": "Light and quick, built for technical scrambles."
- },
- {
-  "product_id": "P0099",
-  "name": "Softshell Alpine",
-  "brand": "Ridgeline",
-  "category": "apparel",
-  "size": "M",
-  "price_eur": 51.9,
-  "colour": {
-   "name": "Sand",
-   "hex": "#c8b38a"
-  },
-  "description": "Compact and packable, built for changeable mountain weather."
- },
- {
-  "product_id": "P0100",
-  "name": "Trek Shorts Zero",
-  "brand": "Lagoverde",
-  "category": "apparel",
-  "size": "XXL",
-  "price_eur": 114.9,
-  "colour": {
-   "name": "Forest green",
-   "hex": "#2f6b4f"
-  },
-  "description": "Compact and packable, built for fast hikes in the wind."
- },
- {
-  "product_id": "P0101",
-  "name": "Gaiters GTX",
-  "brand": "Ridgeline",
-  "category": "accessories",
-  "size": "M",
-  "price_eur": 19.9,
-  "colour": {
-   "name": "Navy",
-   "hex": "#1f3a63"
-  },
-  "description": "Durable and dependable, built for packing light."
- },
- {
-  "product_id": "P0102",
-  "name": "Brenta Alpine",
-  "brand": "Alpenpace",
-  "category": "footwear",
-  "size": "EU 37",
-  "price_eur": 160.9,
-  "colour": {
-   "name": "Ember red",
-   "hex": "#b73a2e"
-  },
-  "description": "Warm without bulk, built for technical scrambles."
- },
- {
-  "product_id": "P0103",
-  "name": "Hydration Vest Storm",
-  "brand": "Vetta",
-  "category": "accessories",
-  "size": "M",
-  "price_eur": 44.9,
-  "colour": {
-   "name": "Ember red",
-   "hex": "#b73a2e"
-  },
-  "description": "Light and quick, built for packing light."
- },
- {
-  "product_id": "P0104",
-  "name": "Rain Jacket Zero",
-  "brand": "Ridgeline",
-  "category": "apparel",
-  "size": "L",
-  "price_eur": 176.9,
-  "colour": {
-   "name": "Slate",
-   "hex": "#5a6678"
-  },
-  "description": "Compact and packable, built for fast hikes in the wind."
- },
- {
-  "product_id": "P0105",
-  "name": "Merino Beanie Alpine",
-  "brand": "Alpenpace",
-  "category": "accessories",
-  "size": "XXL",
-  "price_eur": 17.9,
-  "colour": {
-   "name": "Sand",
-   "hex": "#c8b38a"
-  },
-  "description": "Warm without bulk, built for day hikes."
- },
- {
-  "product_id": "P0106",
-  "name": "Windshell Zero",
-  "brand": "Aquila Nera",
-  "category": "apparel",
-  "size": "XXL",
-  "price_eur": 65.9,
-  "colour": {
-   "name": "Slate",
-   "hex": "#5a6678"
-  },
-  "description": "Compact and packable, built for cold starts above the treeline."
- },
- {
-  "product_id": "P0107",
-  "name": "Merino Beanie Storm",
-  "brand": "Lagoverde",
-  "category": "accessories",
-  "size": "XS",
-  "price_eur": 19.9,
-  "colour": {
-   "name": "Sand",
-   "hex": "#c8b38a"
-  },
-  "description": "Light and quick, built for day hikes."
- },
- {
-  "product_id": "P0108",
-  "name": "Gaiters Plus",
-  "brand": "Pietra Grigia",
-  "category": "accessories",
-  "size": "XXL",
-  "price_eur": 69.9,
-  "colour": {
-   "name": "Navy",
-   "hex": "#1f3a63"
-  },
-  "description": "Durable and dependable, built for alpine mornings."
- },
- {
-  "product_id": "P0109",
-  "name": "Dolomia Alpine",
-  "brand": "Aquila Nera",
-  "category": "footwear",
-  "size": "EU 40",
-  "price_eur": 114.9,
-  "colour": {
-   "name": "Sand",
-   "hex": "#c8b38a"
-  },
-  "description": "Light and quick, built for technical scrambles."
- },
- {
-  "product_id": "P0110",
-  "name": "Hydration Vest Storm",
-  "brand": "Lagoverde",
-  "category": "accessories",
-  "size": "XXL",
-  "price_eur": 55.9,
-  "colour": {
-   "name": "Sand",
-   "hex": "#c8b38a"
-  },
-  "description": "Warm without bulk, built for day hikes."
- },
- {
-  "product_id": "P0111",
-  "name": "Rain Jacket Lite",
-  "brand": "Nordvento",
-  "category": "apparel",
-  "size": "L",
-  "price_eur": 110.9,
-  "colour": {
-   "name": "Forest green",
-   "hex": "#2f6b4f"
-  },
-  "description": "Compact and packable, built for cold starts above the treeline."
- },
- {
-  "product_id": "P0112",
-  "name": "Hydration Vest Lite",
-  "brand": "Sentiero",
-  "category": "accessories",
-  "size": "XL",
-  "price_eur": 25.9,
-  "colour": {
-   "name": "Slate",
-   "hex": "#5a6678"
-  },
-  "description": "Durable and dependable, built for long trail runs."
- },
- {
-  "product_id": "P0113",
-  "name": "Base Layer Zero",
-  "brand": "Alpenpace",
-  "category": "apparel",
-  "size": "M",
-  "price_eur": 90.9,
-  "colour": {
-   "name": "Sand",
-   "hex": "#c8b38a"
-  },
-  "description": "Balanced and responsive, built for fast hikes in the wind."
- },
- {
-  "product_id": "P0114",
-  "name": "Fleece Midlayer Air",
-  "brand": "Sentiero",
-  "category": "apparel",
-  "size": "XL",
-  "price_eur": 95.9,
-  "colour": {
-   "name": "Ember red",
-   "hex": "#b73a2e"
-  },
-  "description": "Durable and dependable, built for fast hikes in the wind."
- },
- {
-  "product_id": "P0115",
-  "name": "Gaiters Max",
-  "brand": "Montebruno",
-  "category": "accessories",
-  "size": "L",
-  "price_eur": 22.9,
-  "colour": {
-   "name": "Glacier blue",
-   "hex": "#4f93b8"
-  },
-  "description": "Light and quick, built for packing light."
- },
- {
-  "product_id": "P0116",
-  "name": "Merino Beanie Zero",
-  "brand": "Montebruno",
-  "category": "accessories",
-  "size": "XXL",
-  "price_eur": 73.9,
-  "colour": {
-   "name": "Slate",
-   "hex": "#5a6678"
-  },
-  "description": "Light and quick, built for day hikes."
- },
- {
-  "product_id": "P0117",
-  "name": "Dolomia Pro",
-  "brand": "Tramonto",
-  "category": "footwear",
-  "size": "EU 44",
-  "price_eur": 214.9,
-  "colour": {
-   "name": "Charcoal",
-   "hex": "#33373d"
-  },
-  "description": "Balanced and responsive, built for early morning trail laps."
- },
- {
-  "product_id": "P0118",
-  "name": "Trekking Poles Storm",
-  "brand": "Ridgeline",
-  "category": "accessories",
-  "size": "S",
-  "price_eur": 33.9,
-  "colour": {
-   "name": "Burnt orange",
-   "hex": "#d2662d"
-  },
-  "description": "Compact and packable, built for day hikes."
- },
- {
-  "product_id": "P0119",
-  "name": "Gaiters Evo",
-  "brand": "Nordvento",
-  "category": "accessories",
-  "size": "S",
-  "price_eur": 43.9,
-  "colour": {
-   "name": "Sand",
-   "hex": "#c8b38a"
-  },
-  "description": "Balanced and responsive, built for day hikes."
- },
- {
-  "product_id": "P0120",
-  "name": "Trailrunner Evo",
-  "brand": "Montebruno",
-  "category": "footwear",
-  "size": "EU 45",
-  "price_eur": 209.9,
-  "colour": {
-   "name": "Forest green",
-   "hex": "#2f6b4f"
-  },
-  "description": "Durable and dependable, built for wet gravel descents."
- },
- {
-  "product_id": "P0121",
-  "name": "Sentinel Air",
-  "brand": "Faggeto",
-  "category": "footwear",
-  "size": "EU 45",
-  "price_eur": 190.9,
-  "colour": {
-   "name": "Forest green",
-   "hex": "#2f6b4f"
-  },
-  "description": "Light and quick, built for wet gravel descents."
- },
- {
-  "product_id": "P0122",
-  "name": "Dolomia Air",
-  "brand": "Montebruno",
-  "category": "footwear",
-  "size": "EU 42",
-  "price_eur": 152.9,
-  "colour": {
-   "name": "Sand",
-   "hex": "#c8b38a"
-  },
-  "description": "Light and quick, built for early morning trail laps."
- },
- {
-  "product_id": "P0123",
-  "name": "Pathfinder GTX",
-  "brand": "Ridgeline",
-  "category": "footwear",
-  "size": "EU 42",
-  "price_eur": 120.9,
-  "colour": {
-   "name": "Glacier blue",
-   "hex": "#4f93b8"
-  },
-  "description": "Light and quick, built for early morning trail laps."
- },
- {
-  "product_id": "P0124",
-  "name": "Pathfinder Zero",
-  "brand": "Montebruno",
   "category": "footwear",
   "size": "EU 36",
   "price_eur": 119.9,
   "colour": {
-   "name": "Burnt orange",
-   "hex": "#d2662d"
+   "name": "Charcoal",
+   "hex": "#33373d"
   },
-  "description": "Warm without bulk, built for technical scrambles."
+  "description": "Balanced and responsive, built for technical scrambles.",
+  "model_id": "corvina-pathfinder-lite",
+  "variant_rank": 6
+ },
+ {
+  "product_id": "P0096",
+  "name": "Pathfinder Lite",
+  "brand": "Corvina",
+  "category": "footwear",
+  "size": "EU 37",
+  "price_eur": 119.9,
+  "colour": {
+   "name": "Charcoal",
+   "hex": "#33373d"
+  },
+  "description": "Balanced and responsive, built for technical scrambles.",
+  "model_id": "corvina-pathfinder-lite",
+  "variant_rank": 7
+ },
+ {
+  "product_id": "P0097",
+  "name": "Pathfinder Lite",
+  "brand": "Corvina",
+  "category": "footwear",
+  "size": "EU 38",
+  "price_eur": 119.9,
+  "colour": {
+   "name": "Charcoal",
+   "hex": "#33373d"
+  },
+  "description": "Balanced and responsive, built for technical scrambles.",
+  "model_id": "corvina-pathfinder-lite",
+  "variant_rank": 8
+ },
+ {
+  "product_id": "P0098",
+  "name": "Pathfinder Lite",
+  "brand": "Corvina",
+  "category": "footwear",
+  "size": "EU 39",
+  "price_eur": 119.9,
+  "colour": {
+   "name": "Charcoal",
+   "hex": "#33373d"
+  },
+  "description": "Balanced and responsive, built for technical scrambles.",
+  "model_id": "corvina-pathfinder-lite",
+  "variant_rank": 9
+ },
+ {
+  "product_id": "P0099",
+  "name": "Pathfinder Lite",
+  "brand": "Corvina",
+  "category": "footwear",
+  "size": "EU 40",
+  "price_eur": 119.9,
+  "colour": {
+   "name": "Charcoal",
+   "hex": "#33373d"
+  },
+  "description": "Balanced and responsive, built for technical scrambles.",
+  "model_id": "corvina-pathfinder-lite",
+  "variant_rank": 10
+ },
+ {
+  "product_id": "P0100",
+  "name": "Pathfinder Lite",
+  "brand": "Corvina",
+  "category": "footwear",
+  "size": "EU 41",
+  "price_eur": 119.9,
+  "colour": {
+   "name": "Charcoal",
+   "hex": "#33373d"
+  },
+  "description": "Balanced and responsive, built for technical scrambles.",
+  "model_id": "corvina-pathfinder-lite",
+  "variant_rank": 11
+ },
+ {
+  "product_id": "P0101",
+  "name": "Rain Jacket Storm",
+  "brand": "Lagoverde",
+  "category": "apparel",
+  "size": "XS",
+  "price_eur": 169.9,
+  "colour": {
+   "name": "Navy",
+   "hex": "#1f3a63"
+  },
+  "description": "Light and quick, built for cold starts above the treeline.",
+  "model_id": "lagoverde-rain-jacket-storm",
+  "variant_rank": 0
+ },
+ {
+  "product_id": "P0102",
+  "name": "Rain Jacket Storm",
+  "brand": "Lagoverde",
+  "category": "apparel",
+  "size": "S",
+  "price_eur": 169.9,
+  "colour": {
+   "name": "Navy",
+   "hex": "#1f3a63"
+  },
+  "description": "Light and quick, built for cold starts above the treeline.",
+  "model_id": "lagoverde-rain-jacket-storm",
+  "variant_rank": 1
+ },
+ {
+  "product_id": "P0103",
+  "name": "Rain Jacket Storm",
+  "brand": "Lagoverde",
+  "category": "apparel",
+  "size": "M",
+  "price_eur": 169.9,
+  "colour": {
+   "name": "Navy",
+   "hex": "#1f3a63"
+  },
+  "description": "Light and quick, built for cold starts above the treeline.",
+  "model_id": "lagoverde-rain-jacket-storm",
+  "variant_rank": 2
+ },
+ {
+  "product_id": "P0104",
+  "name": "Rain Jacket Storm",
+  "brand": "Lagoverde",
+  "category": "apparel",
+  "size": "L",
+  "price_eur": 169.9,
+  "colour": {
+   "name": "Navy",
+   "hex": "#1f3a63"
+  },
+  "description": "Light and quick, built for cold starts above the treeline.",
+  "model_id": "lagoverde-rain-jacket-storm",
+  "variant_rank": 3
+ },
+ {
+  "product_id": "P0105",
+  "name": "Rain Jacket Storm",
+  "brand": "Lagoverde",
+  "category": "apparel",
+  "size": "XL",
+  "price_eur": 169.9,
+  "colour": {
+   "name": "Navy",
+   "hex": "#1f3a63"
+  },
+  "description": "Light and quick, built for cold starts above the treeline.",
+  "model_id": "lagoverde-rain-jacket-storm",
+  "variant_rank": 4
+ },
+ {
+  "product_id": "P0106",
+  "name": "Rain Jacket Storm",
+  "brand": "Lagoverde",
+  "category": "apparel",
+  "size": "S",
+  "price_eur": 169.9,
+  "colour": {
+   "name": "Ember red",
+   "hex": "#b73a2e"
+  },
+  "description": "Light and quick, built for cold starts above the treeline.",
+  "model_id": "lagoverde-rain-jacket-storm",
+  "variant_rank": 5
+ },
+ {
+  "product_id": "P0107",
+  "name": "Rain Jacket Storm",
+  "brand": "Lagoverde",
+  "category": "apparel",
+  "size": "M",
+  "price_eur": 169.9,
+  "colour": {
+   "name": "Ember red",
+   "hex": "#b73a2e"
+  },
+  "description": "Light and quick, built for cold starts above the treeline.",
+  "model_id": "lagoverde-rain-jacket-storm",
+  "variant_rank": 6
+ },
+ {
+  "product_id": "P0108",
+  "name": "Rain Jacket Storm",
+  "brand": "Lagoverde",
+  "category": "apparel",
+  "size": "L",
+  "price_eur": 169.9,
+  "colour": {
+   "name": "Ember red",
+   "hex": "#b73a2e"
+  },
+  "description": "Light and quick, built for cold starts above the treeline.",
+  "model_id": "lagoverde-rain-jacket-storm",
+  "variant_rank": 7
+ },
+ {
+  "product_id": "P0109",
+  "name": "Rain Jacket Storm",
+  "brand": "Lagoverde",
+  "category": "apparel",
+  "size": "XL",
+  "price_eur": 169.9,
+  "colour": {
+   "name": "Ember red",
+   "hex": "#b73a2e"
+  },
+  "description": "Light and quick, built for cold starts above the treeline.",
+  "model_id": "lagoverde-rain-jacket-storm",
+  "variant_rank": 8
+ },
+ {
+  "product_id": "P0110",
+  "name": "Rain Jacket Storm",
+  "brand": "Lagoverde",
+  "category": "apparel",
+  "size": "XS",
+  "price_eur": 169.9,
+  "colour": {
+   "name": "Glacier blue",
+   "hex": "#4f93b8"
+  },
+  "description": "Light and quick, built for cold starts above the treeline.",
+  "model_id": "lagoverde-rain-jacket-storm",
+  "variant_rank": 9
+ },
+ {
+  "product_id": "P0111",
+  "name": "Rain Jacket Storm",
+  "brand": "Lagoverde",
+  "category": "apparel",
+  "size": "S",
+  "price_eur": 169.9,
+  "colour": {
+   "name": "Glacier blue",
+   "hex": "#4f93b8"
+  },
+  "description": "Light and quick, built for cold starts above the treeline.",
+  "model_id": "lagoverde-rain-jacket-storm",
+  "variant_rank": 10
+ },
+ {
+  "product_id": "P0112",
+  "name": "Rain Jacket Storm",
+  "brand": "Lagoverde",
+  "category": "apparel",
+  "size": "M",
+  "price_eur": 169.9,
+  "colour": {
+   "name": "Glacier blue",
+   "hex": "#4f93b8"
+  },
+  "description": "Light and quick, built for cold starts above the treeline.",
+  "model_id": "lagoverde-rain-jacket-storm",
+  "variant_rank": 11
+ },
+ {
+  "product_id": "P0113",
+  "name": "Rain Jacket Storm",
+  "brand": "Lagoverde",
+  "category": "apparel",
+  "size": "L",
+  "price_eur": 169.9,
+  "colour": {
+   "name": "Glacier blue",
+   "hex": "#4f93b8"
+  },
+  "description": "Light and quick, built for cold starts above the treeline.",
+  "model_id": "lagoverde-rain-jacket-storm",
+  "variant_rank": 12
+ },
+ {
+  "product_id": "P0114",
+  "name": "Rain Jacket Lite",
+  "brand": "Corvina",
+  "category": "apparel",
+  "size": "S",
+  "price_eur": 119.9,
+  "colour": {
+   "name": "Forest green",
+   "hex": "#2f6b4f"
+  },
+  "description": "Balanced and responsive, built for long days out.",
+  "model_id": "corvina-rain-jacket-lite",
+  "variant_rank": 0
+ },
+ {
+  "product_id": "P0115",
+  "name": "Rain Jacket Lite",
+  "brand": "Corvina",
+  "category": "apparel",
+  "size": "M",
+  "price_eur": 119.9,
+  "colour": {
+   "name": "Forest green",
+   "hex": "#2f6b4f"
+  },
+  "description": "Balanced and responsive, built for long days out.",
+  "model_id": "corvina-rain-jacket-lite",
+  "variant_rank": 1
+ },
+ {
+  "product_id": "P0116",
+  "name": "Rain Jacket Lite",
+  "brand": "Corvina",
+  "category": "apparel",
+  "size": "L",
+  "price_eur": 119.9,
+  "colour": {
+   "name": "Forest green",
+   "hex": "#2f6b4f"
+  },
+  "description": "Balanced and responsive, built for long days out.",
+  "model_id": "corvina-rain-jacket-lite",
+  "variant_rank": 2
+ },
+ {
+  "product_id": "P0117",
+  "name": "Rain Jacket Lite",
+  "brand": "Corvina",
+  "category": "apparel",
+  "size": "XL",
+  "price_eur": 119.9,
+  "colour": {
+   "name": "Forest green",
+   "hex": "#2f6b4f"
+  },
+  "description": "Balanced and responsive, built for long days out.",
+  "model_id": "corvina-rain-jacket-lite",
+  "variant_rank": 3
+ },
+ {
+  "product_id": "P0118",
+  "name": "Rain Jacket Lite",
+  "brand": "Corvina",
+  "category": "apparel",
+  "size": "XS",
+  "price_eur": 119.9,
+  "colour": {
+   "name": "Slate",
+   "hex": "#5a6678"
+  },
+  "description": "Balanced and responsive, built for long days out.",
+  "model_id": "corvina-rain-jacket-lite",
+  "variant_rank": 4
+ },
+ {
+  "product_id": "P0119",
+  "name": "Rain Jacket Lite",
+  "brand": "Corvina",
+  "category": "apparel",
+  "size": "S",
+  "price_eur": 119.9,
+  "colour": {
+   "name": "Slate",
+   "hex": "#5a6678"
+  },
+  "description": "Balanced and responsive, built for long days out.",
+  "model_id": "corvina-rain-jacket-lite",
+  "variant_rank": 5
+ },
+ {
+  "product_id": "P0120",
+  "name": "Rain Jacket Lite",
+  "brand": "Corvina",
+  "category": "apparel",
+  "size": "M",
+  "price_eur": 119.9,
+  "colour": {
+   "name": "Slate",
+   "hex": "#5a6678"
+  },
+  "description": "Balanced and responsive, built for long days out.",
+  "model_id": "corvina-rain-jacket-lite",
+  "variant_rank": 6
+ },
+ {
+  "product_id": "P0121",
+  "name": "Rain Jacket Lite",
+  "brand": "Corvina",
+  "category": "apparel",
+  "size": "L",
+  "price_eur": 119.9,
+  "colour": {
+   "name": "Slate",
+   "hex": "#5a6678"
+  },
+  "description": "Balanced and responsive, built for long days out.",
+  "model_id": "corvina-rain-jacket-lite",
+  "variant_rank": 7
+ },
+ {
+  "product_id": "P0122",
+  "name": "Rain Jacket Lite",
+  "brand": "Corvina",
+  "category": "apparel",
+  "size": "S",
+  "price_eur": 119.9,
+  "colour": {
+   "name": "Charcoal",
+   "hex": "#33373d"
+  },
+  "description": "Balanced and responsive, built for long days out.",
+  "model_id": "corvina-rain-jacket-lite",
+  "variant_rank": 8
+ },
+ {
+  "product_id": "P0123",
+  "name": "Rain Jacket Lite",
+  "brand": "Corvina",
+  "category": "apparel",
+  "size": "M",
+  "price_eur": 119.9,
+  "colour": {
+   "name": "Charcoal",
+   "hex": "#33373d"
+  },
+  "description": "Balanced and responsive, built for long days out.",
+  "model_id": "corvina-rain-jacket-lite",
+  "variant_rank": 9
+ },
+ {
+  "product_id": "P0124",
+  "name": "Rain Jacket Lite",
+  "brand": "Corvina",
+  "category": "apparel",
+  "size": "L",
+  "price_eur": 119.9,
+  "colour": {
+   "name": "Charcoal",
+   "hex": "#33373d"
+  },
+  "description": "Balanced and responsive, built for long days out.",
+  "model_id": "corvina-rain-jacket-lite",
+  "variant_rank": 10
  },
  {
   "product_id": "P0125",
-  "name": "Merino Beanie Pro",
-  "brand": "Montebruno",
-  "category": "accessories",
+  "name": "Softshell Pro",
+  "brand": "Faggeto",
+  "category": "apparel",
   "size": "S",
-  "price_eur": 36.9,
+  "price_eur": 139.9,
   "colour": {
    "name": "Slate",
    "hex": "#5a6678"
   },
-  "description": "Balanced and responsive, built for long trail runs."
+  "description": "Balanced and responsive, built for cold starts above the treeline.",
+  "model_id": "faggeto-softshell-pro",
+  "variant_rank": 0
  },
  {
   "product_id": "P0126",
-  "name": "Trek Shorts Zero",
-  "brand": "Aquila Nera",
+  "name": "Softshell Pro",
+  "brand": "Faggeto",
   "category": "apparel",
-  "size": "XL",
-  "price_eur": 148.9,
+  "size": "M",
+  "price_eur": 139.9,
   "colour": {
-   "name": "Burnt orange",
-   "hex": "#d2662d"
+   "name": "Slate",
+   "hex": "#5a6678"
   },
-  "description": "Compact and packable, built for cold starts above the treeline."
+  "description": "Balanced and responsive, built for cold starts above the treeline.",
+  "model_id": "faggeto-softshell-pro",
+  "variant_rank": 1
  },
  {
   "product_id": "P0127",
-  "name": "Base Layer Plus",
-  "brand": "Vetta",
+  "name": "Softshell Pro",
+  "brand": "Faggeto",
   "category": "apparel",
-  "size": "XL",
-  "price_eur": 56.9,
+  "size": "L",
+  "price_eur": 139.9,
   "colour": {
    "name": "Slate",
    "hex": "#5a6678"
   },
-  "description": "Warm without bulk, built for cold starts above the treeline."
+  "description": "Balanced and responsive, built for cold starts above the treeline.",
+  "model_id": "faggeto-softshell-pro",
+  "variant_rank": 2
  },
  {
   "product_id": "P0128",
-  "name": "Rain Jacket Max",
-  "brand": "Corvina",
+  "name": "Softshell Pro",
+  "brand": "Faggeto",
   "category": "apparel",
-  "size": "XXL",
-  "price_eur": 90.9,
+  "size": "XL",
+  "price_eur": 139.9,
   "colour": {
-   "name": "Charcoal",
-   "hex": "#33373d"
+   "name": "Slate",
+   "hex": "#5a6678"
   },
-  "description": "Balanced and responsive, built for long days out."
+  "description": "Balanced and responsive, built for cold starts above the treeline.",
+  "model_id": "faggeto-softshell-pro",
+  "variant_rank": 3
  },
  {
   "product_id": "P0129",
-  "name": "Base Layer Alpine",
-  "brand": "Nordvento",
+  "name": "Softshell Pro",
+  "brand": "Faggeto",
   "category": "apparel",
-  "size": "XXL",
-  "price_eur": 160.9,
+  "size": "XS",
+  "price_eur": 139.9,
   "colour": {
    "name": "Forest green",
    "hex": "#2f6b4f"
   },
-  "description": "Compact and packable, built for changeable mountain weather."
+  "description": "Balanced and responsive, built for cold starts above the treeline.",
+  "model_id": "faggeto-softshell-pro",
+  "variant_rank": 4
  },
  {
   "product_id": "P0130",
-  "name": "Rain Jacket Max",
+  "name": "Softshell Pro",
   "brand": "Faggeto",
   "category": "apparel",
   "size": "S",
-  "price_eur": 153.9,
+  "price_eur": 139.9,
   "colour": {
-   "name": "Glacier blue",
-   "hex": "#4f93b8"
+   "name": "Forest green",
+   "hex": "#2f6b4f"
   },
-  "description": "Compact and packable, built for long days out."
+  "description": "Balanced and responsive, built for cold starts above the treeline.",
+  "model_id": "faggeto-softshell-pro",
+  "variant_rank": 5
  },
  {
   "product_id": "P0131",
-  "name": "Base Layer Pro",
-  "brand": "Vetta",
+  "name": "Softshell Pro",
+  "brand": "Faggeto",
   "category": "apparel",
   "size": "M",
-  "price_eur": 147.9,
+  "price_eur": 139.9,
+  "colour": {
+   "name": "Forest green",
+   "hex": "#2f6b4f"
+  },
+  "description": "Balanced and responsive, built for cold starts above the treeline.",
+  "model_id": "faggeto-softshell-pro",
+  "variant_rank": 6
+ },
+ {
+  "product_id": "P0132",
+  "name": "Softshell Pro",
+  "brand": "Faggeto",
+  "category": "apparel",
+  "size": "L",
+  "price_eur": 139.9,
+  "colour": {
+   "name": "Forest green",
+   "hex": "#2f6b4f"
+  },
+  "description": "Balanced and responsive, built for cold starts above the treeline.",
+  "model_id": "faggeto-softshell-pro",
+  "variant_rank": 7
+ },
+ {
+  "product_id": "P0133",
+  "name": "Windshell Lite",
+  "brand": "Tramonto",
+  "category": "apparel",
+  "size": "XS",
+  "price_eur": 89.9,
   "colour": {
    "name": "Charcoal",
    "hex": "#33373d"
   },
-  "description": "Balanced and responsive, built for changeable mountain weather."
- },
- {
-  "product_id": "P0132",
-  "name": "Cresta Storm",
-  "brand": "Pietra Grigia",
-  "category": "footwear",
-  "size": "EU 44",
-  "price_eur": 200.9,
-  "colour": {
-   "name": "Ember red",
-   "hex": "#b73a2e"
-  },
-  "description": "Warm without bulk, built for early morning trail laps."
- },
- {
-  "product_id": "P0133",
-  "name": "Pathfinder Lite",
-  "brand": "Nordvento",
-  "category": "footwear",
-  "size": "EU 42",
-  "price_eur": 140.9,
-  "colour": {
-   "name": "Ember red",
-   "hex": "#b73a2e"
-  },
-  "description": "Compact and packable, built for technical scrambles."
+  "description": "Balanced and responsive, built for long days out.",
+  "model_id": "tramonto-windshell-lite",
+  "variant_rank": 0
  },
  {
   "product_id": "P0134",
-  "name": "Merino Beanie Evo",
-  "brand": "Ridgeline",
-  "category": "accessories",
-  "size": "L",
-  "price_eur": 39.9,
+  "name": "Windshell Lite",
+  "brand": "Tramonto",
+  "category": "apparel",
+  "size": "S",
+  "price_eur": 89.9,
   "colour": {
-   "name": "Ember red",
-   "hex": "#b73a2e"
+   "name": "Charcoal",
+   "hex": "#33373d"
   },
-  "description": "Durable and dependable, built for day hikes."
+  "description": "Balanced and responsive, built for long days out.",
+  "model_id": "tramonto-windshell-lite",
+  "variant_rank": 1
  },
  {
   "product_id": "P0135",
-  "name": "Softshell Zero",
-  "brand": "Montebruno",
+  "name": "Windshell Lite",
+  "brand": "Tramonto",
   "category": "apparel",
-  "size": "L",
-  "price_eur": 177.9,
+  "size": "M",
+  "price_eur": 89.9,
   "colour": {
-   "name": "Glacier blue",
-   "hex": "#4f93b8"
+   "name": "Charcoal",
+   "hex": "#33373d"
   },
-  "description": "Light and quick, built for cold starts above the treeline."
+  "description": "Balanced and responsive, built for long days out.",
+  "model_id": "tramonto-windshell-lite",
+  "variant_rank": 2
  },
  {
   "product_id": "P0136",
-  "name": "Pathfinder Air",
-  "brand": "Lagoverde",
-  "category": "footwear",
-  "size": "EU 45",
-  "price_eur": 133.9,
+  "name": "Windshell Lite",
+  "brand": "Tramonto",
+  "category": "apparel",
+  "size": "L",
+  "price_eur": 89.9,
   "colour": {
-   "name": "Burnt orange",
-   "hex": "#d2662d"
+   "name": "Charcoal",
+   "hex": "#33373d"
   },
-  "description": "Durable and dependable, built for early morning trail laps."
+  "description": "Balanced and responsive, built for long days out.",
+  "model_id": "tramonto-windshell-lite",
+  "variant_rank": 3
  },
  {
   "product_id": "P0137",
-  "name": "Trail Cap Plus",
-  "brand": "Lagoverde",
-  "category": "accessories",
-  "size": "L",
-  "price_eur": 47.9,
+  "name": "Windshell Lite",
+  "brand": "Tramonto",
+  "category": "apparel",
+  "size": "XL",
+  "price_eur": 89.9,
   "colour": {
-   "name": "Slate",
-   "hex": "#5a6678"
+   "name": "Charcoal",
+   "hex": "#33373d"
   },
-  "description": "Balanced and responsive, built for day hikes."
+  "description": "Balanced and responsive, built for long days out.",
+  "model_id": "tramonto-windshell-lite",
+  "variant_rank": 4
  },
  {
   "product_id": "P0138",
-  "name": "Cresta Alpine",
-  "brand": "Lagoverde",
-  "category": "footwear",
-  "size": "EU 42",
-  "price_eur": 120.9,
+  "name": "Windshell Lite",
+  "brand": "Tramonto",
+  "category": "apparel",
+  "size": "S",
+  "price_eur": 89.9,
   "colour": {
    "name": "Ember red",
    "hex": "#b73a2e"
   },
-  "description": "Compact and packable, built for technical scrambles."
+  "description": "Balanced and responsive, built for long days out.",
+  "model_id": "tramonto-windshell-lite",
+  "variant_rank": 5
  },
  {
   "product_id": "P0139",
-  "name": "Trekking Poles Plus",
-  "brand": "Nordvento",
-  "category": "accessories",
-  "size": "L",
-  "price_eur": 21.9,
+  "name": "Windshell Lite",
+  "brand": "Tramonto",
+  "category": "apparel",
+  "size": "M",
+  "price_eur": 89.9,
   "colour": {
    "name": "Ember red",
    "hex": "#b73a2e"
   },
-  "description": "Balanced and responsive, built for long trail runs."
+  "description": "Balanced and responsive, built for long days out.",
+  "model_id": "tramonto-windshell-lite",
+  "variant_rank": 6
  },
  {
   "product_id": "P0140",
-  "name": "Cresta Air",
-  "brand": "Montebruno",
-  "category": "footwear",
-  "size": "EU 36",
-  "price_eur": 118.9,
+  "name": "Windshell Lite",
+  "brand": "Tramonto",
+  "category": "apparel",
+  "size": "L",
+  "price_eur": 89.9,
   "colour": {
    "name": "Ember red",
    "hex": "#b73a2e"
   },
-  "description": "Warm without bulk, built for wet gravel descents."
+  "description": "Balanced and responsive, built for long days out.",
+  "model_id": "tramonto-windshell-lite",
+  "variant_rank": 7
  },
  {
   "product_id": "P0141",
-  "name": "Softshell Air",
+  "name": "Fleece Midlayer Evo",
   "brand": "Vetta",
   "category": "apparel",
-  "size": "S",
-  "price_eur": 92.9,
+  "size": "XS",
+  "price_eur": 79.9,
   "colour": {
-   "name": "Sand",
-   "hex": "#c8b38a"
+   "name": "Navy",
+   "hex": "#1f3a63"
   },
-  "description": "Balanced and responsive, built for cold starts above the treeline."
+  "description": "Durable and dependable, built for changeable mountain weather.",
+  "model_id": "vetta-fleece-midlayer-evo",
+  "variant_rank": 0
  },
  {
   "product_id": "P0142",
-  "name": "Fleece Midlayer Plus",
-  "brand": "Aquila Nera",
+  "name": "Fleece Midlayer Evo",
+  "brand": "Vetta",
   "category": "apparel",
-  "size": "XS",
-  "price_eur": 142.9,
+  "size": "S",
+  "price_eur": 79.9,
   "colour": {
-   "name": "Slate",
-   "hex": "#5a6678"
+   "name": "Navy",
+   "hex": "#1f3a63"
   },
-  "description": "Compact and packable, built for long days out."
+  "description": "Durable and dependable, built for changeable mountain weather.",
+  "model_id": "vetta-fleece-midlayer-evo",
+  "variant_rank": 1
  },
  {
   "product_id": "P0143",
-  "name": "Rain Jacket Plus",
-  "brand": "Faggeto",
+  "name": "Fleece Midlayer Evo",
+  "brand": "Vetta",
   "category": "apparel",
-  "size": "XS",
-  "price_eur": 122.9,
+  "size": "M",
+  "price_eur": 79.9,
   "colour": {
-   "name": "Burnt orange",
-   "hex": "#d2662d"
+   "name": "Navy",
+   "hex": "#1f3a63"
   },
-  "description": "Compact and packable, built for changeable mountain weather."
+  "description": "Durable and dependable, built for changeable mountain weather.",
+  "model_id": "vetta-fleece-midlayer-evo",
+  "variant_rank": 2
  },
  {
   "product_id": "P0144",
-  "name": "Dolomia Air",
-  "brand": "Corvina",
-  "category": "footwear",
-  "size": "EU 43",
-  "price_eur": 196.9,
+  "name": "Fleece Midlayer Evo",
+  "brand": "Vetta",
+  "category": "apparel",
+  "size": "L",
+  "price_eur": 79.9,
   "colour": {
-   "name": "Forest green",
-   "hex": "#2f6b4f"
+   "name": "Navy",
+   "hex": "#1f3a63"
   },
-  "description": "Durable and dependable, built for long ridge runs."
+  "description": "Durable and dependable, built for changeable mountain weather.",
+  "model_id": "vetta-fleece-midlayer-evo",
+  "variant_rank": 3
  },
  {
   "product_id": "P0145",
-  "name": "Trailrunner Alpine",
-  "brand": "Lagoverde",
-  "category": "footwear",
-  "size": "EU 41",
-  "price_eur": 114.9,
+  "name": "Fleece Midlayer Evo",
+  "brand": "Vetta",
+  "category": "apparel",
+  "size": "XL",
+  "price_eur": 79.9,
   "colour": {
-   "name": "Ember red",
-   "hex": "#b73a2e"
+   "name": "Navy",
+   "hex": "#1f3a63"
   },
-  "description": "Durable and dependable, built for wet gravel descents."
+  "description": "Durable and dependable, built for changeable mountain weather.",
+  "model_id": "vetta-fleece-midlayer-evo",
+  "variant_rank": 4
  },
  {
   "product_id": "P0146",
@@ -1895,168 +2185,149 @@
    "name": "Forest green",
    "hex": "#2f6b4f"
   },
-  "description": "Balanced and responsive, built for long ridge runs."
+  "description": "Balanced and responsive, built for wet gravel descents.",
+  "model_id": "pietra-grigia-sentinel-storm",
+  "variant_rank": 2
  },
  {
   "product_id": "P0147",
-  "name": "Base Layer Alpine",
-  "brand": "Ridgeline",
+  "name": "Fleece Midlayer Evo",
+  "brand": "Vetta",
   "category": "apparel",
-  "size": "L",
-  "price_eur": 60.9,
+  "size": "S",
+  "price_eur": 79.9,
   "colour": {
-   "name": "Navy",
-   "hex": "#1f3a63"
+   "name": "Burnt orange",
+   "hex": "#d2662d"
   },
-  "description": "Warm without bulk, built for changeable mountain weather."
+  "description": "Durable and dependable, built for changeable mountain weather.",
+  "model_id": "vetta-fleece-midlayer-evo",
+  "variant_rank": 5
  },
  {
   "product_id": "P0148",
-  "name": "Dolomia Zero",
-  "brand": "Alpenpace",
-  "category": "footwear",
-  "size": "EU 41",
-  "price_eur": 102.9,
+  "name": "Fleece Midlayer Evo",
+  "brand": "Vetta",
+  "category": "apparel",
+  "size": "M",
+  "price_eur": 79.9,
   "colour": {
-   "name": "Ember red",
-   "hex": "#b73a2e"
+   "name": "Burnt orange",
+   "hex": "#d2662d"
   },
-  "description": "Balanced and responsive, built for wet gravel descents."
+  "description": "Durable and dependable, built for changeable mountain weather.",
+  "model_id": "vetta-fleece-midlayer-evo",
+  "variant_rank": 6
  },
  {
   "product_id": "P0149",
-  "name": "Dolomia Pro",
-  "brand": "Faggeto",
-  "category": "footwear",
-  "size": "EU 36",
-  "price_eur": 176.9,
+  "name": "Fleece Midlayer Evo",
+  "brand": "Vetta",
+  "category": "apparel",
+  "size": "L",
+  "price_eur": 79.9,
   "colour": {
-   "name": "Navy",
-   "hex": "#1f3a63"
+   "name": "Burnt orange",
+   "hex": "#d2662d"
   },
-  "description": "Durable and dependable, built for long ridge runs."
+  "description": "Durable and dependable, built for changeable mountain weather.",
+  "model_id": "vetta-fleece-midlayer-evo",
+  "variant_rank": 7
  },
  {
   "product_id": "P0150",
-  "name": "Pathfinder Evo",
-  "brand": "Alpenpace",
-  "category": "footwear",
-  "size": "EU 45",
-  "price_eur": 180.9,
+  "name": "Fleece Midlayer Evo",
+  "brand": "Vetta",
+  "category": "apparel",
+  "size": "XL",
+  "price_eur": 79.9,
   "colour": {
-   "name": "Glacier blue",
-   "hex": "#4f93b8"
+   "name": "Burnt orange",
+   "hex": "#d2662d"
   },
-  "description": "Light and quick, built for long ridge runs."
+  "description": "Durable and dependable, built for changeable mountain weather.",
+  "model_id": "vetta-fleece-midlayer-evo",
+  "variant_rank": 8
  },
  {
   "product_id": "P0151",
-  "name": "Pathfinder Lite",
-  "brand": "Montebruno",
-  "category": "footwear",
-  "size": "EU 46",
-  "price_eur": 105.9,
+  "name": "Fleece Midlayer Evo",
+  "brand": "Vetta",
+  "category": "apparel",
+  "size": "S",
+  "price_eur": 79.9,
+  "colour": {
+   "name": "Sand",
+   "hex": "#c8b38a"
+  },
+  "description": "Durable and dependable, built for changeable mountain weather.",
+  "model_id": "vetta-fleece-midlayer-evo",
+  "variant_rank": 9
+ },
+ {
+  "product_id": "P0152",
+  "name": "Fleece Midlayer Evo",
+  "brand": "Vetta",
+  "category": "apparel",
+  "size": "M",
+  "price_eur": 79.9,
+  "colour": {
+   "name": "Sand",
+   "hex": "#c8b38a"
+  },
+  "description": "Durable and dependable, built for changeable mountain weather.",
+  "model_id": "vetta-fleece-midlayer-evo",
+  "variant_rank": 10
+ },
+ {
+  "product_id": "P0153",
+  "name": "Fleece Midlayer Evo",
+  "brand": "Vetta",
+  "category": "apparel",
+  "size": "L",
+  "price_eur": 79.9,
+  "colour": {
+   "name": "Sand",
+   "hex": "#c8b38a"
+  },
+  "description": "Durable and dependable, built for changeable mountain weather.",
+  "model_id": "vetta-fleece-midlayer-evo",
+  "variant_rank": 11
+ },
+ {
+  "product_id": "P0154",
+  "name": "Base Layer Zero",
+  "brand": "Sentiero",
+  "category": "apparel",
+  "size": "XS",
+  "price_eur": 59.9,
   "colour": {
    "name": "Charcoal",
    "hex": "#33373d"
   },
-  "description": "Durable and dependable, built for long ridge runs."
- },
- {
-  "product_id": "P0152",
-  "name": "Brenta Evo",
-  "brand": "Montebruno",
-  "category": "footwear",
-  "size": "EU 47",
-  "price_eur": 213.9,
-  "colour": {
-   "name": "Ember red",
-   "hex": "#b73a2e"
-  },
-  "description": "Balanced and responsive, built for wet gravel descents."
- },
- {
-  "product_id": "P0153",
-  "name": "Softshell Lite",
-  "brand": "Sentiero",
-  "category": "apparel",
-  "size": "XL",
-  "price_eur": 95.9,
-  "colour": {
-   "name": "Slate",
-   "hex": "#5a6678"
-  },
-  "description": "Compact and packable, built for changeable mountain weather."
- },
- {
-  "product_id": "P0154",
-  "name": "Trail Cap Lite",
-  "brand": "Tramonto",
-  "category": "accessories",
-  "size": "XS",
-  "price_eur": 61.9,
-  "colour": {
-   "name": "Forest green",
-   "hex": "#2f6b4f"
-  },
-  "description": "Warm without bulk, built for long trail runs."
+  "description": "Warm without bulk, built for changeable mountain weather.",
+  "model_id": "sentiero-base-layer-zero",
+  "variant_rank": 0
  },
  {
   "product_id": "P0155",
-  "name": "Trail Cap Alpine",
+  "name": "Base Layer Zero",
   "brand": "Sentiero",
-  "category": "accessories",
-  "size": "XXL",
-  "price_eur": 43.9,
+  "category": "apparel",
+  "size": "S",
+  "price_eur": 59.9,
   "colour": {
-   "name": "Slate",
-   "hex": "#5a6678"
+   "name": "Charcoal",
+   "hex": "#33373d"
   },
-  "description": "Balanced and responsive, built for day hikes."
+  "description": "Warm without bulk, built for changeable mountain weather.",
+  "model_id": "sentiero-base-layer-zero",
+  "variant_rank": 1
  },
  {
   "product_id": "P0156",
-  "name": "Base Layer Evo",
-  "brand": "Ridgeline",
-  "category": "apparel",
-  "size": "XL",
-  "price_eur": 174.9,
-  "colour": {
-   "name": "Burnt orange",
-   "hex": "#d2662d"
-  },
-  "description": "Warm without bulk, built for long days out."
- },
- {
-  "product_id": "P0157",
-  "name": "Merino Beanie Pro",
-  "brand": "Vetta",
-  "category": "accessories",
-  "size": "M",
-  "price_eur": 37.9,
-  "colour": {
-   "name": "Navy",
-   "hex": "#1f3a63"
-  },
-  "description": "Compact and packable, built for alpine mornings."
- },
- {
-  "product_id": "P0158",
-  "name": "Trekking Poles Pro",
+  "name": "Base Layer Zero",
   "brand": "Sentiero",
-  "category": "accessories",
-  "size": "XS",
-  "price_eur": 54.9,
-  "colour": {
-   "name": "Burnt orange",
-   "hex": "#d2662d"
-  },
-  "description": "Balanced and responsive, built for alpine mornings."
- },
- {
-  "product_id": "P0159",
-  "name": "Rain Jacket Air",
-  "brand": "Faggeto",
   "category": "apparel",
   "size": "M",
   "price_eur": 59.9,
@@ -2064,7 +2335,54 @@
    "name": "Charcoal",
    "hex": "#33373d"
   },
-  "description": "Durable and dependable, built for long days out."
+  "description": "Warm without bulk, built for changeable mountain weather.",
+  "model_id": "sentiero-base-layer-zero",
+  "variant_rank": 2
+ },
+ {
+  "product_id": "P0157",
+  "name": "Base Layer Zero",
+  "brand": "Sentiero",
+  "category": "apparel",
+  "size": "L",
+  "price_eur": 59.9,
+  "colour": {
+   "name": "Charcoal",
+   "hex": "#33373d"
+  },
+  "description": "Warm without bulk, built for changeable mountain weather.",
+  "model_id": "sentiero-base-layer-zero",
+  "variant_rank": 3
+ },
+ {
+  "product_id": "P0158",
+  "name": "Base Layer Zero",
+  "brand": "Sentiero",
+  "category": "apparel",
+  "size": "XL",
+  "price_eur": 59.9,
+  "colour": {
+   "name": "Charcoal",
+   "hex": "#33373d"
+  },
+  "description": "Warm without bulk, built for changeable mountain weather.",
+  "model_id": "sentiero-base-layer-zero",
+  "variant_rank": 4
+ },
+ {
+  "product_id": "P0159",
+  "name": "Base Layer Zero",
+  "brand": "Sentiero",
+  "category": "apparel",
+  "size": "S",
+  "price_eur": 59.9,
+  "colour": {
+   "name": "Glacier blue",
+   "hex": "#4f93b8"
+  },
+  "description": "Warm without bulk, built for changeable mountain weather.",
+  "model_id": "sentiero-base-layer-zero",
+  "variant_rank": 5
  },
  {
   "product_id": "P0160",
@@ -2077,526 +2395,608 @@
    "name": "Burnt orange",
    "hex": "#d2662d"
   },
-  "description": "Durable and dependable, built for wet gravel descents."
+  "description": "Durable and dependable, built for technical scrambles.",
+  "model_id": "alpenpace-brenta-storm",
+  "variant_rank": 2
  },
  {
   "product_id": "P0161",
-  "name": "Windshell Air",
-  "brand": "Pietra Grigia",
+  "name": "Base Layer Zero",
+  "brand": "Sentiero",
   "category": "apparel",
-  "size": "XXL",
-  "price_eur": 138.9,
+  "size": "M",
+  "price_eur": 59.9,
   "colour": {
-   "name": "Charcoal",
-   "hex": "#33373d"
+   "name": "Glacier blue",
+   "hex": "#4f93b8"
   },
-  "description": "Balanced and responsive, built for changeable mountain weather."
+  "description": "Warm without bulk, built for changeable mountain weather.",
+  "model_id": "sentiero-base-layer-zero",
+  "variant_rank": 6
  },
  {
   "product_id": "P0162",
-  "name": "Trek Shorts Lite",
-  "brand": "Lagoverde",
+  "name": "Base Layer Zero",
+  "brand": "Sentiero",
   "category": "apparel",
-  "size": "S",
-  "price_eur": 137.9,
+  "size": "L",
+  "price_eur": 59.9,
   "colour": {
    "name": "Glacier blue",
    "hex": "#4f93b8"
   },
-  "description": "Light and quick, built for changeable mountain weather."
+  "description": "Warm without bulk, built for changeable mountain weather.",
+  "model_id": "sentiero-base-layer-zero",
+  "variant_rank": 7
  },
  {
   "product_id": "P0163",
-  "name": "Trekking Poles Alpine",
+  "name": "Base Layer Zero",
   "brand": "Sentiero",
-  "category": "accessories",
-  "size": "XL",
-  "price_eur": 79.9,
+  "category": "apparel",
+  "size": "S",
+  "price_eur": 59.9,
   "colour": {
-   "name": "Burnt orange",
-   "hex": "#d2662d"
+   "name": "Forest green",
+   "hex": "#2f6b4f"
   },
-  "description": "Warm without bulk, built for long trail runs."
+  "description": "Warm without bulk, built for changeable mountain weather.",
+  "model_id": "sentiero-base-layer-zero",
+  "variant_rank": 8
  },
  {
   "product_id": "P0164",
-  "name": "Base Layer Air",
-  "brand": "Vetta",
+  "name": "Base Layer Zero",
+  "brand": "Sentiero",
   "category": "apparel",
-  "size": "XL",
-  "price_eur": 133.9,
+  "size": "M",
+  "price_eur": 59.9,
   "colour": {
-   "name": "Ember red",
-   "hex": "#b73a2e"
+   "name": "Forest green",
+   "hex": "#2f6b4f"
   },
-  "description": "Warm without bulk, built for changeable mountain weather."
+  "description": "Warm without bulk, built for changeable mountain weather.",
+  "model_id": "sentiero-base-layer-zero",
+  "variant_rank": 9
  },
  {
   "product_id": "P0165",
-  "name": "Softshell Evo",
-  "brand": "Ridgeline",
+  "name": "Base Layer Zero",
+  "brand": "Sentiero",
   "category": "apparel",
-  "size": "M",
-  "price_eur": 47.9,
+  "size": "L",
+  "price_eur": 59.9,
   "colour": {
-   "name": "Burnt orange",
-   "hex": "#d2662d"
+   "name": "Forest green",
+   "hex": "#2f6b4f"
   },
-  "description": "Balanced and responsive, built for changeable mountain weather."
+  "description": "Warm without bulk, built for changeable mountain weather.",
+  "model_id": "sentiero-base-layer-zero",
+  "variant_rank": 10
  },
  {
   "product_id": "P0166",
-  "name": "Fleece Midlayer Max",
-  "brand": "Sentiero",
+  "name": "Trek Shorts Air",
+  "brand": "Aquila Nera",
   "category": "apparel",
-  "size": "XL",
-  "price_eur": 55.9,
+  "size": "XS",
+  "price_eur": 54.9,
   "colour": {
-   "name": "Slate",
-   "hex": "#5a6678"
+   "name": "Sand",
+   "hex": "#c8b38a"
   },
-  "description": "Balanced and responsive, built for fast hikes in the wind."
+  "description": "Durable and dependable, built for cold starts above the treeline.",
+  "model_id": "aquila-nera-trek-shorts-air",
+  "variant_rank": 0
  },
  {
   "product_id": "P0167",
-  "name": "Hydration Vest Storm",
-  "brand": "Alpenpace",
-  "category": "accessories",
-  "size": "L",
-  "price_eur": 33.9,
+  "name": "Trek Shorts Air",
+  "brand": "Aquila Nera",
+  "category": "apparel",
+  "size": "S",
+  "price_eur": 54.9,
   "colour": {
-   "name": "Glacier blue",
-   "hex": "#4f93b8"
+   "name": "Sand",
+   "hex": "#c8b38a"
   },
-  "description": "Warm without bulk, built for alpine mornings."
+  "description": "Durable and dependable, built for cold starts above the treeline.",
+  "model_id": "aquila-nera-trek-shorts-air",
+  "variant_rank": 1
  },
  {
   "product_id": "P0168",
-  "name": "Fleece Midlayer Max",
-  "brand": "Nordvento",
+  "name": "Trek Shorts Air",
+  "brand": "Aquila Nera",
   "category": "apparel",
   "size": "M",
-  "price_eur": 136.9,
+  "price_eur": 54.9,
   "colour": {
    "name": "Sand",
    "hex": "#c8b38a"
   },
-  "description": "Warm without bulk, built for fast hikes in the wind."
+  "description": "Durable and dependable, built for cold starts above the treeline.",
+  "model_id": "aquila-nera-trek-shorts-air",
+  "variant_rank": 2
  },
  {
   "product_id": "P0169",
-  "name": "Softshell Alpine",
-  "brand": "Sentiero",
+  "name": "Trek Shorts Air",
+  "brand": "Aquila Nera",
   "category": "apparel",
-  "size": "XXL",
-  "price_eur": 159.9,
+  "size": "L",
+  "price_eur": 54.9,
   "colour": {
-   "name": "Burnt orange",
-   "hex": "#d2662d"
+   "name": "Sand",
+   "hex": "#c8b38a"
   },
-  "description": "Compact and packable, built for long days out."
+  "description": "Durable and dependable, built for cold starts above the treeline.",
+  "model_id": "aquila-nera-trek-shorts-air",
+  "variant_rank": 3
  },
  {
   "product_id": "P0170",
-  "name": "Rain Jacket GTX",
+  "name": "Trek Shorts Air",
   "brand": "Aquila Nera",
   "category": "apparel",
-  "size": "S",
-  "price_eur": 126.9,
+  "size": "XL",
+  "price_eur": 54.9,
   "colour": {
-   "name": "Burnt orange",
-   "hex": "#d2662d"
+   "name": "Sand",
+   "hex": "#c8b38a"
   },
-  "description": "Durable and dependable, built for cold starts above the treeline."
+  "description": "Durable and dependable, built for cold starts above the treeline.",
+  "model_id": "aquila-nera-trek-shorts-air",
+  "variant_rank": 4
  },
  {
   "product_id": "P0171",
-  "name": "Pathfinder Air",
-  "brand": "Montebruno",
-  "category": "footwear",
-  "size": "EU 44",
-  "price_eur": 199.9,
+  "name": "Trek Shorts Air",
+  "brand": "Aquila Nera",
+  "category": "apparel",
+  "size": "S",
+  "price_eur": 54.9,
   "colour": {
-   "name": "Burnt orange",
-   "hex": "#d2662d"
+   "name": "Slate",
+   "hex": "#5a6678"
   },
-  "description": "Compact and packable, built for wet gravel descents."
+  "description": "Durable and dependable, built for cold starts above the treeline.",
+  "model_id": "aquila-nera-trek-shorts-air",
+  "variant_rank": 5
  },
  {
   "product_id": "P0172",
-  "name": "Dolomia Max",
-  "brand": "Faggeto",
-  "category": "footwear",
-  "size": "EU 47",
-  "price_eur": 208.9,
+  "name": "Trek Shorts Air",
+  "brand": "Aquila Nera",
+  "category": "apparel",
+  "size": "M",
+  "price_eur": 54.9,
   "colour": {
-   "name": "Charcoal",
-   "hex": "#33373d"
+   "name": "Slate",
+   "hex": "#5a6678"
   },
-  "description": "Compact and packable, built for wet gravel descents."
+  "description": "Durable and dependable, built for cold starts above the treeline.",
+  "model_id": "aquila-nera-trek-shorts-air",
+  "variant_rank": 6
  },
  {
   "product_id": "P0173",
-  "name": "Base Layer GTX",
-  "brand": "Ridgeline",
+  "name": "Trek Shorts Air",
+  "brand": "Aquila Nera",
   "category": "apparel",
-  "size": "M",
-  "price_eur": 87.9,
+  "size": "L",
+  "price_eur": 54.9,
   "colour": {
-   "name": "Ember red",
-   "hex": "#b73a2e"
+   "name": "Slate",
+   "hex": "#5a6678"
   },
-  "description": "Light and quick, built for cold starts above the treeline."
+  "description": "Durable and dependable, built for cold starts above the treeline.",
+  "model_id": "aquila-nera-trek-shorts-air",
+  "variant_rank": 7
  },
  {
   "product_id": "P0174",
-  "name": "Sentinel Evo",
-  "brand": "Tramonto",
-  "category": "footwear",
-  "size": "EU 46",
-  "price_eur": 206.9,
+  "name": "Hydration Vest Max",
+  "brand": "Sentiero",
+  "category": "accessories",
+  "size": "S",
+  "price_eur": 74.9,
   "colour": {
-   "name": "Forest green",
-   "hex": "#2f6b4f"
+   "name": "Slate",
+   "hex": "#5a6678"
   },
-  "description": "Durable and dependable, built for technical scrambles."
+  "description": "Compact and packable, built for long trail runs.",
+  "model_id": "sentiero-hydration-vest-max",
+  "variant_rank": 0
  },
  {
   "product_id": "P0175",
-  "name": "Gaiters Max",
-  "brand": "Aquila Nera",
+  "name": "Hydration Vest Max",
+  "brand": "Sentiero",
   "category": "accessories",
-  "size": "XL",
-  "price_eur": 61.9,
+  "size": "M",
+  "price_eur": 74.9,
   "colour": {
-   "name": "Glacier blue",
-   "hex": "#4f93b8"
+   "name": "Slate",
+   "hex": "#5a6678"
   },
-  "description": "Balanced and responsive, built for long trail runs."
+  "description": "Compact and packable, built for long trail runs.",
+  "model_id": "sentiero-hydration-vest-max",
+  "variant_rank": 1
  },
  {
   "product_id": "P0176",
-  "name": "Base Layer Zero",
-  "brand": "Pietra Grigia",
-  "category": "apparel",
-  "size": "M",
-  "price_eur": 66.9,
+  "name": "Hydration Vest Max",
+  "brand": "Sentiero",
+  "category": "accessories",
+  "size": "L",
+  "price_eur": 74.9,
   "colour": {
    "name": "Slate",
    "hex": "#5a6678"
   },
-  "description": "Light and quick, built for cold starts above the treeline."
+  "description": "Compact and packable, built for long trail runs.",
+  "model_id": "sentiero-hydration-vest-max",
+  "variant_rank": 2
  },
  {
   "product_id": "P0177",
-  "name": "Hydration Vest Alpine",
-  "brand": "Tramonto",
+  "name": "Hydration Vest Max",
+  "brand": "Sentiero",
   "category": "accessories",
-  "size": "M",
-  "price_eur": 38.9,
+  "size": "S",
+  "price_eur": 74.9,
   "colour": {
-   "name": "Charcoal",
-   "hex": "#33373d"
+   "name": "Ember red",
+   "hex": "#b73a2e"
   },
-  "description": "Durable and dependable, built for packing light."
+  "description": "Compact and packable, built for long trail runs.",
+  "model_id": "sentiero-hydration-vest-max",
+  "variant_rank": 3
  },
  {
   "product_id": "P0178",
-  "name": "Trailrunner Evo",
-  "brand": "Pietra Grigia",
-  "category": "footwear",
-  "size": "EU 37",
-  "price_eur": 195.9,
+  "name": "Hydration Vest Max",
+  "brand": "Sentiero",
+  "category": "accessories",
+  "size": "M",
+  "price_eur": 74.9,
   "colour": {
-   "name": "Burnt orange",
-   "hex": "#d2662d"
+   "name": "Ember red",
+   "hex": "#b73a2e"
   },
-  "description": "Durable and dependable, built for wet gravel descents."
+  "description": "Compact and packable, built for long trail runs.",
+  "model_id": "sentiero-hydration-vest-max",
+  "variant_rank": 4
  },
  {
   "product_id": "P0179",
-  "name": "Trekking Poles Lite",
-  "brand": "Nordvento",
+  "name": "Hydration Vest Max",
+  "brand": "Sentiero",
   "category": "accessories",
-  "size": "S",
-  "price_eur": 52.9,
-  "colour": {
-   "name": "Charcoal",
-   "hex": "#33373d"
-  },
-  "description": "Compact and packable, built for packing light."
- },
- {
-  "product_id": "P0180",
-  "name": "Hydration Vest Alpine",
-  "brand": "Vetta",
-  "category": "accessories",
-  "size": "XL",
-  "price_eur": 67.9,
+  "size": "L",
+  "price_eur": 74.9,
   "colour": {
    "name": "Ember red",
    "hex": "#b73a2e"
   },
-  "description": "Durable and dependable, built for alpine mornings."
+  "description": "Compact and packable, built for long trail runs.",
+  "model_id": "sentiero-hydration-vest-max",
+  "variant_rank": 5
  },
  {
-  "product_id": "P0181",
-  "name": "Trekking Poles Alpine",
-  "brand": "Ridgeline",
+  "product_id": "P0180",
+  "name": "Hydration Vest Max",
+  "brand": "Sentiero",
   "category": "accessories",
   "size": "S",
-  "price_eur": 45.9,
-  "colour": {
-   "name": "Forest green",
-   "hex": "#2f6b4f"
-  },
-  "description": "Light and quick, built for alpine mornings."
- },
- {
-  "product_id": "P0182",
-  "name": "Fleece Midlayer Storm",
-  "brand": "Corvina",
-  "category": "apparel",
-  "size": "M",
-  "price_eur": 86.9,
-  "colour": {
-   "name": "Slate",
-   "hex": "#5a6678"
-  },
-  "description": "Compact and packable, built for cold starts above the treeline."
- },
- {
-  "product_id": "P0183",
-  "name": "Dolomia Zero",
-  "brand": "Corvina",
-  "category": "footwear",
-  "size": "EU 40",
-  "price_eur": 181.9,
-  "colour": {
-   "name": "Glacier blue",
-   "hex": "#4f93b8"
-  },
-  "description": "Warm without bulk, built for technical scrambles."
- },
- {
-  "product_id": "P0184",
-  "name": "Trailrunner Zero",
-  "brand": "Tramonto",
-  "category": "footwear",
-  "size": "EU 47",
-  "price_eur": 178.9,
-  "colour": {
-   "name": "Forest green",
-   "hex": "#2f6b4f"
-  },
-  "description": "Balanced and responsive, built for long ridge runs."
- },
- {
-  "product_id": "P0185",
-  "name": "Dolomia Max",
-  "brand": "Ridgeline",
-  "category": "footwear",
-  "size": "EU 36",
-  "price_eur": 216.9,
+  "price_eur": 74.9,
   "colour": {
    "name": "Navy",
    "hex": "#1f3a63"
   },
-  "description": "Light and quick, built for technical scrambles."
+  "description": "Compact and packable, built for long trail runs.",
+  "model_id": "sentiero-hydration-vest-max",
+  "variant_rank": 6
  },
  {
-  "product_id": "P0186",
-  "name": "Gaiters Max",
+  "product_id": "P0181",
+  "name": "Hydration Vest Max",
+  "brand": "Sentiero",
+  "category": "accessories",
+  "size": "M",
+  "price_eur": 74.9,
+  "colour": {
+   "name": "Navy",
+   "hex": "#1f3a63"
+  },
+  "description": "Compact and packable, built for long trail runs.",
+  "model_id": "sentiero-hydration-vest-max",
+  "variant_rank": 7
+ },
+ {
+  "product_id": "P0182",
+  "name": "Gaiters Pro",
   "brand": "Montebruno",
   "category": "accessories",
-  "size": "L",
-  "price_eur": 21.9,
+  "size": "S",
+  "price_eur": 39.9,
   "colour": {
    "name": "Charcoal",
    "hex": "#33373d"
   },
-  "description": "Compact and packable, built for long trail runs."
+  "description": "Warm without bulk, built for day hikes.",
+  "model_id": "montebruno-gaiters-pro",
+  "variant_rank": 0
+ },
+ {
+  "product_id": "P0183",
+  "name": "Gaiters Pro",
+  "brand": "Montebruno",
+  "category": "accessories",
+  "size": "M",
+  "price_eur": 39.9,
+  "colour": {
+   "name": "Charcoal",
+   "hex": "#33373d"
+  },
+  "description": "Warm without bulk, built for day hikes.",
+  "model_id": "montebruno-gaiters-pro",
+  "variant_rank": 1
+ },
+ {
+  "product_id": "P0184",
+  "name": "Gaiters Pro",
+  "brand": "Montebruno",
+  "category": "accessories",
+  "size": "L",
+  "price_eur": 39.9,
+  "colour": {
+   "name": "Charcoal",
+   "hex": "#33373d"
+  },
+  "description": "Warm without bulk, built for day hikes.",
+  "model_id": "montebruno-gaiters-pro",
+  "variant_rank": 2
+ },
+ {
+  "product_id": "P0185",
+  "name": "Gaiters Pro",
+  "brand": "Montebruno",
+  "category": "accessories",
+  "size": "S",
+  "price_eur": 39.9,
+  "colour": {
+   "name": "Glacier blue",
+   "hex": "#4f93b8"
+  },
+  "description": "Warm without bulk, built for day hikes.",
+  "model_id": "montebruno-gaiters-pro",
+  "variant_rank": 3
+ },
+ {
+  "product_id": "P0186",
+  "name": "Gaiters Pro",
+  "brand": "Montebruno",
+  "category": "accessories",
+  "size": "M",
+  "price_eur": 39.9,
+  "colour": {
+   "name": "Glacier blue",
+   "hex": "#4f93b8"
+  },
+  "description": "Warm without bulk, built for day hikes.",
+  "model_id": "montebruno-gaiters-pro",
+  "variant_rank": 4
  },
  {
   "product_id": "P0187",
-  "name": "Fleece Midlayer GTX",
-  "brand": "Tramonto",
-  "category": "apparel",
+  "name": "Gaiters Pro",
+  "brand": "Montebruno",
+  "category": "accessories",
   "size": "L",
-  "price_eur": 108.9,
+  "price_eur": 39.9,
   "colour": {
-   "name": "Navy",
-   "hex": "#1f3a63"
+   "name": "Glacier blue",
+   "hex": "#4f93b8"
   },
-  "description": "Light and quick, built for changeable mountain weather."
+  "description": "Warm without bulk, built for day hikes.",
+  "model_id": "montebruno-gaiters-pro",
+  "variant_rank": 5
  },
  {
   "product_id": "P0188",
-  "name": "Rifugio Pro",
-  "brand": "Lagoverde",
-  "category": "footwear",
-  "size": "EU 43",
-  "price_eur": 189.9,
+  "name": "Trekking Poles Alpine",
+  "brand": "Ridgeline",
+  "category": "accessories",
+  "size": "One size",
+  "price_eur": 69.9,
   "colour": {
-   "name": "Slate",
-   "hex": "#5a6678"
+   "name": "Charcoal",
+   "hex": "#33373d"
   },
-  "description": "Compact and packable, built for early morning trail laps."
+  "description": "Balanced and responsive, built for day hikes.",
+  "model_id": "ridgeline-trekking-poles-alpine",
+  "variant_rank": 0
  },
  {
   "product_id": "P0189",
-  "name": "Brenta GTX",
-  "brand": "Corvina",
-  "category": "footwear",
-  "size": "EU 38",
-  "price_eur": 161.9,
+  "name": "Trekking Poles Alpine",
+  "brand": "Ridgeline",
+  "category": "accessories",
+  "size": "One size",
+  "price_eur": 69.9,
+  "colour": {
+   "name": "Glacier blue",
+   "hex": "#4f93b8"
+  },
+  "description": "Balanced and responsive, built for day hikes.",
+  "model_id": "ridgeline-trekking-poles-alpine",
+  "variant_rank": 1
+ },
+ {
+  "product_id": "P0190",
+  "name": "Trekking Poles Alpine",
+  "brand": "Ridgeline",
+  "category": "accessories",
+  "size": "One size",
+  "price_eur": 69.9,
   "colour": {
    "name": "Burnt orange",
    "hex": "#d2662d"
   },
-  "description": "Light and quick, built for early morning trail laps."
- },
- {
-  "product_id": "P0190",
-  "name": "Gaiters Pro",
-  "brand": "Nordvento",
-  "category": "accessories",
-  "size": "XS",
-  "price_eur": 28.9,
-  "colour": {
-   "name": "Slate",
-   "hex": "#5a6678"
-  },
-  "description": "Warm without bulk, built for day hikes."
+  "description": "Balanced and responsive, built for day hikes.",
+  "model_id": "ridgeline-trekking-poles-alpine",
+  "variant_rank": 2
  },
  {
   "product_id": "P0191",
-  "name": "Hydration Vest Plus",
-  "brand": "Sentiero",
+  "name": "Trekking Poles Alpine",
+  "brand": "Ridgeline",
   "category": "accessories",
-  "size": "XL",
-  "price_eur": 51.9,
+  "size": "One size",
+  "price_eur": 69.9,
+  "colour": {
+   "name": "Forest green",
+   "hex": "#2f6b4f"
+  },
+  "description": "Balanced and responsive, built for day hikes.",
+  "model_id": "ridgeline-trekking-poles-alpine",
+  "variant_rank": 3
+ },
+ {
+  "product_id": "P0192",
+  "name": "Trekking Poles Lite",
+  "brand": "Pietra Grigia",
+  "category": "accessories",
+  "size": "One size",
+  "price_eur": 49.9,
+  "colour": {
+   "name": "Sand",
+   "hex": "#c8b38a"
+  },
+  "description": "Compact and packable, built for day hikes.",
+  "model_id": "pietra-grigia-trekking-poles-lite",
+  "variant_rank": 0
+ },
+ {
+  "product_id": "P0193",
+  "name": "Trekking Poles Lite",
+  "brand": "Pietra Grigia",
+  "category": "accessories",
+  "size": "One size",
+  "price_eur": 49.9,
   "colour": {
    "name": "Navy",
    "hex": "#1f3a63"
   },
-  "description": "Light and quick, built for packing light."
- },
- {
-  "product_id": "P0192",
-  "name": "Rifugio Zero",
-  "brand": "Lagoverde",
-  "category": "footwear",
-  "size": "EU 43",
-  "price_eur": 128.9,
-  "colour": {
-   "name": "Forest green",
-   "hex": "#2f6b4f"
-  },
-  "description": "Light and quick, built for wet gravel descents."
- },
- {
-  "product_id": "P0193",
-  "name": "Softshell Plus",
-  "brand": "Lagoverde",
-  "category": "apparel",
-  "size": "M",
-  "price_eur": 41.9,
-  "colour": {
-   "name": "Glacier blue",
-   "hex": "#4f93b8"
-  },
-  "description": "Compact and packable, built for changeable mountain weather."
+  "description": "Compact and packable, built for day hikes.",
+  "model_id": "pietra-grigia-trekking-poles-lite",
+  "variant_rank": 1
  },
  {
   "product_id": "P0194",
-  "name": "Trekking Poles GTX",
-  "brand": "Sentiero",
+  "name": "Merino Beanie Plus",
+  "brand": "Faggeto",
   "category": "accessories",
-  "size": "XXL",
-  "price_eur": 26.9,
+  "size": "One size",
+  "price_eur": 29.9,
   "colour": {
-   "name": "Sand",
-   "hex": "#c8b38a"
+   "name": "Burnt orange",
+   "hex": "#d2662d"
   },
-  "description": "Durable and dependable, built for packing light."
+  "description": "Balanced and responsive, built for long trail runs.",
+  "model_id": "faggeto-merino-beanie-plus",
+  "variant_rank": 0
  },
  {
   "product_id": "P0195",
-  "name": "Rifugio Evo",
-  "brand": "Faggeto",
-  "category": "footwear",
-  "size": "EU 39",
-  "price_eur": 217.9,
-  "colour": {
-   "name": "Ember red",
-   "hex": "#b73a2e"
-  },
-  "description": "Light and quick, built for wet gravel descents."
- },
- {
-  "product_id": "P0196",
-  "name": "Trek Shorts Pro",
-  "brand": "Corvina",
-  "category": "apparel",
-  "size": "S",
-  "price_eur": 105.9,
-  "colour": {
-   "name": "Sand",
-   "hex": "#c8b38a"
-  },
-  "description": "Balanced and responsive, built for changeable mountain weather."
- },
- {
-  "product_id": "P0197",
-  "name": "Brenta Pro",
-  "brand": "Corvina",
-  "category": "footwear",
-  "size": "EU 36",
-  "price_eur": 175.9,
-  "colour": {
-   "name": "Ember red",
-   "hex": "#b73a2e"
-  },
-  "description": "Balanced and responsive, built for long ridge runs."
- },
- {
-  "product_id": "P0198",
-  "name": "Base Layer Plus",
-  "brand": "Montebruno",
-  "category": "apparel",
-  "size": "M",
-  "price_eur": 129.9,
-  "colour": {
-   "name": "Forest green",
-   "hex": "#2f6b4f"
-  },
-  "description": "Warm without bulk, built for cold starts above the treeline."
- },
- {
-  "product_id": "P0199",
-  "name": "Pathfinder Alpine",
-  "brand": "Vetta",
-  "category": "footwear",
-  "size": "EU 40",
-  "price_eur": 162.9,
-  "colour": {
-   "name": "Glacier blue",
-   "hex": "#4f93b8"
-  },
-  "description": "Light and quick, built for technical scrambles."
- },
- {
-  "product_id": "P0200",
-  "name": "Hydration Vest Pro",
+  "name": "Merino Beanie Plus",
   "brand": "Faggeto",
   "category": "accessories",
-  "size": "S",
-  "price_eur": 68.9,
+  "size": "One size",
+  "price_eur": 29.9,
   "colour": {
    "name": "Charcoal",
    "hex": "#33373d"
   },
-  "description": "Balanced and responsive, built for long trail runs."
+  "description": "Balanced and responsive, built for long trail runs.",
+  "model_id": "faggeto-merino-beanie-plus",
+  "variant_rank": 1
+ },
+ {
+  "product_id": "P0196",
+  "name": "Merino Beanie Plus",
+  "brand": "Faggeto",
+  "category": "accessories",
+  "size": "One size",
+  "price_eur": 29.9,
+  "colour": {
+   "name": "Slate",
+   "hex": "#5a6678"
+  },
+  "description": "Balanced and responsive, built for long trail runs.",
+  "model_id": "faggeto-merino-beanie-plus",
+  "variant_rank": 2
+ },
+ {
+  "product_id": "P0197",
+  "name": "Trail Cap Air",
+  "brand": "Vetta",
+  "category": "accessories",
+  "size": "One size",
+  "price_eur": 24.9,
+  "colour": {
+   "name": "Navy",
+   "hex": "#1f3a63"
+  },
+  "description": "Warm without bulk, built for alpine mornings.",
+  "model_id": "vetta-trail-cap-air",
+  "variant_rank": 0
+ },
+ {
+  "product_id": "P0198",
+  "name": "Trail Cap Air",
+  "brand": "Vetta",
+  "category": "accessories",
+  "size": "One size",
+  "price_eur": 24.9,
+  "colour": {
+   "name": "Sand",
+   "hex": "#c8b38a"
+  },
+  "description": "Warm without bulk, built for alpine mornings.",
+  "model_id": "vetta-trail-cap-air",
+  "variant_rank": 1
+ },
+ {
+  "product_id": "P0199",
+  "name": "Trail Cap Air",
+  "brand": "Vetta",
+  "category": "accessories",
+  "size": "One size",
+  "price_eur": 24.9,
+  "colour": {
+   "name": "Ember red",
+   "hex": "#b73a2e"
+  },
+  "description": "Warm without bulk, built for alpine mornings.",
+  "model_id": "vetta-trail-cap-air",
+  "variant_rank": 2
+ },
+ {
+  "product_id": "P0200",
+  "name": "Trail Cap Air",
+  "brand": "Vetta",
+  "category": "accessories",
+  "size": "One size",
+  "price_eur": 24.9,
+  "colour": {
+   "name": "Charcoal",
+   "hex": "#33373d"
+  },
+  "description": "Warm without bulk, built for alpine mornings.",
+  "model_id": "vetta-trail-cap-air",
+  "variant_rank": 3
  }
 ]

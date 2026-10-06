@@ -28,7 +28,7 @@ class CalibrationTests(unittest.TestCase):
             result = self.make('calibration-check', f'STACK={stack}')
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn('calibration.t4g.xlarge.env', result.stdout)
-            self.assertIn('calibration.fargate-2048-4096.env', result.stdout)
+            self.assertIn('calibration.fargate-512-1024.env', result.stdout)
 
     def test_dev_does_not_need_cloud_profile(self):
         result = self.make('MODE=dev', 'calibration-check', 'TF_VAR_instance_type=unknown')
@@ -55,10 +55,12 @@ class CalibrationTests(unittest.TestCase):
             payload = json.loads(next(line for line in result.stdout.splitlines() if line.startswith('{')))
             self.assertEqual(payload['TF_VAR_instance_type'], 't4g.xlarge')
             sizing = json.loads(payload['TF_VAR_service_sizing'])
-            self.assertEqual(sizing['inventory-api-110'], {'cpu': 2048, 'memory': 4096})
+            self.assertEqual(sizing['inventory-api-110'], {'cpu': 512, 'memory': 1024})
+            for release in ('inventory-api-100', 'inventory-api-120'):
+                self.assertEqual(sizing[release], sizing['inventory-api-110'], release)
             self.assertEqual(len(sizing), 8)
             self.assertIn('--env-file ' + str(OVERLAY / 'compose/calibration.t4g.xlarge.env'), payload['DC'])
-            self.assertIn('--env-file ' + str(OVERLAY / 'compose/calibration.fargate-2048-4096.env'), payload['DC'])
+            self.assertIn('--env-file ' + str(OVERLAY / 'compose/calibration.fargate-512-1024.env'), payload['DC'])
 
     def test_fargate_size_must_match_tracked_cpu_memory(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -81,7 +83,7 @@ class CalibrationTests(unittest.TestCase):
             subprocess.run(['git', 'init', '-q', tmp], check=True)
             (compose / 'calibration.t4g.xlarge.env').write_text('CATALOGUE_PRODUCTS=3000\n')
             with self.assertRaisesRegex(ValueError, 'no matching tracked calibration'):
-                CALIBRATION.profiles(overlay, 't4g.xlarge', '2048-4096')
+                CALIBRATION.profiles(overlay, 't4g.xlarge', '512-1024')
 
 
 if __name__ == '__main__':

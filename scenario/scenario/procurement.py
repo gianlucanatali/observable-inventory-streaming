@@ -37,6 +37,17 @@ def cancel_open_orders(conn) -> int:
         return cur.rowcount
 
 
+def count_open_orders(conn) -> int:
+    """Purchase orders that supplier-sim would still deliver (not delivered, not cancelled)."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT count(*) FROM purchase_order WHERE delivered_at IS NULL AND cancelled_at IS NULL")
+        return int(cur.fetchone()[0])
+
+
+def eta_keys(r) -> list:
+    return list(r.scan_iter(match=ETA_PATTERN, count=500))
+
+
 def clear_eta_keys(r) -> int:
-    keys = list(r.scan_iter(match=ETA_PATTERN, count=500))
+    keys = eta_keys(r)
     return r.delete(*keys) if keys else 0

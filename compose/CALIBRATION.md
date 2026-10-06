@@ -10,7 +10,7 @@ Selectors (Make arguments or exported environment variables):
 | Selector | Default | Tracked profile |
 |---|---|---|
 | `TF_VAR_instance_type` | `t4g.xlarge` | `calibration.t4g.xlarge.env` |
-| `FARGATE_SIZE` | `2048-4096` | `calibration.fargate-2048-4096.env` |
+| `FARGATE_SIZE` | `512-1024` | `calibration.fargate-512-1024.env` |
 
 The Fargate selector is the regression service's CPU units and MiB, not a stack
 name. Its profile contains the complete eight-service `TF_VAR_service_sizing`
@@ -27,16 +27,18 @@ profile is layered after the VM profile for shared load/catalogue settings. Dev
 mode keeps its original defaults and does not require cloud calibration.
 
 The migrated values are 3000 catalogue products, 5 rps for 120 seconds. The VM
-profile preserves rehearsal's 2 CPU / 768m / four workers; the Fargate profile
-preserves hybrid's existing sizing, with the regression task at 2048 CPU units /
-4096 MiB. These are migrated settings, not new performance measurements: rehearsal
-has Task 1 evidence in the autonomous brief, while hybrid still needs its live
-latency acceptance. Catalogue size is a Docker build argument, so changing it
+profile preserves rehearsal's 2 CPU / 768m / four workers. The Fargate profile
+gives all three inventory-api releases (1.0.0, 1.1.0, 1.2.0) the same 512 CPU
+units / 1024 MiB (canary-first incident, 2026-10-06): the slow release is not
+oversized to absorb its regression, so p95 by version compares code, not task
+size. The earlier `2048-4096` profile (1.1.0 at 2 vCPU / 4 GB) is retired. These
+are settings, not performance measurements: rehearsal has Task 1 evidence in the
+autonomous brief, while hybrid still needs its live latency acceptance. Catalogue size is a Docker build argument, so changing it
 requires a rebuild, not merely restarting a task.
 
 ## Jev confidence proposal (Q6)
 
-Keep `JEV_MIN_CONFIDENCE=0.8` until the presenter decides otherwise. Three live
+Keep `JEV_MIN_CONFIDENCE=0.8` until you decide otherwise. Three live
 sell-out-to-render runs produced confidence `0.73`, `0.75`, and `0.72`; the
 post-expiry proof produced `0.79`, with `jev_choice=notify_me` while the safe
 rule default selected the eligible P0160 alternative. These four observations

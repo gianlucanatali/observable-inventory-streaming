@@ -1,4 +1,5 @@
 import React from 'react';
+import ProductImage from './ProductImage.jsx';
 
 const TYPE_LABEL = {
   SAME_PRODUCT_OTHER_STORE: 'Same product, another store',
@@ -45,17 +46,24 @@ export default function OfferCard({ offer, error }) {
   }
   return (
     <section className="offer" data-testid="offer-card">
-      <h2>{offer.headline}</h2>
-      <p>{offer.body}</p>
-      {offer.decision_route && <p className="offer-decision" data-testid="offer-decision">{decisionSummary(offer)}</p>}
-      <dl className="offer-facts">
-        <dt>Offer type</dt>
-        <dd>{TYPE_LABEL[offer.offer_type] || offer.offer_type}</dd>
-        {offer.product_id && (<><dt>Product</dt><dd>{offer.product_id}</dd></>)}
-        {offer.store_id && (<><dt>Store</dt><dd>{offer.store_id}</dd></>)}
-        <dt>Discount</dt>
-        <dd>{offer.discount_pct}%</dd>
-      </dl>
+      <div className="offer-main">
+        {offer.product_id && (
+          <div className="offer-product" data-testid="offer-product">
+            <ProductImage productId={offer.product_id} alt={`Alternative product ${offer.product_id}`} />
+          </div>
+        )}
+        <div className="offer-details" data-testid="offer-details">
+          <h2>{offer.headline}</h2>
+          <p className="offer-body">{offer.body}</p>
+          {offer.decision_route && <p className="offer-decision" data-testid="offer-decision">{decisionSummary(offer)}</p>}
+          <dl className="offer-facts">
+            <div><dt>Offer type</dt><dd>{TYPE_LABEL[offer.offer_type] || offer.offer_type}</dd></div>
+            {offer.product_id && <div><dt>Product</dt><dd>{offer.product_id}</dd></div>}
+            {offer.store_id && <div><dt>Store</dt><dd>{offer.store_id}</dd></div>}
+            <div><dt>Discount</dt><dd>{offer.discount_pct}%</dd></div>
+          </dl>
+        </div>
+      </div>
     </section>
   );
 }

@@ -71,6 +71,9 @@ services:
       store-s05: {condition: service_healthy}
     environment:
       REDIS_URI: ${ELASTICACHE_REDIS_URL:?ELASTICACHE_REDIS_URL missing (W1 ElastiCache output)}
+    # Connect REST for the ECS demo-control Store feed card (pause/resume). Unauthenticated: the VM security group
+    # admits 8083 only from the demo-control task's security group (terraform/aws on_prem_connect_rest).
+    ports: ["8083:8083"]
 
   # Control Center (Legacy) 7.9 is a hybrid-only optional UI. It uses the
   # Cloud cluster for storage; do not add a local Kafka broker, Replicator, or C3 2.x.
@@ -90,6 +93,9 @@ services:
       CONTROL_CENTER_STREAMS_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: https
       CONTROL_CENTER_METRICS_TOPIC_MAX_MESSAGE_BYTES: "8388608"
       CONTROL_CENTER_CONNECT_connect_CLUSTER: http://connect:8083
+      # Default discovery path /v1/metadata/id is not served by our cp-kafka-connect 8.x worker (404), so C3 marks the
+      # cluster down ("No Connect Clusters Found"). Documented override for community Connect: /connectors.
+      CONTROL_CENTER_CONNECT_HEALTHCHECK_ENDPOINT: /connectors
       CONTROL_CENTER_SCHEMA_REGISTRY_URL: ${SR_URL:?SR_URL missing (.env.cloud)}:443
       CONTROL_CENTER_SCHEMA_REGISTRY_BASIC_AUTH_CREDENTIALS_SOURCE: USER_INFO
       CONTROL_CENTER_SCHEMA_REGISTRY_BASIC_AUTH_USER_INFO: ${CONTROL_CENTER_SR_API_KEY:?CONTROL_CENTER_SR_API_KEY missing (.env.cloud)}:${CONTROL_CENTER_SR_API_SECRET:?CONTROL_CENTER_SR_API_SECRET missing}
@@ -97,7 +103,7 @@ services:
       CONTROL_CENTER_LICENSE: ${CONTROL_CENTER_LICENSE:-}
       KAFKA_HEAP_OPTS: -Xms1g -Xmx4g
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9021/2.0/health >/dev/null"]
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9021/2.0/feature/flags >/dev/null"]
       interval: 15s
       timeout: 5s
       retries: 12
@@ -138,6 +144,15 @@ services:
       BASE_URL: ${HYBRID_ONLINE_URL:?HYBRID_ONLINE_URL missing (W4 ALB output)}
       CONNECT_URL: http://connect:8083
       REDIS_URL: ${ELASTICACHE_REDIS_URL:?ELASTICACHE_REDIS_URL missing (W1 ElastiCache output)}
+  # Checks card of the ECS demo-control. Bearer-token API; the VM security group admits 8090 only from the
+  # demo-control task's security group (terraform/aws on_prem_scenario_api). Same targets as the scenario tool above.
+  scenario-api:
+    depends_on: !reset []
+    environment:
+      BASE_URL: ${HYBRID_ONLINE_URL:?HYBRID_ONLINE_URL missing (W4 ALB output)}
+      CONNECT_URL: http://connect:8083
+      REDIS_URL: ${ELASTICACHE_REDIS_URL:?ELASTICACHE_REDIS_URL missing (W1 ElastiCache output)}
+    ports: ["8090:8090"]
   smoke:
     depends_on: !reset []
     environment:

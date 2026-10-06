@@ -61,6 +61,21 @@ def test_page_renders_not_cached_and_grouped(client):
     assert "Supplier lead time (base)" in html and "<h2>restock</h2>" in html and "Layers running" in html
 
 
+def test_page_has_storefront_aligned_visual_contract_and_actions_before_parameters(client):
+    html = client.get("/control/", headers=auth()).get_data(as_text=True)
+    assert "--bg:#f4effb" in html and "--accent:#632ca6" in html
+    assert "font:18px/1.5" in html and "--radius:16px" in html
+    assert '<header class="control-header">' in html
+    assert '<main class="control-page">' in html
+    assert 'class="control-card actions-card"' in html
+    assert '<label for="product-id">Product ID</label>' in html
+    assert 'id="sell-out">Sell out product</button>' in html
+    assert 'id="reset-data" class="secondary">Reset demo data</button>' in html
+    assert 'class="action-progress"' in html
+    assert html.index('class="control-card actions-card"') < html.index('<h2>core</h2>')
+    assert html.index('id="sell-out"') < html.index('class="action-progress"')
+
+
 # --- validation ---------------------------------------------------------------------------------------------------
 @pytest.mark.parametrize("key,value,msg", [
     ("poll_ms", 100, "outside the allowed range 250..10000"),
@@ -187,7 +202,7 @@ def test_change_sends_event_and_json_log(client, parts, caplog):
         put(client, "stale_after_s", 30)
     (ev,) = parts["statsd"].events
     assert ev["title"] == "demo config: stale_after_s = 30"
-    assert ev["tags"] == ["project:dd-demo", "stack:dev", "layer:core", "param:stale_after_s"]
+    assert ev["tags"] == ["project:dd-demo", "stack:dev", "layer:core", "param:stale_after_s", "demo_event:config"]
     rec = [r for r in caplog.records if getattr(r, "fields", {}).get("event") == "demo_config_changed"]
     assert len(rec) == 1 and rec[0].fields["param"] == "stale_after_s" and rec[0].fields["value"] == 30.0
 

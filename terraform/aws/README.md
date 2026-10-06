@@ -14,7 +14,7 @@ Run from a workspace named exactly like `stack`; `terraform_data.workspace_guard
 
 The standard Make lifecycle exports `TF_VAR_service_sizing` from the tracked
 `compose/calibration.fargate-<CPU>-<MiB>.env` selected by `FARGATE_SIZE` (default
-`2048-4096`). This map is the existing `service_sizing` input used by every ECS task;
+`512-1024`, the size of the 1.1.0 release task, equal to 1.0.0 and 1.2.0). This map is the existing `service_sizing` input used by every ECS task;
 there is no per-stack-name configuration. See [calibration selection and migration](../../compose/CALIBRATION.md).
 Direct Terraform validation retains the original defaults, but deployment goes
 through Make's fail-closed tracked-profile check.
@@ -39,6 +39,22 @@ Primary source: Datadog, [Amazon ECS on AWS Fargate — Log collection](https://
 the EU intake hostname, `dd_service`/`dd_source`/`dd_tags`, and `secretOptions`
 for `apikey`. The paired CloudWatch output follows AWS's documented [FireLens
 multi-destination Fluent Bit pattern](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/firelens-docker-buffer-limit.html).
+
+## Demo-control routing and store feed
+
+demo-control runs with its own task role, `<name>-demo-control-task`, instead of the shared task role:
+
+- `elasticloadbalancing:ModifyRule` on `aws_lb_listener_rule.inventory` only (Release routing card; same weights as `alb-routing.sh`);
+- `elasticloadbalancing:DescribeRules` on `*` (read-back; the action has no resource types, so it cannot be ARN-scoped);
+- FireLens log writes to the demo-control CloudWatch group only.
+
+The task also carries the identity-only security group `<name>-demo-control`; the VM security group admits Kafka
+Connect REST (TCP 8083, published by `compose.hybrid.yaml`) from that group alone (Store feed card). The task gets
+`CONNECT_URL` and the `ALB_INVENTORY_*` ARNs as plain environment values; credentials come from the task role.
+
+Primary source for the IAM resource types: AWS Service Authorization Reference for Elastic Load Balancing V2
+(machine-readable `https://servicereference.us-east-1.amazonaws.com/v1/elasticloadbalancing/elasticloadbalancing.json`,
+accessed 2026-10-05): `ModifyRule` lists `listener-rule/app` and `listener-rule/net`; `DescribeRules` lists none.
 
 ## Offline validation
 

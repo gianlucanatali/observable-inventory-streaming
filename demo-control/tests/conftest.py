@@ -13,6 +13,7 @@ from demo_control.app import create_app
 from demo_control.backends import (KafkaConfigBackend, ProcurementBackend, ReadOnlyBackend, RedisBackend, StoreDbsBackend)
 from demo_control.registry import load_registry
 from demo_control.service import Control
+from demo_control.actions import Actions
 
 REGISTRY = str(Path(__file__).parents[2] / "contracts" / "demo-params.json")
 PASSWORD = "s3cret"
@@ -98,9 +99,22 @@ def parts():
         "flink_statement": ReadOnlyBackend(),
     }
     statsd = FakeStatsd()
-    control = Control(registry, backends, r, statsd, "dev")
+    class FakeActions:
+        def __init__(self):
+            self.calls, self.fail_sell = [], None
+            self._actions = Actions(self.sell, self.reset)
+        def sell(self, product, progress):
+            self.calls.append(("sell-out", product))
+            if self.fail_sell: raise self.fail_sell
+            progress("sold S01")
+        def reset(self, progress):
+            self.calls.append(("reset", None)); progress("verified Redis")
+        def start(self, *args): return self._actions.start(*args)
+        def status(self): return self._actions.status()
+    actions = FakeActions()
+    control = Control(registry, backends, r, statsd, "dev", actions=actions)
     return dict(registry=registry, redis=r, topic=topic, producer=producer, proc=proc, s01=s01, s02=s02,
-                backends=backends, statsd=statsd, control=control)
+                backends=backends, statsd=statsd, control=control, actions=actions)
 
 
 @pytest.fixture

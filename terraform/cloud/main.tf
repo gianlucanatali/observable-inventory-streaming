@@ -276,7 +276,10 @@ locals {
     control-center-read-topics     = { sa = "control-center", role = "DeveloperRead", crn = "${local.kafka_crn}/topic=*" }
     control-center-read-groups     = { sa = "control-center", role = "DeveloperRead", crn = "${local.kafka_crn}/group=*" }
     control-center-internal-manage = { sa = "control-center", role = "DeveloperManage", crn = "${local.kafka_crn}/topic=_confluent*" }
-    control-center-sr-read         = { sa = "control-center", role = "DeveloperRead", crn = "${local.sr_crn}/subject=*" }
+    # C3 persists its cluster registry in _confluent-command; without WRITE the cluster list stays empty ("No clusters
+    # found") and, because the UI pairs Schema Registry with a listed Kafka cluster, messages are not Avro-decoded.
+    control-center-internal-write = { sa = "control-center", role = "DeveloperWrite", crn = "${local.kafka_crn}/topic=_confluent*" }
+    control-center-sr-read        = { sa = "control-center", role = "DeveloperRead", crn = "${local.sr_crn}/subject=*" }
   }
 
   all_bindings = merge(
@@ -322,15 +325,25 @@ locals {
       pattern = "LITERAL"
       op      = "DESCRIBE_CONFIGS"
     },
+    # Its internal producers are idempotent (Kafka client default), which needs IdempotentWrite on
+    # the cluster; without it every send fails with ClusterAuthorizationException and C3 never turns healthy.
+    {
+      sa      = "control-center"
+      type    = "CLUSTER"
+      name    = "kafka-cluster"
+      pattern = "LITERAL"
+      op      = "IDEMPOTENT_WRITE"
+    },
   ] : []
   acl_list = concat(
     flatten([
       for k, v in local.kafka_bindings : [
         for op in local.kafka_ops["${v.role}:${split("=", split("/", trimprefix(v.crn, "${local.kafka_crn}/"))[0])[0]}"] : {
-          sa      = v.sa
-          type    = upper(split("=", trimprefix(v.crn, "${local.kafka_crn}/"))[0])
-          name    = trimsuffix(split("=", trimprefix(v.crn, "${local.kafka_crn}/"))[1], "*")
-          pattern = endswith(v.crn, "*") ? "PREFIXED" : "LITERAL"
+          sa   = v.sa
+          type = upper(split("=", trimprefix(v.crn, "${local.kafka_crn}/"))[0])
+          # "topic=*" means every resource: Kafka wants LITERAL "*", not PREFIXED "" (rejected with 400).
+          name    = split("=", trimprefix(v.crn, "${local.kafka_crn}/"))[1] == "*" ? "*" : trimsuffix(split("=", trimprefix(v.crn, "${local.kafka_crn}/"))[1], "*")
+          pattern = split("=", trimprefix(v.crn, "${local.kafka_crn}/"))[1] == "*" ? "LITERAL" : (endswith(v.crn, "*") ? "PREFIXED" : "LITERAL")
           op      = op
         }
       ]

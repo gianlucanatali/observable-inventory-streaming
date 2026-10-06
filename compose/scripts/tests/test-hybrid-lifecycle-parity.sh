@@ -34,7 +34,9 @@ import sys
 from pathlib import Path
 makefile, stack = (Path(path).read_text() for path in sys.argv[1:])
 control = makefile[makefile.index("control:\n"):makefile.index("\n# Act 2", makefile.index("control:\n"))]
-if '$(TOPOLOGY)' not in control or 'terraform -chdir=$(CURDIR)/terraform/aws output -raw alb_url' not in control: raise SystemExit(1)
+if ('$(TOPOLOGY)' not in control or 'dir=aws out=alb_url' not in control
+        or 'terraform -chdir=$(CURDIR)/terraform/$$dir workspace select $(STACK)' not in control
+        or 'terraform -chdir=$(CURDIR)/terraform/$$dir output -raw $$out' not in control): raise SystemExit(1)
 status = stack[stack.index("status() {"):stack.index("\ndown() {", stack.index("status() {"))]
 if 'hybrid_enabled && tf_has_state aws' not in status or 'shop:' not in status or 'control:' not in status: raise SystemExit(1)
 if status.index('hybrid_enabled && tf_has_state aws') > status.index('shop:'): raise SystemExit(1)

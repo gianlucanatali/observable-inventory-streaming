@@ -178,6 +178,14 @@ def test_product_list_and_detail(make):
     p42 = client.get("/api/products/P0042").get_json()
     assert (p42["name"], p42["brand"], p42["size"], p42["category"]) == ("Trailrunner GTX", "Alpenpace", "EU 42", "footwear")
     assert p42["price_eur"] > 0 and p42["colour"]["hex"].startswith("#")
+    assert p42["colour"]["name"] == "Forest green"
+    variants = p42["variants"]
+    assert {"product_id": "P0042", "colour": p42["colour"], "size": "EU 42"} in variants
+    assert {v["colour"]["name"] for v in variants} == {"Forest green", "Slate", "Burnt orange"}
+    green = [v["size"] for v in variants if v["colour"]["name"] == "Forest green"]
+    assert green == [f"EU {n}" for n in range(39, 46)]  # colour first, then sizes in order
+    for v in variants:  # every sibling resolves to the same model
+        assert client.get(f"/api/products/{v['product_id']}").get_json()["model_id"] == p42["model_id"]
     r = client.get("/api/products/P0999")
     assert r.status_code == 404 and r.get_json()["error"] == "not_found"
 

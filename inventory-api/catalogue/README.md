@@ -29,6 +29,6 @@ Select one with `CATALOGUE_PRODUCTS`; unsupported values fail the image build ra
 
 P0042 is "Trailrunner GTX", brand "Alpenpace", size "EU 42". All names are fictional.
 
-## Calibration (local Mac, not the demo host)
+## Calibration
 
-See `../README.md`. Re-run with `uv run --python 3.12 python bench.py 800 1000 1200`; recalibrate on the target EC2 instance before the talk.
+The catalogue size sets how slow release 1.1.0 is. See `../README.md` and `compose/CALIBRATION.md`; `make calibration-check` verifies it on your stack.

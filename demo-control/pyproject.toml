@@ -11,6 +11,7 @@ dependencies = [
   "redis==8.1.0",
   "ddtrace==4.15.3",
   "datadog==0.55.0",
+  "boto3==1.43.108",
 ]
 
 [dependency-groups]

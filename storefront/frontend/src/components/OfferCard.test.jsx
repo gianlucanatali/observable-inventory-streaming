@@ -12,11 +12,26 @@ const offer = {
 };
 
 describe('OfferCard', () => {
-  it('renders the presenter decision explanation for a below-threshold Jev suggestion', () => {
+  it('renders the decision explanation for a below-threshold Jev suggestion', () => {
     render(<OfferCard offer={offer} error={null} />);
 
+    expect(screen.getByRole('img', { name: 'Alternative product P0160' })).toHaveAttribute('src', '/img/P0160.jpg');
     expect(screen.getByTestId('offer-decision')).toHaveTextContent(
       'Decided by: safe rule — AI suggested notify me at 0.76, below 0.8');
+  });
+
+  it('groups the complete offer narrative and facts beside its alternative product image', () => {
+    render(<OfferCard offer={offer} error={null} />);
+
+    const product = screen.getByTestId('offer-product');
+    const details = screen.getByTestId('offer-details');
+    expect(product).toContainElement(screen.getByRole('img', { name: 'Alternative product P0160' }));
+    expect(details).toHaveTextContent('A comparable option is ready');
+    expect(details).toHaveTextContent('A safe alternative is available.');
+    expect(details).toContainElement(screen.getByTestId('offer-decision'));
+    expect(details).toHaveTextContent('Offer type');
+    expect(details).toHaveTextContent('Product');
+    expect(details).toHaveTextContent('Discount');
   });
 
   it('does not imply an AI suggestion when Jev returned no decision data', () => {

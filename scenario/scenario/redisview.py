@@ -118,6 +118,39 @@ class ResetTimeout(Exception):
     pass
 
 
+class SellOutTimeout(RuntimeError):
+    pass
+
+
+def wait_for_product_zero(r, ns: str, product_id: str, expected: dict[Key, tuple[int, int]], timeout_s: float,
+                          interval_s: float = 0.5, clock: Callable[[], float] = time.time,
+                          sleep: Callable[[float], None] = time.sleep) -> None:
+    """Wait until a sell-out's source-confirmed positions and sellable view both reach zero."""
+    deadline = clock() + timeout_s
+    while True:
+        positions = fetch_positions(r, ns, expected)
+        position_problems = []
+        for (store, product), (quantity, revision) in sorted(expected.items()):
+            got = positions[(store, product)]
+            if got is None:
+                position_problems.append(f"{store}/{product}: missing in Redis (expected quantity=0 revision>={revision})")
+            elif got["quantity"] != quantity or got["revision"] < revision or got["deleted"]:
+                position_problems.append(
+                    f"{store}/{product}: Redis quantity={got['quantity']} revision={got['revision']} "
+                    f"deleted={got['deleted']} (expected quantity=0 revision>={revision} deleted=False)"
+                )
+        sellable_problems = diff_sellable({product_id: 0}, fetch_sellable(r, [product_id]))
+        if not position_problems and not sellable_problems:
+            return
+        if clock() >= deadline:
+            raise SellOutTimeout(
+                f"sell-out {product_id} did not converge in {timeout_s:.0f}s in Redis namespace {ns}; "
+                f"position mismatch(es): {'; '.join(position_problems[:10])}; "
+                f"sellable mismatch(es): {'; '.join(sellable_problems[:5])}"
+            )
+        sleep(interval_s)
+
+
 def wait_for_baseline(r, ns: str, expected: dict[Key, tuple[int, int]], timeout_s: float,
                       interval_s: float = 0.5, clock: Callable[[], float] = time.time,
                       sleep: Callable[[float], None] = time.sleep,

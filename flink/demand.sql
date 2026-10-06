@@ -11,7 +11,7 @@
 -- Why not changed_at_ms: it would need ALTER TABLE ... ADD (ts AS TO_TIMESTAMP_LTZ(changed_at_ms, 3)) and
 -- ALTER TABLE ... MODIFY WATERMARK FOR ts AS ts - INTERVAL ... on an inferred table. The ALTER TABLE page
 -- documents MODIFY WATERMARK only with $rowtime and ADD of computed columns, not the combination on an
--- inferred table; verify this timing in the first run. The projector publishes the movement right after the change, so the Kafka
+-- inferred table, verify this timing in the first run. The projector publishes the movement right after the change, so the Kafka
 -- timestamp is within milliseconds of changed_at_ms. Replay of old movements would be windowed by publish
 -- time instead of change time, which is acceptable for a demo.
 --
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS `stock.demand` (
   'value.fields-include' = 'all'
 );
 
--- window_end_ms uses the millisecond expression of sellable.sql; verify the expression on CC before the first run.
+-- window_end_ms uses the millisecond expression of sellable.sql, verify the expression on CC before the first run.
 INSERT INTO `stock.demand`
 SELECT
   store_id,

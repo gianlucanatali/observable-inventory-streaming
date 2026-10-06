@@ -171,7 +171,7 @@ variable "enable_releases" {
 }
 
 variable "service_sizing" {
-  description = "Fargate CPU units and MiB per cloud app. Make exports TF_VAR_service_sizing from compose/calibration.fargate-<CPU>-<MiB>.env selected by FARGATE_SIZE; these defaults preserve the initial 2-vCPU regression sizing for direct validation."
+  description = "Fargate CPU units and MiB per cloud app. Make exports TF_VAR_service_sizing from compose/calibration.fargate-<CPU>-<MiB>.env selected by FARGATE_SIZE; these defaults mirror that profile for direct validation. All three inventory-api releases share one size so p95 by version compares code, not task size."
   type = map(object({
     cpu    = number
     memory = number
@@ -179,7 +179,7 @@ variable "service_sizing" {
   default = {
     stock-projector   = { cpu = 512, memory = 1024 }
     inventory-api-100 = { cpu = 512, memory = 1024 }
-    inventory-api-110 = { cpu = 2048, memory = 4096 }
+    inventory-api-110 = { cpu = 512, memory = 1024 }
     inventory-api-120 = { cpu = 512, memory = 1024 }
     storefront        = { cpu = 512, memory = 1024 }
     offer-worker      = { cpu = 512, memory = 1024 }

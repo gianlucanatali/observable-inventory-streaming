@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { getProducts } from '../api.js';
 import ProductCard from './ProductCard.jsx';
+import ProductImage from './ProductImage.jsx';
+import { groupModels } from '../variants.js';
 
 export const FEATURED = 'P0042';
 const PAGE_SIZE = 24;
@@ -18,7 +20,8 @@ export default function Home() {
   const [shown, setShown] = useState(PAGE_SIZE);
 
   useEffect(() => {
-    getProducts().then(setProducts).catch((err) => {
+    // Grouping fails loudly (catch below) when an entry has no model_id.
+    getProducts().then((items) => setProducts({ items, models: groupModels(items, FEATURED) })).catch((err) => {
       console.error(err);
       setError(err.message);
     });
@@ -27,10 +30,13 @@ export default function Home() {
   if (error) return <div className="banner banner-error">Cannot load the catalogue: {error}</div>;
   if (!products) return <p className="muted">Loading the catalogue…</p>;
 
-  const featured = products.find((p) => p.product_id === FEATURED);
-  const filtered = products.filter((p) => category === 'all' || p.category === category);
-  // The featured product leads the list whenever it matches the filter.
-  const ordered = featured && filtered.includes(featured) ? [featured, ...filtered.filter((p) => p !== featured)] : filtered;
+  const { models } = products;
+  const featured = products.items.find((p) => p.product_id === FEATURED);
+  const featuredModel = models.find((m) => m.lead.product_id === FEATURED);
+  const filtered = models.filter((m) => category === 'all' || m.category === category);
+  // The featured model leads the list whenever it matches the filter.
+  const ordered = featuredModel && filtered.includes(featuredModel)
+    ? [featuredModel, ...filtered.filter((m) => m !== featuredModel)] : filtered;
   const visible = ordered.slice(0, shown);
 
   return (
@@ -43,7 +49,7 @@ export default function Home() {
             <p>{featured.description}</p>
             <span className="hero-cta">See the {featured.name} →</span>
           </div>
-          <img src={`/img/${featured.product_id}.svg`} alt={`${featured.brand} ${featured.name}`} />
+          <ProductImage productId={featured.product_id} alt={`${featured.brand} ${featured.name}`} />
         </a>
       )}
       <div className="chips" role="tablist" aria-label="Category">
@@ -53,7 +59,7 @@ export default function Home() {
         ))}
       </div>
       <div className="grid">
-        {visible.map((p) => <ProductCard key={p.product_id} product={p} featured={p === featured} />)}
+        {visible.map((m) => <ProductCard key={m.model_id} model={m} featured={m === featuredModel} />)}
       </div>
       {shown < ordered.length && (
         <div className="more"><button onClick={() => setShown(shown + PAGE_SIZE)}>Show more ({ordered.length - shown} left)</button></div>

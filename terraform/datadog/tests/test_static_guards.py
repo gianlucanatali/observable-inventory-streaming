@@ -17,6 +17,9 @@ required = [
     'max:aws.elasticache.engine_cpuutilization{${local.online_scope}} by {cacheclusterid}',
     'title   = "Fargate CPU usage by service/version (nanocores, includes sidecars)"',
     'sum:ecs.fargate.cpu.usage{${local.online_scope}} by {service,version}',
+    # demo-control event tags (contracts section 12); a free-text title phrase matched nothing live
+    'demo_config_query = "project:dd-demo stack:${var.stack} demo_event:config"',
+    'demo_panel_query  = "project:dd-demo stack:${var.stack} (demo_event:config OR demo_event:action)"',
 ]
 missing = [snippet for snippet in required if snippet not in text]
 

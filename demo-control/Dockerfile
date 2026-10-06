@@ -11,6 +11,7 @@ RUN uv sync --frozen --no-dev
 COPY contracts/demo-params.json ./contracts/demo-params.json
 COPY contracts/avro/demo_config_key.avsc contracts/avro/demo_config.avsc ./contracts/avro/
 COPY demo-control/demo_control ./demo_control
+COPY scenario/scenario ./scenario
 USER control
 EXPOSE 8000
 # One worker: startup seeds demo.config defaults. Compose sets DD_AGENT_HOST, DD_ENV, DD_VERSION, CONTROL_PASSWORD, ...

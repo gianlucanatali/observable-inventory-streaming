@@ -1,21 +1,22 @@
 from __future__ import annotations
 
 import argparse
-import asyncio
 import contextlib
 import json
 import sys
 import time
 
-from .canary import evaluate
 from .demo_config import read_param
-from .config import ConfigError, open_sources, redis_connect, require
-from .load import run_load
+from .config import ConfigError, open_sources, redis_connect
 from .procurement import (cancel_open_orders, clear_eta_keys, procurement_connect,
                           restock_layer_on, set_lead_time)
-from .redisview import ResetTimeout, reset, verify
+from .redisview import ResetTimeout, reset
+from .canary import LOW_SHARE_MIN_SAMPLES, gate_for_routing, parse_routing
+from .runs import canary_check_run, load_run, verify_run
 from .seed_data import product_weights, seed_hash, seed_rows, seed_rows_for
 from .source import read_quantity, sell, upsert_positions, write_product_weights
+
+DEFAULT_MIN_SAMPLES = 100  # same as the API's canary-check default (scenario/api.py BOUNDS)
 
 
 def cmd_seed(args) -> int:
@@ -54,7 +55,7 @@ def cmd_lead_time(args) -> int:
         raise RuntimeError("PROCUREMENT_HOST is not set: the restock layer is off, there is no lead time to set")
     with contextlib.closing(procurement_connect()) as pc:
         set_lead_time(pc, args.seconds)
-    print(f"lead time set to {args.seconds} s (applies to every open purchase order within a second)")
+    print(f"lead time set to {args.seconds} s (applies to every open purchase order on supplier-sim's next cycle, every second)")
     return 0
 
 
@@ -80,44 +81,47 @@ def cmd_sell_out(args) -> int:
     return 0
 
 
+def _out(line: str) -> None:
+    print(line, flush=True)
+
+
 def cmd_verify(args) -> int:
-    with open_sources() as conns:
-        problems, sellable_problems = verify(conns, redis_connect(), settle_s=args.settle_s)
-    for p in problems + sellable_problems:
-        print(p)
-    result = {"ok": not problems and not sellable_problems, "mismatches": len(problems),
-              "sellable_mismatches": len(sellable_problems)}
-    if args.json_out:
-        with open(args.json_out, "w") as f:
-            json.dump(result, f)
-    print(json.dumps(result))
-    return 0 if result["ok"] else 1
+    code, _ = verify_run(args.settle_s, args.json_out, _out)
+    return code
 
 
 def cmd_load(args) -> int:
-    base = require(["BASE_URL"])["BASE_URL"].rstrip("/")
-    summary = asyncio.run(run_load(base, args.rps, args.duration, args.seed, args.window))
-    print(json.dumps({"summary": summary}))
-    if args.output:
-        with open(args.output, "w") as f:
-            json.dump(summary, f)
-    return 0
+    code, _ = load_run(args.rps, args.duration, args.seed, args.window, args.output, _out)
+    return code
+
+
+def canary_releases(args) -> tuple[str | None, str, int]:
+    """--release-b [--release-a] as given, or both inferred from --routing (the live 1.0.0/1.1.0/1.2.0 weights)."""
+    if (args.routing is None) == (args.release_b is None):
+        raise ValueError("give exactly one of --release-b or --routing")
+    if args.routing is None:
+        return args.release_a, args.release_b, (DEFAULT_MIN_SAMPLES if args.min_samples is None else args.min_samples)
+    if args.release_a is not None:
+        raise ValueError("--release-a is inferred from --routing; do not give both")
+    gate = gate_for_routing(parse_routing(args.routing))  # ValueError -> "scenario canary-check failed: ..." exit 2
+    min_samples = args.min_samples if args.min_samples is not None else gate["min_samples"] or DEFAULT_MIN_SAMPLES
+    base = f"baseline {gate['release_a']}" if gate["release_a"] else "no baseline"
+    _out(f"routing {args.routing.replace(' ', '/')} (1.0.0/1.1.0/1.2.0): canary {gate['release_b']} at {gate['label']}, "
+         f"{base}, min samples {min_samples}")
+    return gate["release_a"], gate["release_b"], min_samples
 
 
 def cmd_canary_check(args) -> int:
-    with open(args.summary) as f:
-        summary = json.load(f)
-    verify_result = None
-    if args.verify_file:
-        with open(args.verify_file) as f:
-            verify_result = json.load(f)
-    gates = evaluate(summary, args.release_a, args.release_b, args.min_samples,
-                     args.max_error_rate, args.p95_budget_ms, verify_result)
-    for g in gates:
-        print(f"{'PASS' if g.passed else 'FAIL'} {g.name}: {g.detail}")
-    ok = all(g.passed for g in gates)
-    print("CANARY GATES " + ("PASSED" if ok else "FAILED"))
-    return 0 if ok else 1
+    release_a, release_b, min_samples = canary_releases(args)
+    code, _ = canary_check_run(args.summary, release_a, release_b, min_samples,
+                               args.max_error_rate, args.p95_budget_ms, args.verify_file, _out)
+    return code
+
+
+def cmd_api(args) -> int:
+    from .api import serve
+    serve(args.port)
+    return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -149,12 +153,18 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("canary-check")
     s.add_argument("summary", help="summary JSON written by `load --output`")
     s.add_argument("--release-a", help="baseline release; omit at 100% when it gets no traffic")
-    s.add_argument("--release-b", required=True)
-    s.add_argument("--min-samples", type=int, default=100)
+    s.add_argument("--release-b", help="canary release (or give --routing)")
+    s.add_argument("--routing", help="live weights '<w100> <w110> <w120>': canary = newer release with traffic, "
+                                     "baseline = older one (90 10 0 gates 1.1.0 vs 1.0.0)")
+    s.add_argument("--min-samples", type=int, default=None,
+                   help=f"default {DEFAULT_MIN_SAMPLES}; {LOW_SHARE_MIN_SAMPLES} with --routing when the canary is below 50%%")
     s.add_argument("--max-error-rate", type=float, default=0.0)
     s.add_argument("--p95-budget-ms", type=float, default=200)
     s.add_argument("--verify-file")
     s.set_defaults(fn=cmd_canary_check)
+    s = sub.add_parser("api", help="serve the token-protected scenario REST API (long-running; see scenario/api.py)")
+    s.add_argument("--port", type=int, default=8090)
+    s.set_defaults(fn=cmd_api)
     return p
 
 

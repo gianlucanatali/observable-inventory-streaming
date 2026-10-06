@@ -18,7 +18,7 @@ DEMO = OVERLAY / "demo"
 VALID = """stack: hybrid
 aws_profile: demo-profile
 aws_region: eu-west-1
-presenter_cidr: 203.0.113.4/32
+allowed_cidr: 203.0.113.4/32
 layers: releases,restock
 datadog_site: datadoghq.eu
 dd_api_key: dd_api_12345678
@@ -111,13 +111,23 @@ class DemoCliTest(unittest.TestCase):
         self.assertIn("secrets", result.stdout)
         self.assertNotIn("dd_api_12345678", result.stdout + result.stderr)
 
-    def test_empty_presenter_cidr_is_optional_and_not_forwarded_to_make(self) -> None:
+    def test_empty_allowed_cidr_is_optional_and_not_forwarded_to_make(self) -> None:
         for value in ("", "\"\"", "''"):
             with self.subTest(value=value):
                 (self.root / "demo.yaml").write_text(VALID.replace("203.0.113.4/32", value))
                 result = run_demo(self.root, "status", "--dry-run")
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertNotIn("TF_VAR_presenter_cidr=", result.stdout)
+
+    def test_allowed_cidr_is_forwarded_as_presenter_cidr_and_legacy_key_is_accepted(self) -> None:
+        result = run_demo(self.root, "status", "--dry-run")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("TF_VAR_presenter_cidr=203.0.113.4/32", result.stdout)
+        self.assertIn("PRESENTER_CIDR=203.0.113.4/32", result.stdout)
+        (self.root / "demo.yaml").write_text(VALID.replace("allowed_cidr", "presenter_cidr"))
+        result = run_demo(self.root, "status", "--dry-run")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("TF_VAR_presenter_cidr=203.0.113.4/32", result.stdout)
 
     def test_create_prepares_then_preflights_before_cost_confirmation_and_stack_up(self) -> None:
         loader = __import__("importlib.machinery").machinery.SourceFileLoader("demo_under_test", str(self.root / "demo"))
@@ -134,8 +144,75 @@ class DemoCliTest(unittest.TestCase):
             self.assertEqual(module.main(), 0)
         self.assertEqual([event[0] for event in events], ["env", "make", "make", "prompt", "make"])
         self.assertEqual([event[1] for event in events if event[0] == "make"], ["secrets", "stack-preflight", "CONFIRM=yes"])
-        self.assertIn("~US$1.70/hour", str(events[3][1]))
-        self.assertIn("remaining trial credit", str(events[3][1]).lower())
+        self.assertIn("about $1.50 to $2.50 per hour", str(events[3][1]))
+        self.assertIn("estimate, not a bill", str(events[3][1]).lower())
+
+    def _load_module(self):
+        loader = __import__("importlib.machinery").machinery.SourceFileLoader("demo_cidr_under_test", str(self.root / "demo"))
+        spec = __import__("importlib.util").util.spec_from_loader(loader.name, loader)
+        module = __import__("importlib.util").util.module_from_spec(spec)
+        loader.exec_module(module)
+        return module
+
+    def test_create_with_empty_allowed_cidr_detects_ip_once_and_forwards_it(self) -> None:
+        (self.root / "demo.yaml").write_text(VALID.replace("203.0.113.4/32", ""))
+        module = self._load_module()
+        commands: list[list[str]] = []
+        with (
+            mock.patch.object(module, "detect_public_ipv4", return_value="198.51.100.9") as detect,
+            mock.patch.object(module, "write_env"),
+            mock.patch.object(module, "invoke", side_effect=lambda command, dry_run: commands.append(command)),
+            mock.patch.object(module, "prompt"),
+            mock.patch.object(sys, "argv", ["demo", "create"]),
+            mock.patch("builtins.print") as printed,
+        ):
+            self.assertEqual(module.main(), 0)
+        detect.assert_called_once()
+        self.assertEqual(len(commands), 3)
+        for command in commands:
+            self.assertIn("PRESENTER_CIDR=198.51.100.9/32", command)
+            self.assertIn("TF_VAR_presenter_cidr=198.51.100.9/32", command)
+        self.assertIn("allowed_cidr not set; using your current IP 198.51.100.9/32", str(printed.call_args_list))
+
+    def test_create_fails_before_anything_runs_when_ip_detection_fails(self) -> None:
+        (self.root / "demo.yaml").write_text(VALID.replace("203.0.113.4/32", ""))
+        module = self._load_module()
+        with (
+            mock.patch.object(module.urllib.request, "urlopen", side_effect=OSError("offline")),
+            mock.patch.object(module, "write_env") as write_env,
+            mock.patch.object(module, "invoke") as invoke,
+            mock.patch.object(sys, "argv", ["demo", "create", "--yes"]),
+            mock.patch("sys.stderr") as stderr,
+        ):
+            self.assertEqual(module.main(), 2)
+        write_env.assert_not_called()
+        invoke.assert_not_called()
+        self.assertIn("set allowed_cidr in demo.yaml", "".join(c.args[0] for c in stderr.write.call_args_list))
+
+    def test_detect_public_ipv4_rejects_non_ipv4_answers(self) -> None:
+        module = self._load_module()
+        response = mock.MagicMock()
+        response.__enter__.return_value.read.return_value = b"<html>captive portal</html>"
+        with mock.patch.object(module.urllib.request, "urlopen", return_value=response):
+            with self.assertRaises(ValueError):
+                module.detect_public_ipv4()
+        response.__enter__.return_value.read.return_value = b"198.51.100.9\n"
+        with mock.patch.object(module.urllib.request, "urlopen", return_value=response):
+            self.assertEqual(module.detect_public_ipv4(), "198.51.100.9")
+
+    def test_dry_run_create_with_empty_cidr_stays_offline(self) -> None:
+        (self.root / "demo.yaml").write_text(VALID.replace("203.0.113.4/32", ""))
+        result = run_demo(self.root, "create", "--dry-run")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("allowed_cidr not set", result.stderr)
+
+    def test_allowed_cidr_must_be_a_single_ipv4_slash_32(self) -> None:
+        for bad in ("203.0.113.4", "203.0.113.0/24", "2001:db8::1/128", "not-a-cidr"):
+            with self.subTest(value=bad):
+                (self.root / "demo.yaml").write_text(VALID.replace("203.0.113.4/32", bad))
+                result = run_demo(self.root, "status", "--dry-run")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("/32", result.stderr)
 
     def test_every_make_action_declares_hybrid_topology(self) -> None:
         for action in ("create", "destroy", "status", "links", "reset"):

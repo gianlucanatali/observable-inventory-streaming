@@ -37,13 +37,15 @@ def test_control_center_legacy_is_a_bounded_hybrid_profile_connected_to_cloud_an
     assert "CONTROL_CENTER_REPLICATION_FACTOR: \"3\"" in service
     assert "CONTROL_CENTER_STREAMS_SECURITY_PROTOCOL: SASL_SSL" in service
     assert "CONTROL_CENTER_CONNECT_connect_CLUSTER: http://connect:8083" in service
+    # cp-kafka-connect 8.x does not serve the default discovery path /v1/metadata/id (404): documented override.
+    assert "CONTROL_CENTER_CONNECT_HEALTHCHECK_ENDPOINT: /connectors" in service
     assert "CONTROL_CENTER_SCHEMA_REGISTRY_URL: ${SR_URL:" in service
     assert "}:443" in service
     assert "CONTROL_CENTER_LICENSE: ${CONTROL_CENTER_LICENSE:-}" in service
     assert "CONTROL_CENTER_KAFKA_API_KEY" in service
     assert "CONTROL_CENTER_SR_API_KEY" in service
     assert "healthcheck:" in service
-    assert "http://127.0.0.1:9021/2.0/health" in service
+    assert "http://127.0.0.1:9021/2.0/feature/flags" in service
 
     assert "profiles: !reset []" not in service
 
@@ -80,18 +82,16 @@ def test_control_center_cloud_identity_topics_ingress_and_lifecycle_links_are_wi
 
 
 def test_control_center_has_explicit_cluster_describe_acls_without_a_broad_cluster_role():
-    cluster_acls = re.search(
-        r"explicit_control_center_cluster_acls\s*=\s*var\.enable_control_center\s*\?\s*\[\s*"
-        r"\{\s*sa\s*=\s*\"control-center\"\s*type\s*=\s*\"CLUSTER\"\s*"
-        r"name\s*=\s*\"kafka-cluster\"\s*pattern\s*=\s*\"LITERAL\"\s*"
-        r"op\s*=\s*\"DESCRIBE\"\s*\}\s*,\s*"
-        r"\{\s*sa\s*=\s*\"control-center\"\s*type\s*=\s*\"CLUSTER\"\s*"
-        r"name\s*=\s*\"kafka-cluster\"\s*pattern\s*=\s*\"LITERAL\"\s*"
-        r"op\s*=\s*\"DESCRIBE_CONFIGS\"\s*\}\s*,?\s*\]",
-        CLOUD_MAIN,
-        re.DOTALL,
-    )
-    assert cluster_acls, "Control Center requires explicit cluster DESCRIBE and DESCRIBE_CONFIGS ACLs"
+    block = re.search(r"explicit_control_center_cluster_acls\s*=\s*var\.enable_control_center\s*\?\s*\[(.*?)\]\s*:\s*\[\]", CLOUD_MAIN, re.DOTALL)
+    assert block, "Control Center requires an explicit cluster ACL list"
+    entries = re.findall(r"\{(.*?)\}", block.group(1), re.DOTALL)
+    ops = set()
+    for entry in entries:
+        assert re.search(r'sa\s*=\s*"control-center"', entry) and re.search(r'type\s*=\s*"CLUSTER"', entry)
+        assert re.search(r'name\s*=\s*"kafka-cluster"', entry) and re.search(r'pattern\s*=\s*"LITERAL"', entry)
+        ops.add(re.search(r'op\s*=\s*"([A-Z_]+)"', entry).group(1))
+    # DESCRIBE/DESCRIBE_CONFIGS per the Control Center on Confluent Cloud guide; IDEMPOTENT_WRITE for its idempotent producers.
+    assert ops == {"DESCRIBE", "DESCRIBE_CONFIGS", "IDEMPOTENT_WRITE"}
     assert 'control-center-cluster-admin' not in CLOUD_MAIN
 
 
@@ -148,3 +148,13 @@ def test_hybrid_compose_renders_with_synthetic_placeholder_environment_only(tmp_
         check=False,
     )
     assert result.returncode == 0, result.stderr
+
+
+def test_control_center_can_write_its_internal_topics():
+    # C3 stores its Kafka cluster registry in _confluent-command. Without WRITE the cluster list is empty
+    # ("No clusters found") and the UI has no Kafka cluster to pair Schema Registry with (raw Avro bytes).
+    binding = re.search(r'control-center-internal-write\s*=\s*\{(.*)\}\s*$', CLOUD_MAIN, re.MULTILINE)
+    assert binding, "Control Center needs WRITE on its _confluent* internal topics"
+    assert 'role = "DeveloperWrite"' in binding.group(1)
+    assert 'crn = "${local.kafka_crn}/topic=_confluent*"' in binding.group(1)
+    assert '"DeveloperWrite:topic"  = ["WRITE", "DESCRIBE", "DESCRIBE_CONFIGS"]' in CLOUD_MAIN

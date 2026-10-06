@@ -71,7 +71,11 @@ publish_layers() { # writes demo:layers; the panel reads it
   else
     run="$(running_layers)" || return 1
   fi
-  for l in core $(printf '%s' "$run" | tr ',' ' ') $(tf_only_layers); do json="$json\"$l\","; done
+  local seen=" "
+  for l in core $(printf '%s' "$run" | tr ',' ' ') $(tf_only_layers); do
+    case "$seen" in *" $l "*) continue;; esac   # a Terraform-only layer can be in both lists (dd-streams)
+    seen="$seen$l "; json="$json\"$l\","
+  done
   json="[${json%,}]"
   local out
   # -x: value from stdin, so quoting never depends on how the docker command is wrapped (limactl shell)

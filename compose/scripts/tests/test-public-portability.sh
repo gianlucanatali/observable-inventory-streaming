@@ -177,7 +177,7 @@ require(stack, 'aws ssm describe-parameters --parameter-filters "Key=Path,Option
 require(stack, 'path="/dd-demo/$STACK/"', "SSM scope")
 require(stack, 'aws ssm delete-parameters --names', "SSM batch delete")
 require(stack, 'batch_size=10', "SSM bounded batch")
-aws_destroy = stack.index('step "destroy terraform aws" tf_apply aws destroy')
+aws_destroy = stack.index('tf_apply aws destroy || return 1')
 cleanup = stack.index('delete_stack_ssm_parameters', aws_destroy)
 if cleanup <= aws_destroy:
     raise SystemExit("SSM cleanup must run after successful AWS destroy")
