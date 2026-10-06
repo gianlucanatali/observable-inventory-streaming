@@ -467,6 +467,8 @@ On the control panel path you run the labs from this page. On the terminal path 
    It is a secret: do not paste it into a chat, a screenshot or a recording.
 3. Open the URL in your browser and sign in with user `demo` and that password. If the page does not load, check that your IP still matches `allowed_cidr` ([Troubleshooting](#6-troubleshooting)).
 
+The **Links** card at the top of the panel opens every page of this stack in a new tab: the Online shop, the Datadog dashboards, APM and DSM, the Confluent Cloud cluster, Control Center and the ECS cluster. Bookmark the panel and you have them all. The build fills the card at the end; `make links-publish` fills it again.
+
 <div data-path="panel" markdown="1">
 
 **With the control panel**
@@ -2208,6 +2210,7 @@ Every make target below reads the stack name and settings from `demo.yaml` ([4.1
 | `lead-time SECONDS=<n>` | Set the supplier lead time in business seconds |
 | `status`, `layers-status` | VM containers, routing, layers, connector status |
 | `control` | Control panel URL and where to find its password |
+| `links-publish` | Write this stack's links to Redis for the panel's **Links** card (`./demo create` runs it) |
 | `layer-on L=<layer> CONFIRM=yes`, `layer-off L=<layer> CONFIRM=yes` | Switch one layer on or off on an existing stack (billed Terraform changes) |
 | `stack-preflight`, `stack-up`, `stack-status`, `stack-down` | The lifecycle targets that `./demo` runs ([Reference I](#i-what-demo-does-step-by-step)) |
 | `stack-leftovers` | Read-only leftover check, the last step of `stack-down` ([Teardown](#7-teardown)) |

@@ -114,6 +114,11 @@ class Control:
             log.exception("datadog event failed", extra={"fields": {"param": p.key}})
 
     # --- read-only context -----------------------------------------------------------------------------------------
+    @property
+    def redis(self):
+        """The Redis client, for read-only cards (links_card)."""
+        return self._redis
+
     def layers(self) -> list[str] | None:
         """Redis `demo:layers`: JSON list (`["core","restock"]`) or comma-separated names. None = unknown."""
         try:

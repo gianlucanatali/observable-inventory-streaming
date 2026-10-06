@@ -9,7 +9,7 @@ from flask import Flask, Response, jsonify, render_template_string, request
 from .backends import LayerOff, WriteFailed
 from .registry import ValidationError, fmt
 from .actions import ActionError
-from . import ops
+from . import links_card, ops
 from .service import Control, Row
 
 log = logging.getLogger("demo_control")
@@ -93,9 +93,11 @@ def create_app(control: Control, password: str) -> Flask:
         for r in rows:
             layers.setdefault(r["layer"], []).append(r)
         return render_template_string(PAGE, layers=layers, stack=control.stack, running=control.layers(),
-                                      routing=control.routing(), fmt=fmt, ops_cards=ops.cards_html(control))
+                                      routing=control.routing(), fmt=fmt, ops_cards=ops.cards_html(control),
+                                      links_card=links_card.card_html(control.redis))
 
     ops.register(app, control)
+    links_card.register(app, control)
     return app
 
 
@@ -125,6 +127,7 @@ button:hover { background:var(--accent-dark); border-color:var(--accent-dark); }
 <p class="ctx">Layers running: <code>{{ running|join(', ') if running is not none else 'unknown' }}</code>
  &nbsp;|&nbsp; Canary routing: <code>{{ routing if routing is not none else 'unknown' }}</code></p></div></header>
 <main class="control-page">
+{{ links_card|safe }}
 <section class="control-card actions-card" id="actions"><div class="actions-layout"><div><h2>Actions</h2><div class="label">Source data actions</div><p class="meta">These actions update PostgreSQL only, then verify the Redis serving view. Reset demo data refuses to start while background sales are on (they keep changing stock, so the reset could never converge): press <b>Sales off</b> first, or use <b>Full reset</b> (Background sales card) or <code>make reset</code>, which also stop sales and restore 100/0/0 routing. Reset never changes ALB routing.</p></div><div class="action-controls"><div class="field"><label for="product-id">Product ID</label><input id="product-id" value="P0042" aria-label="Product ID"></div><button id="sell-out">Sell out product</button><button id="reset-data" class="secondary">Reset demo data</button></div></div><div class="action-progress"><div class="msg action-status">Loading action status…</div></div></section>
 {{ ops_cards|safe }}
 {% for layer, rows in layers.items() %}

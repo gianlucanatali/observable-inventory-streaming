@@ -139,7 +139,7 @@ LOAD_ARGS ?= --duration $(LOAD_DURATION) --rps $(LOAD_RPS)
 CHECK_ARGS ?=
 
 .DEFAULT_GOAL := help
-.PHONY: help secrets build config config-all up-dev down-dev up-cloud down-cloud register-connector seed reset \
+.PHONY: help links-publish secrets build config config-all up-dev down-dev up-cloud down-cloud register-connector seed reset \
         sell-out verify load route-baseline canary-110-10 incident canary-10 canary-50 canary-100 rollback route-check route-show status \
         sales-on sales-off canary-check offers-on offers-off layer-on layer-off layers-status lead-time control \
         store-pause store-resume smoke links stack-preflight stack-up stack-down stack-leftovers stack-status account-up account-down
@@ -253,6 +253,9 @@ smoke:
 links:
 	 @test "$(MODE)" = cloud || { echo "links: run with MODE=cloud STACK=<name>" >&2; exit 2; }
 	 $(CURDIR)/compose/scripts/links.sh
+links-publish:  ## write the stack's links to Redis demo:links for the control panel's Links card (hybrid)
+	 @test "$(MODE)" = cloud || { echo "links-publish: run with MODE=cloud STACK=<name>" >&2; exit 2; }
+	 DC='$(DC)' STACK=$(STACK) TOPOLOGY=$(TOPOLOGY) AWS_REGION=$(AWS_REGION) $(CURDIR)/compose/scripts/publish-links.sh
 canary-check:
 ifneq ($(strip $(CHECK_ARGS)),)
 	 @echo "== gate the last load summary: scenario canary-check /out/last.json $(CHECK_ARGS)"

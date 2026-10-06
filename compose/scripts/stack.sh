@@ -809,6 +809,7 @@ up() {
     if has "$l"; then step "layer $l (record)" mk layer-on L="$l" LAYER_SKIP_TF=1; fi
   done
   if has dd-rum; then step "storefront picks up RUM" recreate_storefront; fi
+  if hybrid_enabled; then step "publish demo:links (control panel Links card)" mk links-publish; fi
   step "smoke test (browser + API)" mk smoke
   status
   echo; echo "== stack $STACK is up in $(( $(date +%s) - T0 )) s. At the end: make MODE=cloud STACK=$STACK stack-down CONFIRM=yes"

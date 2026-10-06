@@ -647,6 +647,7 @@ stack hybrid, core always on; optional layers:
 <p>Open the URL in your browser and sign in with user <code>demo</code> and that password. If the page does not load, check that your IP still matches <code>allowed_cidr</code> (<a href="#6-troubleshooting">Troubleshooting</a>).</p>
 </li>
 </ol>
+<p>The <strong>Links</strong> card at the top of the panel opens every page of this stack in a new tab: the Online shop, the Datadog dashboards, APM and DSM, the Confluent Cloud cluster, Control Center and the ECS cluster. Bookmark the panel and you have them all. The build fills the card at the end; <code>make links-publish</code> fills it again.</p>
 <div data-path="panel" markdown="1">
 <p><strong>With the control panel</strong></p>
 <p>The panel shows five cards at the top and the demo's settings below them. You do not need to learn them now: each lab tells you which button to press and what the card shows afterwards.</p>
@@ -2507,6 +2508,10 @@ aws<span class="w"> </span>ecs<span class="w"> </span>list-clusters<span class="
 <tr>
 <td><code>control</code></td>
 <td>Control panel URL and where to find its password</td>
+</tr>
+<tr>
+<td><code>links-publish</code></td>
+<td>Write this stack's links to Redis for the panel's <strong>Links</strong> card (<code>./demo create</code> runs it)</td>
 </tr>
 <tr>
 <td><code>layer-on L=&lt;layer&gt; CONFIRM=yes</code>, <code>layer-off L=&lt;layer&gt; CONFIRM=yes</code></td>
