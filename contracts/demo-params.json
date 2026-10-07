@@ -173,6 +173,21 @@
    "doc": "Lower-confidence choices take the rule default."
   },
   {
+   "key": "notify_me_near_days",
+   "label": "Notify-me restock horizon",
+   "unit": "days",
+   "default": 7,
+   "min": 0,
+   "max": 60,
+   "store": "redis",
+   "consumers": [
+    "offer-worker"
+   ],
+   "apply": "live",
+   "layer": "offers",
+   "doc": "Jev is told to prefer notify-me only when the restock is within this many business days. Without a restock date notify-me is not offered to Jev."
+  },
+  {
    "key": "offers_kill_switch",
    "label": "AI kill switch",
    "unit": "bool",

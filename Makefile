@@ -236,7 +236,7 @@ sales-off:
 
 offers-on:
 	 @test "$(TOPOLOGY)" != hybrid || { echo "offers run on ECS: use make layer-on L=offers" >&2; exit 2; }
-	 @echo "== start the optional offer-worker (profile offers; JEV_API_KEY empty = rule default only)"
+	 @echo "== start the optional offer-worker (profile offers; JEV_API_KEY empty = safe rule only)"
 	 $(DC) --profile offers up -d offer-worker
 offers-off:
 	 @test "$(TOPOLOGY)" != hybrid || { echo "offers run on ECS: use make layer-off L=offers" >&2; exit 2; }

@@ -28,9 +28,10 @@ const VARIANTS = [
 ];
 const P42 = { product_id: 'P0042', name: 'Trailrunner GTX', brand: 'Alpenpace', category: 'footwear', size: 'EU 42',
   price_eur: 219.9, colour: GREEN, description: 'Balanced and responsive.', model_id: 'alpenpace-trailrunner-gtx', variant_rank: 1,
+  kind: 'trail running shoe', waterproof: true,
   variants: VARIANTS };
 const P1 = { ...P42, product_id: 'P0101', name: 'Trail Cap Air', brand: 'Vetta', category: 'accessories', size: 'One size', price_eur: 24.9,
-  model_id: 'vetta-trail-cap-air', variant_rank: 0 };
+  model_id: 'vetta-trail-cap-air', variant_rank: 0, kind: 'running cap', waterproof: false };
 
 const STORES5 = [['S01', 2], ['S02', 1], ['S03', 3], ['S04', 1], ['S05', 2]].map(([store_id, quantity], i) => (
   { store_id, status: 'available', quantity, revision: 810 + i, feed: 'ok' }));
@@ -41,6 +42,9 @@ const answer = (over = {}) => ({
   release: '1.1.0', ...over,
 });
 
+const CART = { cart_id: 'cart-0123456789ab', scenario_id: 'sc-1', count: 1, items: [
+  { product_id: 'P0042', quantity: 1, name: 'Trailrunner GTX', brand: 'Alpenpace', size: 'EU 42', colour: 'Forest green', price_eur: 219.9 }] };
+
 // Sibling sizes of P0042 in its colour: 41 in stock, 43 sold out online.
 const SIBLING_ROUTES = {
   '/api/availability/P0003': answer({ product_id: 'P0003', sellable: 12 }),
@@ -49,6 +53,7 @@ const SIBLING_ROUTES = {
 
 afterEach(() => {
   vi.clearAllMocks();
+  window.localStorage.clear();
   resetRumForTests();
   vi.unstubAllGlobals();
   window.location.hash = '';
@@ -86,6 +91,7 @@ describe('App', () => {
     expect(screen.queryByTestId('stock-stores')).toBeNull();
     await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Trailrunner GTX'));
     expect(screen.getByTestId('product-sku')).toHaveTextContent('Item P0042');
+    expect(screen.getByTestId('product-attributes')).toHaveTextContent('Trail running shoe · Waterproof');
     expect(screen.getByText('€219,90')).toBeInTheDocument();
     expect(screen.queryByRole('combobox')).toBeNull();
   });
@@ -110,7 +116,7 @@ describe('App', () => {
       '/api/products/P0042': P42,
       '/config': { poll_ms: 60000, offers_enabled: false, release: 'x' },
       '/api/availability/P0042': answer(),
-      '/api/cart': { cart_id: 'cart-0123456789ab' },
+      '/api/cart': CART,
     });
     render(<App />);
     await waitFor(() => expect(screen.getByTestId('stock-panel')).toHaveTextContent('9 available online'));
@@ -118,6 +124,63 @@ describe('App', () => {
     await waitFor(() => expect(fetch.mock.calls.some((c) => c[0] === '/api/cart')).toBe(true));
     const call = fetch.mock.calls.find((c) => c[0] === '/api/cart');
     expect(JSON.parse(call[1].body)).toMatchObject({ store_id: 'ONLINE', product_id: 'P0042', event_type: 'ADD' });
+    await waitFor(() => expect(screen.getByTestId('cart-count')).toHaveTextContent('1'));
+    // Only the pointer is kept in the browser; the contents stay server side.
+    expect(window.localStorage.getItem('urbanstreet.cart_id')).toBe('cart-0123456789ab');
+  });
+
+  it('a reload keeps the cart: it is fetched by the stored id, listed in the drawer, and a line can be removed', async () => {
+    window.location.hash = '#/product/P0042';
+    window.localStorage.setItem('urbanstreet.cart_id', 'cart-0123456789ab');
+    mockFetch({
+      '/api/products/P0042': P42,
+      '/config': { poll_ms: 60000, offers_enabled: true, release: 'x' },
+      '/api/availability/P0042': answer(),
+      '/api/cart/cart-0123456789ab': { ...CART, count: 2, items: [{ ...CART.items[0], quantity: 2 }] },
+      '/api/cart': { ...CART, count: 0, items: [] },
+      '/api/offers': { offer: null },
+    });
+    render(<App />);
+    await waitFor(() => expect(screen.getByTestId('cart-count')).toHaveTextContent('2'));
+    await waitFor(() => expect(screen.getByText('No offer for this product right now.')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /^Cart/ }));
+    const line = within(screen.getByTestId('cart-drawer')).getByTestId('cart-item');
+    expect(line).toHaveTextContent('Alpenpace Trailrunner GTX');
+    expect(line).toHaveTextContent('EU 42 · Forest green · Qty 2');
+    fireEvent.click(within(line).getByRole('button', { name: 'Remove Alpenpace Trailrunner GTX' }));
+    await waitFor(() => expect(screen.getByTestId('cart-count')).toHaveTextContent('0'));
+    const remove = fetch.mock.calls.find((c) => c[0] === '/api/cart');
+    expect(JSON.parse(remove[1].body)).toEqual({ cart_id: 'cart-0123456789ab', store_id: 'ONLINE', product_id: 'P0042', event_type: 'ABANDON' });
+    expect(screen.getByTestId('cart-drawer')).toHaveTextContent('Your cart is empty.');
+    expect(screen.getByText('Add something to your cart to see offers.')).toBeInTheDocument();
+  });
+
+  it('starts a new cart when the stored one is gone (expired or reset)', async () => {
+    window.localStorage.setItem('urbanstreet.cart_id', 'cart-0123456789ab');
+    vi.stubGlobal('fetch', vi.fn(async (url) => {
+      if (url === '/api/cart/cart-0123456789ab') {
+        return { ok: false, status: 404, text: async () => JSON.stringify({ error: 'cart_not_found', message: 'no cart' }) };
+      }
+      const body = { '/config': { poll_ms: 60000, offers_enabled: false, release: 'x' }, '/api/products': [P42] }[url];
+      if (body === undefined) throw new Error(`unexpected fetch ${url}`);
+      return { ok: true, status: 200, text: async () => JSON.stringify(body) };
+    }));
+    render(<App />);
+    await waitFor(() => expect(window.localStorage.getItem('urbanstreet.cart_id')).toBeNull());
+    expect(screen.getByTestId('cart-count')).toHaveTextContent('0');
+  });
+
+  it('with offers on and no cart, the offer card asks to add something first', async () => {
+    window.location.hash = '#/product/P0042';
+    mockFetch({
+      '/api/products/P0042': P42,
+      '/config': { poll_ms: 60000, offers_enabled: true, release: 'x' },
+      '/api/availability/P0042': answer(),
+    });
+    render(<App />);
+    await waitFor(() => expect(screen.getByText('Add something to your cart to see offers.')).toBeInTheDocument());
+    expect(screen.queryByText('No offer for this product right now.')).toBeNull();
+    expect(fetch.mock.calls.some((c) => String(c[0]).startsWith('/api/offers'))).toBe(false);
   });
 
   it('sends the display beacon when a new sellable answer is rendered, not for the first one', async () => {

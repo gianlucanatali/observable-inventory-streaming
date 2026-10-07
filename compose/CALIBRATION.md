@@ -43,6 +43,10 @@ sell-out-to-render runs produced confidence `0.73`, `0.75`, and `0.72`; the
 post-expiry proof produced `0.79`, with `jev_choice=notify_me` while the safe
 rule default selected the eligible P0160 alternative. These four observations
 are useful diagnostics but are not enough to recalibrate a decision boundary.
+They predate the 2026-10-07 prompt change (`offer-worker/offer_worker/prompt.py`):
+notify-me is now offered to Jev only with a restock date, cart totals come from
+the cart contents, and each alternative is compared with the sold-out product.
+Live confidence under the new prompt is unmeasured.
 
 Proposal: retain `0.8` for the presentation so low-confidence choices continue
 to demonstrate the deterministic rule-default path. Before lowering it, collect

@@ -46,25 +46,39 @@ def offer_to_json(offer: dict) -> dict:
 
 
 class OfferStore:
-    """Latest offer per (scenario_id, cart_id); the most recently consumed record wins."""
+    """Offers per cart item: the latest offer per (scenario_id, cart_id, original_product_id).
+
+    A cart with two sold-out items keeps one offer for each (offer-worker publishes one offer per cart-at-risk, and
+    Flink emits one risk per cart item). A newer offer for the same item replaces the older one.
+    """
 
     def __init__(self, max_items: int = MAX_OFFERS):
         self._lock = threading.Lock()
-        self._items: OrderedDict[tuple[str, str], dict] = OrderedDict()
-        self._max = max_items
+        # (scenario_id, cart_id) -> {original_product_id: offer}, both in consume order (oldest first).
+        self._carts: OrderedDict[tuple[str, str], OrderedDict[str, dict]] = OrderedDict()
+        self._max = max_items  # carts kept; the oldest cart is evicted first
 
     def put(self, offer: dict) -> None:
         key = (offer["scenario_id"], offer["cart_id"])
         with self._lock:
-            self._items.pop(key, None)
-            self._items[key] = offer
-            while len(self._items) > self._max:
-                evicted, _ = self._items.popitem(last=False)
+            items = self._carts.pop(key, None) or OrderedDict()
+            items.pop(offer["original_product_id"], None)
+            items[offer["original_product_id"]] = offer
+            self._carts[key] = items
+            while len(self._carts) > self._max:
+                evicted, _ = self._carts.popitem(last=False)
                 log.warning("offer store full, evicted oldest cart", extra={"cart_id": evicted[1]})
 
     def get(self, scenario_id: str, cart_id: str) -> dict | None:
+        """The most recently consumed offer of the cart (any item)."""
         with self._lock:
-            return self._items.get((scenario_id, cart_id))
+            items = self._carts.get((scenario_id, cart_id))
+            return next(reversed(items.values())) if items else None
+
+    def get_all(self, scenario_id: str, cart_id: str) -> list[dict]:
+        """Every item's latest offer, oldest first."""
+        with self._lock:
+            return list((self._carts.get((scenario_id, cart_id)) or {}).values())
 
 
 class OfferConsumer:

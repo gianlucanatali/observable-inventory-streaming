@@ -7,7 +7,7 @@
   var TEXT_FIELDS = { stack: /^[A-Za-z0-9][A-Za-z0-9_-]*$/, env: /^[A-Za-z0-9][A-Za-z0-9_-]*$/,
     vm_public_ip: /^[A-Za-z0-9][A-Za-z0-9.-]*$/, confluent_env: /^[A-Za-z0-9_-]+$/, kafka_cluster: /^[A-Za-z0-9_-]+$/ };
   var REQUIRED_LINKS = ["shop", "shop-home", "control"];
-  var OPTIONAL_LINKS = ["overview-dashboard", "stock-dashboard", "online-dashboard", "apm", "dsm", "cost-dashboard", "confluent", "stream-lineage", "topic-inventory-cdc", "topic-stock-sellable", "control-center", "ecs"];
+  var OPTIONAL_LINKS = ["overview-dashboard", "stock-dashboard", "online-dashboard", "apm", "dsm", "llm-obs", "cost-dashboard", "confluent", "stream-lineage", "topic-inventory-cdc", "topic-stock-sellable", "control-center", "ecs"];
 
   function webUrl(value, what) {
     if (typeof value !== "string") throw new Error(what + " must be a text value");

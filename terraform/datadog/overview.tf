@@ -52,8 +52,8 @@ locals {
   overview_chart = {
     for k, v in {
       p95 = {
-        title   = "inventory-api p95 by version (s), panel actions and ECS events as markers"
-        queries = [["q1", "p95:trace.flask.request{${local.dsvc}} by {version}"]]
+        title   = "inventory-api lookup p95 by version (s), panel actions and ECS events as markers"
+        queries = [["q1", "p95:trace.flask.request{${local.dsvc},${local.lookup}} by {version}"]]
         events  = [{ q = local.demo_panel_query }, { q = local.ecs_events_query }]
         markers = []
       }
@@ -70,8 +70,8 @@ locals {
         markers = []
       }
       hits = {
-        title   = "inventory-api requests by version, panel actions as markers"
-        queries = [["q1", "sum:trace.flask.request.hits{${local.dsvc}} by {version}.as_count()"]]
+        title   = "inventory-api lookups by version, panel actions as markers"
+        queries = [["q1", "sum:trace.flask.request.hits{${local.dsvc},${local.lookup}} by {version}.as_count()"]]
         events  = [{ q = local.demo_panel_query }]
         markers = []
       }

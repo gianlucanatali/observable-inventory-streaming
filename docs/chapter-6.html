@@ -56,6 +56,7 @@
 <ol class="toc-sub">
 <li class="toc-h3"><a href="#start-from-the-demo-home">Start from the demo home</a></li>
 <li class="toc-h3"><a href="#turn-on-the-datadog-layers">Turn on the Datadog layers</a></li>
+<li class="toc-h3"><a href="#turn-on-background-sales">Turn on background sales</a></li>
 <li class="toc-h3"><a href="#1-read-back-the-stack">1. Read back the stack</a></li>
 <li class="toc-h3"><a href="#2-aws-native-online-dashboard">2. AWS-native online dashboard</a></li>
 <li class="toc-h3"><a href="#3-confluent-cloud-integration">3. Confluent Cloud integration</a></li>
@@ -122,6 +123,19 @@ make<span class="w"> </span>layer-on<span class="w"> </span><span class="nv">L</
 </tbody>
 </table></div>
 </details>
+<h4 id="turn-on-background-sales">Turn on background sales <a class="header-anchor" href="#turn-on-background-sales">#</a></h4>
+<div data-path="panel" markdown="1">
+<p><strong>With the control panel</strong></p>
+<p>In the <a href="setup.html#2-open-the-control-panel" data-stack-link="control">control panel</a>, press <strong>Sales on</strong> on the <strong>Background sales and reset</strong> card and confirm. You should see <code>sales-on succeeded: Background sales are on: 24/min per store; ...</code>.</p>
+</div>
+<div data-path="terminal" markdown="1">
+<p><strong>With the terminal</strong></p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>sales-on
+</code></pre></div>
+</div>
+<details><summary>Why turn sales on here</summary>
+<p>The earlier labs started with a reset, which turned background sales off so that the numbers were predictable. This lab looks at the platform under steady traffic, so you turn them back on. Within a few minutes the dashboards show live traffic.</p>
+</details>
 <h4 id="1-read-back-the-stack">1. Read back the stack <a class="header-anchor" href="#1-read-back-the-stack">#</a></h4>
 <div data-path="panel" markdown="1">
 <p><strong>With the control panel</strong></p>
@@ -145,7 +159,7 @@ make<span class="w"> </span>layer-on<span class="w"> </span><span class="nv">L</
 <p><strong>Why not DSM for connectors.</strong> This is where you check connectors. DSM shows the data flow, but it does not show connector status.</p>
 </details>
 <h4 id="2-aws-native-online-dashboard">2. AWS-native online dashboard <a class="header-anchor" href="#2-aws-native-online-dashboard">#</a></h4>
-<p>Open the <a href="setup.html#3-open-the-datadog-stock-dashboard" data-stack-link="online-dashboard">AWS-native online dashboard</a>. It shows Fargate CPU and memory by service and version, ElastiCache memory and CPU, and ALB unhealthy targets, next to <code>inventory-api</code> p95 by version. If you ran Lab 3.1, you can see the CPU peak of release 1.1.0.</p>
+<p>Open the <a href="setup.html#3-open-the-datadog-stock-dashboard" data-stack-link="online-dashboard">AWS-native online dashboard</a>. It shows Fargate CPU and memory by service and version, ElastiCache memory and CPU, and ALB unhealthy targets, next to <code>inventory-api</code> lookup p95 by version. If you ran Lab 3.1, you can see the CPU peak of release 1.1.0.</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: AWS-native online dashboard"><img src="img/lab7-01-aws-online-dashboard.png" alt="AWS-native online dashboard" width="2880" height="2300" loading="lazy" decoding="async"></button><figcaption>AWS-native online dashboard</figcaption></figure>
 <h4 id="3-confluent-cloud-integration">3. Confluent Cloud integration <a class="header-anchor" href="#3-confluent-cloud-integration">#</a></h4>
 <p>On the <a href="setup.html#3-open-the-datadog-stock-dashboard" data-stack-link="stock-dashboard">stock dashboard</a>, in the <strong>Pipeline</strong> group, the chart &quot;Confluent Cloud consumer lag (offsets) by group&quot; comes from the Confluent <abbr title="Datadog reading metrics from another provider's account, here Confluent Cloud.">integration</abbr> (the <code>dd-streams</code> layer). <abbr title="The number of messages a consumer group has not read yet.">Consumer lag</abbr> for <code>stock-projector</code> and <code>connect-sellable-redis</code> should stay near zero, which agrees with the probe.</p>
@@ -171,6 +185,7 @@ make<span class="w"> </span>layer-on<span class="w"> </span><span class="nv">L</
 <h4 id="6-cost">6. Cost <a class="header-anchor" href="#6-cost">#</a></h4>
 <p>Open the <a href="setup.html#3-open-the-datadog-stock-dashboard" data-stack-link="cost-dashboard"><code>account-cost dashboard:</code> link</a> and set <code>stack</code> to <code>hybrid</code>.</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Account cost dashboard"><img src="img/lab7-04-cost-dashboard.png" alt="Account cost dashboard" width="2880" height="2520" loading="lazy" decoding="async"></button><figcaption>Account cost dashboard</figcaption></figure>
+<p><code>Burn now (estimate)</code> is the cost per hour right now. <code>Spent this month, cumulative</code> shows the month-to-date bill per vendor and the total, and <code>Confluent credit left</code> shows what remains of the $400 trial credit.</p>
 <details><summary>More about this step</summary>
 <p><strong>Where the numbers come from, and when the billed cost arrives.</strong> The <code>cost-meter</code> service estimates the hourly cost of the AWS pieces from list prices and reads Confluent usage. The billed AWS cost arrives later: AWS writes it to the <abbr title="AWS's detailed billing export, delivered to an S3 bucket.">Cost and Usage Report</abbr>, and Datadog Cloud Cost Management reads it from there, typically 48 to 72 hours after the first complete report.</p>
 <p><strong>Why the fix does not change the price of a task.</strong> Fargate bills each task by its vCPU and memory size, so the cost estimate follows the task size set in <code>service_sizing</code> (<code>terraform/aws/variables.tf</code>). All three releases use the same size (0.5 vCPU / 1 GB). The fix therefore does not change the hourly price of a task. It changes how much traffic one task can handle (see the CPU comparison in <a href="chapter-4.html#5-prove-it-latency-cpu-and-cost">Lab 4.1</a>).</p>
@@ -214,7 +229,7 @@ make<span class="w"> </span>layer-on<span class="w"> </span><span class="nv">L</
   </div>
 </dialog>
 <div class="sr-only" aria-live="polite" id="live"></div>
-<script src="assets/stack.js?v=ec6a04c228"></script>
+<script src="assets/stack.js?v=d196eb9022"></script>
 <script src="assets/site.js?v=1de1666aca" defer></script>
 </body>
 </html>

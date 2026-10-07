@@ -17,7 +17,7 @@ describe('OfferCard', () => {
 
     expect(screen.getByRole('img', { name: 'Alternative product P0160' })).toHaveAttribute('src', '/img/P0160.jpg');
     expect(screen.getByTestId('offer-decision')).toHaveTextContent(
-      'Decided by: safe rule — AI suggested notify me at 0.76, below 0.8');
+      'Decided by: safe rule — AI suggested a restock notice (confidence 0.76, below threshold 0.8)');
   });
 
   it('groups the complete offer narrative and facts beside its alternative product image', () => {
@@ -41,9 +41,35 @@ describe('OfferCard', () => {
     expect(screen.getByTestId('offer-decision')).not.toHaveTextContent('suggested');
   });
 
-  it('credits an accepted Jev decision to AI rather than the safe rule', () => {
-    render(<OfferCard offer={{ ...offer, decision_route: 'JEV', decision_reason: 'accepted', jev_confidence: 0.86 }} error={null} />);
+  it('says no AI choice was needed when only one option was left (no_choice)', () => {
+    const noChoice = { ...offer, decision_reason: 'no_choice', jev_choice: null, jev_confidence: null };
+    render(<OfferCard offer={noChoice} error={null} />);
+    expect(screen.getByTestId('offer-decision')).toHaveTextContent(
+      'Decided by: safe rule — only one in-stock alternative, no AI choice needed');
+  });
 
-    expect(screen.getByTestId('offer-decision')).toHaveTextContent('Decided by: AI — selected notify me at 0.86, meeting 0.8');
+  it('a Restock notice with no eligible alternative is an offer decided by the safe rule', () => {
+    render(<OfferCard offer={{ ...offer, offer_type: 'NOTIFY_ME', product_id: null, discount_pct: 0,
+      decision_reason: 'no_alternative', jev_choice: null, jev_confidence: null, chosen_choice: 'notify_me',
+      no_offer: false, body: 'Back in about 3 days. We will let you know as soon as it is back in stock.' }} error={null} />);
+    expect(screen.getByTestId('offer-decision')).toHaveTextContent('Decided by: safe rule, no eligible alternative');
+    expect(screen.getByTestId('offer-details')).toHaveTextContent('Restock notice');
+    expect(screen.getByTestId('offer-details')).toHaveTextContent('Back in about 3 days.');
+  });
+
+  it('credits an accepted Jev decision to AI and names the product, not its id', () => {
+    render(<OfferCard offer={{ ...offer, decision_route: 'JEV', decision_reason: 'accepted', jev_choice: 'alt:P0061',
+      jev_choice_label: 'Pathfinder Air', jev_confidence: 0.9 }} error={null} />);
+
+    expect(screen.getByTestId('offer-decision')).toHaveTextContent(
+      'Decided by: AI — chose Pathfinder Air (confidence 0.90, threshold 0.8)');
+    expect(screen.getByTestId('offer-decision')).not.toHaveTextContent('alt:');
+  });
+
+  it('without a cart (or with an empty one) asks to add something, and keeps "no offer" for a real cart', () => {
+    const { rerender } = render(<OfferCard offer={null} error={null} hasCart={false} />);
+    expect(screen.getByText('Add something to your cart to see offers.')).toBeInTheDocument();
+    rerender(<OfferCard offer={null} error={null} hasCart />);
+    expect(screen.getByText('No offer for this product right now.')).toBeInTheDocument();
   });
 });

@@ -112,7 +112,7 @@ PATH_CHOOSER = """<div class="path-chooser" role="group" aria-labelledby="path-c
 # an "open the X" reference. On GitHub it is an ordinary link to the step that explains X. On the site, site.js
 # points it to the reader's own resource once they pasted their stack JSON (see CONNECT_BOX), else to the box.
 STACK_LINK_PREFIX = "stack-link:"
-STACK_LINK_KEYS = ("shop", "shop-home", "control", "overview-dashboard", "stock-dashboard", "online-dashboard", "apm", "dsm",
+STACK_LINK_KEYS = ("shop", "shop-home", "control", "overview-dashboard", "stock-dashboard", "online-dashboard", "apm", "dsm", "llm-obs",
                    "cost-dashboard", "confluent", "stream-lineage", "topic-inventory-cdc",
                    "topic-stock-sellable", "control-center", "ecs")
 CONNECT_MARKER = "<!-- connect-box -->"

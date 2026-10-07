@@ -55,12 +55,14 @@
 <li class="toc-h2"><a href="#lab-51-offers-with-a-safe-default">Lab 5.1: Offers with a safe default</a>
 <ol class="toc-sub">
 <li class="toc-h3"><a href="#turn-on-the-offers-layer">Turn on the offers layer</a></li>
-<li class="toc-h3"><a href="#1-reset-and-add-to-cart">1. Reset and add to cart</a></li>
-<li class="toc-h3"><a href="#2-sell-it-out">2. Sell it out</a></li>
-<li class="toc-h3"><a href="#3-see-why-in-llm-observability">3. See why in LLM Observability</a></li>
-<li class="toc-h3"><a href="#4-lower-the-threshold-live">4. Lower the threshold, live</a></li>
-<li class="toc-h3"><a href="#5-use-the-kill-switch">5. Use the kill switch</a></li>
-<li class="toc-h3"><a href="#6-restore-the-defaults">6. Restore the defaults</a></li>
+<li class="toc-h3"><a href="#1-reset-and-fill-the-cart">1. Reset and fill the cart</a></li>
+<li class="toc-h3"><a href="#2-sell-out-the-trail-shoe-the-ai-decides">2. Sell out the trail shoe: the AI decides</a></li>
+<li class="toc-h3"><a href="#3-sell-out-the-boot-the-ai-picks-the-same-boot-in-another-colour">3. Sell out the boot: the AI picks the same boot in another colour</a></li>
+<li class="toc-h3"><a href="#4-sell-out-the-light-hiking-shoe-nothing-comparable">4. Sell out the light hiking shoe: nothing comparable</a></li>
+<li class="toc-h3"><a href="#5-open-the-cart">5. Open the cart</a></li>
+<li class="toc-h3"><a href="#6-read-a-jev-call-in-llm-observability">6. Read a Jev call in LLM Observability</a></li>
+<li class="toc-h3"><a href="#7-use-the-kill-switch">7. Use the kill switch</a></li>
+<li class="toc-h3"><a href="#8-restore-the-defaults">8. Restore the defaults</a></li>
 <li class="toc-h3"><a href="#checkpoint-5">Checkpoint</a></li>
 </ol></li>
 <li class="toc-h2"><a href="#lab-52-restock-that-learns">Lab 5.2: Restock that learns</a>
@@ -82,18 +84,18 @@
 <nav class="chapter-progress" aria-label="Chapters"><ol><li class="cp-step cp-extra"><a href="intro.html"><span class="cp-dot" aria-hidden="true">&middot;</span><span class="cp-label">Intro</span></a></li><li class="cp-step cp-extra"><a href="setup.html"><span class="cp-dot" aria-hidden="true">0</span><span class="cp-label">Setup</span></a></li><li class="cp-step"><a href="chapter-1.html"><span class="cp-dot" aria-hidden="true">1</span><span class="cp-label">One honest number</span></a></li><li class="cp-step"><a href="chapter-2.html"><span class="cp-dot" aria-hidden="true">2</span><span class="cp-label">Unknown is not zero</span></a></li><li class="cp-step"><a href="chapter-3.html"><span class="cp-dot" aria-hidden="true">3</span><span class="cp-label">The incident</span></a></li><li class="cp-step"><a href="chapter-4.html"><span class="cp-dot" aria-hidden="true">4</span><span class="cp-label">Canary the fix</span></a></li><li class="cp-step cp-current"><a href="chapter-5.html" aria-current="page"><span class="cp-dot" aria-hidden="true">5</span><span class="cp-label">The AI offer</span></a></li><li class="cp-step"><a href="chapter-6.html"><span class="cp-dot" aria-hidden="true">6</span><span class="cp-label">Datadog on top</span></a></li></ol></nav>
 <p class="chapter-kicker">Chapter 5 of 6</p>
 <h1 class="chapter-title">The AI offer</h1>
-<aside class="see-box"><p class="see-title">What you will see</p><p><em>About 20 minutes.</em> When a product in a shopper's cart sells out, the Online shop offers an alternative. An external AI service can choose it, but its choice counts only when it is confident enough; otherwise a fixed rule decides. The AI part is optional, so the shop still works when the AI is slow, wrong or switched off, and every offer records why it was made.</p>
+<aside class="see-box"><p class="see-title">What you will see</p><p><em>About 20 minutes.</em> When a product in a shopper's cart sells out, the Online shop offers an alternative. An external AI service can choose it, but its choice counts only when it is confident enough; otherwise a safe rule decides. You put three products in one cart and sell out all three: the AI picks the offer for two of them, and the third has nothing comparable, so the AI is not even asked. The AI part is optional, so the shop still works when the AI is slow, wrong or switched off, and every offer records why it was made.</p>
 <p><strong>Needs:</strong> the <code>offers</code> layer. Lab 5.1 starts by turning it on (skip that if you chose everything at once). Lab 5.2 needs the <code>restock</code> layer and turns it on the same way.</p>
 </aside>
 <h3 id="lab-51-offers-with-a-safe-default" class="lab lab">Lab 5.1: Offers with a safe default <a class="header-anchor" href="#lab-51-offers-with-a-safe-default">#</a></h3>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Offers layer: the shop publishes cart adds; Flink cart at risk joins carts with sellable totals; the offer worker asks Jev and publishes offers"><img src="img/arch-4-offers.png" alt="Offers layer: the shop publishes cart adds; Flink cart at risk joins carts with sellable totals; the offer worker asks Jev and publishes offers" width="3820" height="1620" loading="lazy" decoding="async"></button>
 <figcaption>Figure 5: the offers layer adds a Flink &quot;cart at risk&quot; statement, the offer worker on Fargate, and an optional call to the external Jev API.</figcaption></figure>
-<p>A <em>cart at risk</em> is an active cart that holds a product whose sellable stock just reached zero.</p>
+<p>A <em>cart at risk</em> is a cart item whose product's sellable stock just reached zero. Each sold-out item in a cart gets its own <em>offer</em>: one alternative at 10% off, or a <em>Restock notice</em> when the product is due back soon. With neither, the shopper sees honestly that nothing comparable is in stock.</p>
 <details><summary>How the offer is chosen</summary>
-<p>For each one, <code>offer-worker</code> builds up to two <abbr title="In stock, same category and size, price within 20% of the sold-out product.">eligible alternatives</abbr> plus a &quot;notify me&quot; option. It sends Jev, an external decision API, the product facts, the restock ETA and a few synthetic cart signals (cart value, item count, new or returning shopper), never cart or shopper IDs. Jev returns a choice and a confidence score. The worker accepts the choice only if it is one of the options and its confidence is at least 0.8, the <em>confidence threshold</em>. Otherwise it uses the <em>rule default</em>: the in-stock alternative closest in price, or &quot;notify me&quot; if there is none.</p>
+<p>For each cart at risk, <code>offer-worker</code> builds up to two <abbr title="In stock, same category and size, price within 20% of the sold-out product; most comparable first: same kind, then same waterproofing, then closest price.">eligible alternatives</abbr>, plus a Restock notice only when a purchase order for the product is due within 7 days. With no eligible alternative there is nothing to choose, so the worker does not call Jev. Otherwise it sends Jev, an external decision API, each option compared with the sold-out product (kind, waterproofing, use, colour, price difference), the restock date, the cart's value and item count, and a synthetic new-or-returning-shopper signal, never cart or shopper IDs. Jev returns a choice and a confidence score. The worker accepts the choice only if it is one of the options and its confidence is at least 0.8, the <em>confidence threshold</em>. Otherwise the <em>safe rule</em> decides: the most comparable in-stock alternative, else the Restock notice, else no offer.</p>
 </details>
 <aside class="admonition admonition-note" role="note"><p class="admonition-title"><span class="admonition-icon" aria-hidden="true"></span>Note</p>
-<p>Without a Jev key every offer takes the rule default with reason <code>disabled</code>, and LLM Observability has no AI call to show. The rest of the lab works the same way.</p>
+<p>Without a Jev key every offer comes from the safe rule with reason <code>disabled</code>, and LLM Observability has no AI call to show. The rest of the lab works the same way.</p>
 </aside>
 <p>Open this Chapter in the <a href="setup.html#3-open-the-datadog-stock-dashboard" data-stack-link="overview-dashboard">demo home</a>, group &quot;5. The AI offer&quot;: decisions by route and reason, with links to LLM Observability and the offer-worker service.</p>
 <h4 id="turn-on-the-offers-layer">Turn on the offers layer <a class="header-anchor" href="#turn-on-the-offers-layer">#</a></h4>
@@ -101,79 +103,91 @@
 <div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>layer-on<span class="w"> </span><span class="nv">L</span><span class="o">=</span>offers<span class="w"> </span><span class="nv">CONFIRM</span><span class="o">=</span>yes
 </code></pre></div>
 <details><summary>What this creates</summary>
-<p>This creates two Kafka topics and one more Flink statement (&quot;cart at risk&quot;) in Confluent Cloud, starts the <code>offer-worker</code> Fargate service, and switches the Online shop's offer branch on. If you set <code>jev_api_key</code> in <code>demo.yaml</code>, the worker can call Jev; without it every offer uses the rule default.</p>
+<p>This creates two Kafka topics and one more Flink statement (&quot;cart at risk&quot;) in Confluent Cloud, starts the <code>offer-worker</code> Fargate service, and switches the Online shop's offer branch on. If you set <code>jev_api_key</code> in <code>demo.yaml</code>, the worker can call Jev; without it every offer comes from the safe rule.</p>
 </details>
-<p>Check with <code>make layers-status</code>: <code>offers: ON</code>.</p>
-<h4 id="1-reset-and-add-to-cart">1. Reset and add to cart <a class="header-anchor" href="#1-reset-and-add-to-cart">#</a></h4>
+<p>Check with <code>make layers-status</code>: <code>offers: ON</code>. Then reload the <a href="chapter-1.html#hop-5-the-shop-page" data-stack-link="shop">Online shop</a> so it shows the offer card.</p>
+<h4 id="1-reset-and-fill-the-cart">1. Reset and fill the cart <a class="header-anchor" href="#1-reset-and-fill-the-cart">#</a></h4>
 <div data-path="panel" markdown="1">
 <p><strong>With the control panel</strong></p>
-<p>In the <a href="setup.html#2-open-the-control-panel" data-stack-link="control">control panel</a>, press <strong>Full reset</strong> on the <strong>Background sales</strong> card and confirm. Wait for <code>full-reset succeeded</code>.</p>
+<p>In the <a href="setup.html#2-open-the-control-panel" data-stack-link="control">control panel</a>, press <strong>Full demo reset</strong> on the <strong>Background sales and reset</strong> card and confirm. Wait for <code>full-reset succeeded</code>.</p>
 </div>
 <div data-path="terminal" markdown="1">
 <p><strong>With the terminal</strong></p>
 <div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>reset
 </code></pre></div>
 </div>
-<p>Open the <a href="chapter-1.html#hop-5-the-shop-page" data-stack-link="shop">product page</a> of <code>P0042</code> and click <strong>Add to cart</strong>. The cart badge should show 1.</p>
+<p>In the <a href="chapter-1.html#hop-5-the-shop-page" data-stack-link="shop">Online shop</a>, add three products to the cart, all in EU 42: open <code>P0042</code> (Trailrunner GTX) and click <strong>Add to cart</strong>, then do the same for <code>P0048</code> (Dolomia Evo, Charcoal) and <code>P0092</code> (Pathfinder Lite, Navy). You should see the cart badge at 3.</p>
 <details><summary>What adding to the cart does</summary>
-<p>The Online shop has published a cart <code>ADD</code> event to Kafka.</p>
+<p>The Online shop publishes one cart <code>ADD</code> event to Kafka per click and keeps the cart server side, so it stays after a reload. To open another product, change the product id at the end of the page address (<code>#/product/P0048</code>).</p>
 </details>
-<h4 id="2-sell-it-out">2. Sell it out <a class="header-anchor" href="#2-sell-it-out">#</a></h4>
-<p>Keep the <a href="chapter-1.html#hop-5-the-shop-page" data-stack-link="shop">product page</a> open where you can see it.</p>
+<h4 id="2-sell-out-the-trail-shoe-the-ai-decides">2. Sell out the trail shoe: the AI decides <a class="header-anchor" href="#2-sell-out-the-trail-shoe-the-ai-decides">#</a></h4>
+<p>Go back to the <a href="chapter-1.html#hop-5-the-shop-page" data-stack-link="shop"><code>P0042</code> product page</a>.</p>
 <div data-path="panel" markdown="1">
 <p><strong>With the control panel</strong></p>
-<p>In the <a href="setup.html#2-open-the-control-panel" data-stack-link="control">control panel</a>, on the <strong>Actions</strong> card, keep <code>P0042</code> in the <strong>Product ID</strong> field, press <strong>Sell out product</strong> and confirm.</p>
+<p>In the <a href="setup.html#2-open-the-control-panel" data-stack-link="control">control panel</a>, on the <strong>Actions</strong> card, press <strong>P0042</strong> next to <strong>Product ID</strong>, then <strong>Sell out product</strong>, and confirm.</p>
 </div>
 <div data-path="terminal" markdown="1">
 <p><strong>With the terminal</strong></p>
 <div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>sell-out<span class="w"> </span><span class="nv">PRODUCT</span><span class="o">=</span>P0042<span class="w"> </span><span class="nv">GAP</span><span class="o">=</span><span class="m">1</span>.5
 </code></pre></div>
 </div>
-<p>About 8 to 10 seconds after the last store sells out, an offer card appears below the product.</p>
-<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Offer card proposing an eligible alternative at 10% off after P0042 sold out"><img src="img/lab6-01-offer-rule-default.png" alt="Offer card proposing an eligible alternative at 10% off after P0042 sold out" width="2880" height="2716" loading="lazy" decoding="async"></button><figcaption>Offer card proposing an eligible alternative at 10% off after P0042 sold out</figcaption></figure>
-<details><summary>More about this step</summary>
-<p><strong>Which offer you get, and why a different model.</strong> With the default threshold, the offer is usually the rule default: the closest-priced eligible alternative, at 10% off. For P0042 (Trailrunner GTX, EU 42) that is P0160, the Brenta Storm in EU 42.</p>
-<p>It is a different model because the Trailrunner GTX exists in EU 42 only in Forest green, so there is no other colour of it to offer in that size.</p>
-<p><em>What just happened:</em> Flink joined your cart (topic <code>carts.events</code>) with the <code>stock.sellable</code> value of 0 and emitted a cart at risk. <code>offer-worker</code> built the alternatives, asked Jev, compared Jev's confidence with 0.8, checked the stock again, and published the offer to the <code>offers</code> topic, where the Online shop reads it.</p>
+<p>You should see, a few seconds after the last store sells out, an offer card for the Pathfinder Air that reads &quot;Decided by: AI — chose Pathfinder Air (confidence 0.90, threshold 0.8)&quot;. The confidence changes a little from run to run.</p>
+<details><summary>What just happened</summary>
+<p>Flink joined your cart (topic <code>carts.events</code>) with the <code>stock.sellable</code> value of 0 and emitted a cart at risk for this cart item. <code>offer-worker</code> found two eligible alternatives in EU 42, the Brenta Storm (approach shoe) and the Pathfinder Air (hiking shoe), and sent both to Jev with their kind, waterproofing, use and price difference. Jev chose the Pathfinder Air with a confidence above 0.8, so its choice stands. The worker checked the stock again and published the offer to the <code>offers</code> topic, where the Online shop reads it. Alone, the safe rule would have picked the Brenta Storm, the closest in price.</p>
 </details>
-<h4 id="3-see-why-in-llm-observability">3. See why in LLM Observability <a class="header-anchor" href="#3-see-why-in-llm-observability">#</a></h4>
-<p>In Datadog, open AI Observability &gt; Agent Observability &gt; Traces and select the application <code>urbanstreet-offers</code> (the picker may show another application first). Open the latest trace and its <code>offer.jev.call</code> span, the step that called Jev. The input shows the eligible alternatives as <code>criteria</code>. The output shows the <code>choice</code> and its <code>confidence</code>.</p>
-<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Offer.jev.call span input and output"><img src="img/lab6-03-llmobs-span-io.png" alt="Offer.jev.call span input and output" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>Offer.jev.call span input and output</figcaption></figure>
-<details><summary>More about this step</summary>
-<p><strong>What LLM Observability keeps.</strong></p>
-<p><abbr title="Datadog's record of each AI call as a trace, with what was sent and what came back.">LLM Observability</abbr> keeps the Jev calls here.</p>
-<p><strong>The trace list, and the same request in APM.</strong></p>
-<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: LLM Observability trace list for urbanstreet-offers"><img src="img/lab6-02-llmobs-traces.png" alt="LLM Observability trace list for urbanstreet-offers" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>LLM Observability trace list for urbanstreet-offers</figcaption></figure>
-<p>The same request also appears in APM (service <code>offer-worker</code>, span <code>offer.process</code>). Its linked logs state the decision, for example route <code>RULE_DEFAULT</code> with reason <code>low_confidence</code>.</p>
-</details>
-<h4 id="4-lower-the-threshold-live">4. Lower the threshold, live <a class="header-anchor" href="#4-lower-the-threshold-live">#</a></h4>
-<p>This setting exists only in the control panel, so you use the panel in both paths (<a href="setup.html#2-open-the-control-panel" data-stack-link="control">how to open it</a>). In the <code>offers</code> settings, set <strong>Jev minimum confidence</strong> (<code>jev_min_confidence</code>) to <code>0.7</code> and press <strong>Save</strong>. Then reset, reload the page, add P0042 to the cart again, and sell it out.</p>
+<h4 id="3-sell-out-the-boot-the-ai-picks-the-same-boot-in-another-colour">3. Sell out the boot: the AI picks the same boot in another colour <a class="header-anchor" href="#3-sell-out-the-boot-the-ai-picks-the-same-boot-in-another-colour">#</a></h4>
+<p>Open the <code>P0048</code> product page.</p>
 <div data-path="panel" markdown="1">
 <p><strong>With the control panel</strong></p>
-<p>In the <a href="setup.html#2-open-the-control-panel" data-stack-link="control">control panel</a>, press <strong>Full reset</strong>, reload the <a href="chapter-1.html#hop-5-the-shop-page" data-stack-link="shop">product page</a>, click <strong>Add to cart</strong>, then press <strong>Sell out product</strong> with <code>P0042</code>.</p>
+<p>Press <strong>P0048</strong> next to <strong>Product ID</strong>, then <strong>Sell out product</strong>, and confirm.</p>
 </div>
 <div data-path="terminal" markdown="1">
 <p><strong>With the terminal</strong></p>
-<p>Reload the <a href="chapter-1.html#hop-5-the-shop-page" data-stack-link="shop">product page</a> and click <strong>Add to cart</strong> after the reset:</p>
-<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>reset
-make<span class="w"> </span>sell-out<span class="w"> </span><span class="nv">PRODUCT</span><span class="o">=</span>P0042<span class="w"> </span><span class="nv">GAP</span><span class="o">=</span><span class="m">1</span>.5
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>sell-out<span class="w"> </span><span class="nv">PRODUCT</span><span class="o">=</span>P0048<span class="w"> </span><span class="nv">GAP</span><span class="o">=</span><span class="m">1</span>.5
 </code></pre></div>
 </div>
-<p>With the lower threshold, some runs use the AI choice and some still use the rule default.</p>
-<details><summary>Why reset before each run</summary>
-<p>The reset expires the carts from the previous run, so each sell-out produces exactly one offer, and it cancels the purchase orders left from an earlier Lab 5.2 run.</p>
+<p>You should see an offer card that reads &quot;The same Dolomia Evo in Glacier blue is in stock. Take 10% off if you switch.&quot; and &quot;Decided by: AI — chose Dolomia Evo in Glacier blue (confidence 1.00, threshold 0.8)&quot;.</p>
+<details><summary>If the safe rule decides instead</summary>
+<p>The AI's choice counts only when its confidence is at least 0.8, the confidence threshold. Below it, the card reads &quot;Decided by: safe rule&quot; and shows the AI's suggestion with its score. The offer stays the same: the safe rule also picks the Glacier blue boot (P0059), the same kind, waterproofing and price.</p>
 </details>
-<h4 id="5-use-the-kill-switch">5. Use the kill switch <a class="header-anchor" href="#5-use-the-kill-switch">#</a></h4>
-<p>In the <a href="setup.html#2-open-the-control-panel" data-stack-link="control">control panel</a>, set <strong>AI kill switch</strong> (<code>offers_kill_switch</code>) to <code>1</code> and press <strong>Save</strong>. Then repeat the reset, add to cart and sell-out. You should see the decision line &quot;safe rule — AI did not return a decision&quot; in the Online shop.</p>
-<details><summary>More about the kill switch</summary>
-<p>This <abbr title="A setting that stops all calls to Jev, so every offer uses the rule default.">kill switch</abbr> takes effect on the next offer. The decision line in the Online shop reads &quot;safe rule — AI did not return a decision&quot;, the reason on the dashboard is <code>kill_switch</code>, and the worker makes no Jev call. On the stock dashboard, in the <strong>Offers</strong> group, <code>offer.decision by route and reason</code> shows each of your runs.</p>
-</details>
-<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Offers group by route and reason"><img src="img/lab6-04-offers-group.png" alt="Offers group by route and reason" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>Offers group by route and reason</figcaption></figure>
-<h4 id="6-restore-the-defaults">6. Restore the defaults <a class="header-anchor" href="#6-restore-the-defaults">#</a></h4>
-<p>In the <a href="setup.html#2-open-the-control-panel" data-stack-link="control">control panel</a>, set <code>jev_min_confidence</code> back to <code>0.8</code> and <code>offers_kill_switch</code> back to <code>0</code> (or press <strong>Reset to default</strong> on each), then reset.</p>
+<h4 id="4-sell-out-the-light-hiking-shoe-nothing-comparable">4. Sell out the light hiking shoe: nothing comparable <a class="header-anchor" href="#4-sell-out-the-light-hiking-shoe-nothing-comparable">#</a></h4>
+<p>Open the <code>P0092</code> product page.</p>
 <div data-path="panel" markdown="1">
 <p><strong>With the control panel</strong></p>
-<p>Press <strong>Full reset</strong> and confirm.</p>
+<p>Press <strong>P0092</strong> next to <strong>Product ID</strong>, then <strong>Sell out product</strong>, and confirm.</p>
+</div>
+<div data-path="terminal" markdown="1">
+<p><strong>With the terminal</strong></p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>sell-out<span class="w"> </span><span class="nv">PRODUCT</span><span class="o">=</span>P0092<span class="w"> </span><span class="nv">GAP</span><span class="o">=</span><span class="m">1</span>.5
+</code></pre></div>
+</div>
+<p>You should see a card that reads &quot;Sold out everywhere, and nothing comparable is in stock right now.&quot; and &quot;Decided by: safe rule, no eligible alternative&quot;.</p>
+<details><summary>Why there is no offer, and no AI call</summary>
+<p>The Pathfinder Lite costs EUR 119.90. No other footwear in EU 42 is priced within 20% of it (EUR 95.92 to 143.88), so it has no eligible alternative and the worker does not call Jev: there is nothing to choose. The worker still publishes the outcome, so the shop and Datadog see the case (reason <code>no_alternative</code>). If the restock layer is on and a purchase order for this product is due within 7 days, the card offers a Restock notice instead: &quot;Back in about N days. We will let you know as soon as it is back in stock.&quot;</p>
+</details>
+<h4 id="5-open-the-cart">5. Open the cart <a class="header-anchor" href="#5-open-the-cart">#</a></h4>
+<p>Click the cart badge. You should see three items marked &quot;Sold out&quot;: the trail shoe and the boot each with its offer (alternative, −10%, &quot;Decided by: AI&quot;) and a <strong>Swap</strong> button, and the Pathfinder Lite with &quot;No comparable product in stock&quot;.</p>
+<details><summary>What the cart shows, and what Swap does</summary>
+<p>The offer is the one alternative picked for that item; &quot;AI: 0.90&quot; next to an alternative is Jev's confidence for the option it chose. The other eligible alternative is listed at full price, the way the worker found it: same category and size, in stock now. <strong>Swap</strong> removes the sold-out item and adds the alternative through the normal cart events (<code>ABANDON</code>, then <code>ADD</code>); swapping to the offer's alternative is recorded in RUM as the action <code>offer_accepted</code>.</p>
+</details>
+<h4 id="6-read-a-jev-call-in-llm-observability">6. Read a Jev call in LLM Observability <a class="header-anchor" href="#6-read-a-jev-call-in-llm-observability">#</a></h4>
+<p>Open the <a href="#6-read-a-jev-call-in-llm-observability" data-stack-link="llm-obs">LLM Observability</a> link and open the latest trace and its <code>offer.jev.call</code> span. You should see in the input each option with its kind, waterproofing, use and price difference, and in the output the choice and the confidence; there are two Jev calls, for the trail shoe and the boot, and none for the Pathfinder Lite.</p>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: The offer.jev.call span for the boot: the options with their match summaries in the input, the choice and the confidence in the output"><img src="img/lab6-05-llmobs-jev-input-output.png" alt="The offer.jev.call span for the boot: the options with their match summaries in the input, the choice and the confidence in the output" width="1325" height="736" loading="lazy" decoding="async"></button><figcaption>The offer.jev.call span for the boot: the options with their match summaries in the input, the choice and the confidence in the output</figcaption></figure>
+<details><summary>No Restock notice? And the other ways in</summary>
+<p>A Restock notice is only offered when a purchase order is due within 7 days. Turn on restock in Lab 5.2 to see it.</p>
+<p>From the Datadog menu, the same page is AI Observability &gt; Agent Observability &gt; Traces, application <code>urbanstreet-offers</code> (the picker may show another application first). The same requests also appear in APM (service <code>offer-worker</code>, span <code>offer.process</code>); their linked logs state each decision, for example route <code>JEV</code> with reason <code>accepted</code>, or route <code>RULE_DEFAULT</code> with reason <code>no_alternative</code> for the Pathfinder Lite.</p>
+</details>
+<h4 id="7-use-the-kill-switch">7. Use the kill switch <a class="header-anchor" href="#7-use-the-kill-switch">#</a></h4>
+<p>In the <a href="setup.html#2-open-the-control-panel" data-stack-link="control">control panel</a>, set <strong>AI kill switch</strong> (<code>offers_kill_switch</code>) to <code>1</code> and press <strong>Save</strong>. Then repeat steps 1 to 4. You should see &quot;Decided by: safe rule — AI did not return a decision&quot; on the trail shoe and the boot (the trail shoe now gets the Brenta Storm), and the same &quot;nothing comparable&quot; card for the Pathfinder Lite.</p>
+<details><summary>More about the kill switch</summary>
+<p>This <abbr title="A setting that stops all calls to Jev, so every offer comes from the safe rule.">kill switch</abbr> takes effect on the next offer. The reason on the dashboard is <code>kill_switch</code>, and the worker makes no Jev call. On the stock dashboard, in the <strong>Offers</strong> group, <code>offer.decision by route and reason</code> shows each of your runs.</p>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Offers group by route and reason"><img src="img/lab6-04-offers-group.png" alt="Offers group by route and reason" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>Offers group by route and reason</figcaption></figure>
+</details>
+<h4 id="8-restore-the-defaults">8. Restore the defaults <a class="header-anchor" href="#8-restore-the-defaults">#</a></h4>
+<p>In the <a href="setup.html#2-open-the-control-panel" data-stack-link="control">control panel</a>, on the <strong>AI kill switch</strong> row, press <strong>Reset to default</strong>. You should see the value back at <code>0</code>. Then reset; a reset does not change the offer settings, which is why you restore the kill switch first.</p>
+<div data-path="panel" markdown="1">
+<p><strong>With the control panel</strong></p>
+<p>Press <strong>Full demo reset</strong> and confirm.</p>
 </div>
 <div data-path="terminal" markdown="1">
 <p><strong>With the terminal</strong></p>
@@ -182,10 +196,11 @@ make<span class="w"> </span>sell-out<span class="w"> </span><span class="nv">PRO
 </div>
 <h4 id="checkpoint-5" class="checkpoint checkpoint">Checkpoint <a class="header-anchor" href="#checkpoint-5">#</a></h4>
 <ul class="contains-task-list">
-<li class="task-list-item enabled"><input class="task-list-item-checkbox"  type="checkbox"> You have seen at least one offer card (<a href="#2-sell-it-out">step 2</a>).</li>
-<li class="task-list-item enabled"><input class="task-list-item-checkbox"  type="checkbox"> <code>offer.decision</code> shows at least two reasons, for example <code>accepted</code> or <code>low_confidence</code>, and <code>kill_switch</code> (or <code>disabled</code> without a Jev key) (<a href="#5-use-the-kill-switch">step 5</a>).</li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"  type="checkbox"> One cart showed three sold-out items: two offers decided by the AI and one &quot;nothing comparable&quot; (<a href="#5-open-the-cart">step 5</a>).</li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"  type="checkbox"> An <code>offer.jev.call</code> span showed the options in its input and the choice and confidence in its output (<a href="#6-read-a-jev-call-in-llm-observability">step 6</a>).</li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"  type="checkbox"> With the kill switch on, the safe rule decided every offer (<a href="#7-use-the-kill-switch">step 7</a>).</li>
 </ul>
-<aside class="summary-box"><p class="see-title">Summary</p><p>The shop does not depend on the AI. Fixed rules decide what may be offered, the rule default always gives an answer, and the trace shows why each offer was made. An offer is only an offer: nothing in this lab proves that it saved a sale.</p></aside>
+<aside class="summary-box"><p class="see-title">Summary</p><p>The shop does not depend on the AI. Fixed rules decide what may be offered, the safe rule always gives an answer, the AI is asked only when there is a real choice, and the trace shows why each offer was made. An offer is only an offer: nothing in this lab proves that it saved a sale.</p></aside>
 <!-- box: also-lab-5-2
 Also in this chapter: Lab 5.2, restock that learns (optional)
 -->
@@ -213,10 +228,10 @@ Also in this chapter: Lab 5.2, restock that learns (optional)
 <div data-path="panel" markdown="1">
 <p><strong>With the control panel</strong></p>
 <ol>
-<li>In the <a href="setup.html#2-open-the-control-panel" data-stack-link="control">control panel</a>, press <strong>Full reset</strong> on the <strong>Background sales</strong> card and confirm.</li>
+<li>In the <a href="setup.html#2-open-the-control-panel" data-stack-link="control">control panel</a>, press <strong>Full demo reset</strong> on the <strong>Background sales and reset</strong> card and confirm.</li>
 </ol>
-<details><summary>Why Full reset, not Reset demo data</summary>
-<p>When the restock layer is on, it also cancels open purchase orders and clears the restock ETA keys in Redis. <strong>Reset demo data</strong> does neither of these, so use <strong>Full reset</strong>.</p>
+<details><summary>Why Full demo reset, not Reset demo data</summary>
+<p>When the restock layer is on, it also cancels open purchase orders and clears the restock ETA keys in Redis. <strong>Reset demo data</strong> does neither of these, so use <strong>Full demo reset</strong>.</p>
 </details>
 2. In the [control panel](#2-open-the-control-panel "stack-link:control"), on the **Actions** card, keep `P0042` in the **Product ID** field and press **Sell out product**. Wait for `succeeded: Source and Redis verification completed`.
 </div>
@@ -228,7 +243,7 @@ make<span class="w"> </span>sell-out<span class="w"> </span><span class="nv">PRO
 <p>You should see the five <code>{&quot;store&quot;: ..., &quot;remaining_store&quot;: 0, ...}</code> lines from Lab 1.1.</p>
 </div>
 <h4 id="2-watch-the-eta-appear">2. Watch the ETA appear <a class="header-anchor" href="#2-watch-the-eta-appear">#</a></h4>
-<p>After a few seconds the page shows &quot;Out of stock online&quot; with &quot;Back in stock in about N hours&quot; and the note &quot;demo clock: 1 min = 1 h&quot;.</p>
+<p>Open the <a href="chapter-1.html#hop-5-the-shop-page" data-stack-link="shop">product page</a> of <code>P0042</code>. After a few seconds it shows &quot;Out of stock online&quot; with &quot;Back in stock in about N hours&quot; and the note &quot;demo clock: 1 min = 1 h&quot;.</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Product page showing Out of stock online with a restock ETA"><img src="img/lab5-01-restock-eta.png" alt="Product page showing Out of stock online with a restock ETA" width="2880" height="2468" loading="lazy" decoding="async"></button><figcaption>Product page showing Out of stock online with a restock ETA</figcaption></figure>
 <details><summary>More about this step</summary>
 <p><strong>What the ETA is.</strong> This is the <abbr title="Estimated time until the product is back in stock.">ETA</abbr>. The default lead time is 48 business hours and each order gets a random variation (jitter), so N is a few tens of hours. We saw 28, 29 and 37.</p>
@@ -237,7 +252,7 @@ make<span class="w"> </span>sell-out<span class="w"> </span><span class="nv">PRO
 <p><em>What just happened:</em> Flink emitted one restock request per store. A <abbr title="A Kafka Connect connector that copies Kafka records into a database table.">JDBC sink connector</abbr> wrote each request into the procurement database as a purchase order, and Debezium streamed the orders back into Kafka. That is how Flink knows the stock is on order and does not order it twice. The supplier simulator (<code>supplier-sim</code>) wrote the earliest due time to Redis, and the page shows it as the ETA.</p>
 </details>
 <h4 id="3-open-the-control-panel">3. Open the control panel <a class="header-anchor" href="#3-open-the-control-panel">#</a></h4>
-<p>Open the <a href="setup.html#2-open-the-control-panel" data-stack-link="control">control panel</a> in both paths (<a href="setup.html#2-open-the-control-panel" data-stack-link="control">how to open it</a>) and scroll below the cards to the <code>restock</code> settings. You should see the restock parameters: supplier lead time, lead time jitter, safety factor, coverage after delivery, minimum order quantity, demand window and the demo clock (<code>time_compression</code>, 60 by default).</p>
+<p>Open the <a href="setup.html#2-open-the-control-panel" data-stack-link="control">control panel</a> in both paths and scroll below the cards to the <code>restock</code> settings. You should see the restock parameters: supplier lead time, lead time jitter, safety factor, coverage after delivery, minimum order quantity, demand window and the demo clock (<code>time_compression</code>, 60 by default).</p>
 <details><summary>Your changes become Datadog events</summary>
 <p>Each change you save is also sent to Datadog as an event.</p>
 </details>
@@ -309,7 +324,7 @@ make<span class="w"> </span>sell-out<span class="w"> </span><span class="nv">PRO
   </div>
 </dialog>
 <div class="sr-only" aria-live="polite" id="live"></div>
-<script src="assets/stack.js?v=ec6a04c228"></script>
+<script src="assets/stack.js?v=d196eb9022"></script>
 <script src="assets/site.js?v=1de1666aca" defer></script>
 </body>
 </html>

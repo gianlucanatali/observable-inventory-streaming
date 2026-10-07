@@ -85,7 +85,7 @@ def build() -> "object":
               if cfg.scenario_api_url else None)
     sales = (BackgroundSales(read_rate, lambda v: control.set(RATE_KEY, v).reading.value, registry[RATE_KEY].default,
                              r, store_probe(cfg.stores, store_conn)) if cfg.stores else None)
-    # Full reset's restock part (same as `make reset`): skipped when PROCUREMENT_HOST is absent or demo:layers lacks restock.
+    # Full demo reset's restock part (same as `make reset`): skipped when PROCUREMENT_HOST is absent or demo:layers lacks restock.
     restock = RestockReset(procurement_conn if cfg.procurement_host else None, r_text, lambda: control.layers())
     actions = Actions(sell_out, reset_data, event_sink=statsd, stack=cfg.stack,
                       operations=make_operations(alb, feeds, checks, sales, reset_data, restock))

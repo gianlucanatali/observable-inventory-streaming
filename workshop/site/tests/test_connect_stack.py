@@ -33,7 +33,8 @@ def links_json(stack, alb, local):
     links.update({"apm": DD + "/apm/entity/service%3Ainventory-api?env=" + env + "&version=1.1.0",
                   "dsm": DD + "/data-streams/map?env=" + env})
     if not local:
-        links.update({"cost-dashboard": DD + "/dashboard/jjj-kkk-lll/cost",
+        links.update({"llm-obs": DD + "/llm/traces?query=%40ml_app%3Aurbanstreet-offers%20%40event_type%3Aspan%20%40is_root_span%3Atrue",
+                      "cost-dashboard": DD + "/dashboard/jjj-kkk-lll/cost",
                       "confluent": "https://confluent.cloud.example/environments/env-abc123/clusters/lkc-xyz789/overview",
                       "stream-lineage": "https://confluent.cloud.example/environments/env-abc123/clusters/lkc-xyz789/stream-lineage",
                       "topic-inventory-cdc": "https://confluent.cloud.example/environments/env-abc123/clusters/lkc-xyz789/topics/inventory.cdc/message-viewer",

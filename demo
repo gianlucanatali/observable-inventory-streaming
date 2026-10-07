@@ -233,9 +233,60 @@ def display(command: list[str]) -> str:
     return " ".join(shlex.quote(item if not any(secret in item for secret in SECRET_KEYS) else item.split("=", 1)[0] + "=***") for item in command)
 
 
+class StackFailed(Exception):
+    """stack-up or stack-down failed; its final banner is already printed, main() only sets the exit code."""
+
+    def __init__(self, code: int) -> None:
+        super().__init__(f"exit {code}")
+        self.code = code
+
+
+RULE = "#" * 60
+STACK_ACTIONS = {"stack-up": "create", "stack-down": "destroy"}
+
+
+def stack_of(command: list[str]) -> str:
+    return next((item.split("=", 1)[1] for item in command if item.startswith("STACK=")), "")
+
+
+def print_banner(lines: list[str], failed: bool) -> None:
+    """The final banner of a create or destroy, always the last output of ./demo (red/green on a terminal)."""
+    colour = sys.stderr.isatty() and not os.environ.get("NO_COLOR")
+    on, off = (("\033[1;31m" if failed else "\033[1;32m"), "\033[0m") if colour else ("", "")
+    sys.stdout.flush()
+    print("\n" + "\n".join(f"{on}{line}{off}" for line in lines), file=sys.stderr, flush=True)
+
+
+def run_stack(command: list[str], action: str) -> None:
+    """stack-up/stack-down: stack.sh writes .state/stack-<stack>.outcome (exit=<n>, then the banner). It is printed
+    here, after make's own error line, so it is the last thing on the screen; a failure raises StackFailed."""
+    stack = stack_of(command)
+    outcome = ROOT / ".state" / f"stack-{stack}.outcome"
+    outcome.unlink(missing_ok=True)
+    result = subprocess.run(command, check=False, env={**os.environ, "DEMO_BANNER": "1"})
+    code, lines = 0, []
+    if outcome.is_file():
+        first, *lines = outcome.read_text(encoding="utf-8").splitlines()
+        code = int(first[len("exit="):]) if re.fullmatch(r"exit=\d+", first) else 1
+    if result.returncode != 0 and not lines:  # stack.sh never reported (make or stack.sh failed before it could)
+        head = (f"DESTROY INCOMPLETE: stack {stack} may be STILL BILLING" if action == "destroy"
+                else f"CREATE FAILED: stack {stack} may be half-built and STILL BILLING")
+        lines = [RULE, head, f"Cause: make {next(item for item in command if item in STACK_ACTIONS)} exited {result.returncode} before stack.sh reported a result (see above)",
+                 f"Fix: fix the cause, then ./demo {action} --yes   (it resumes)", RULE]
+    failed = result.returncode != 0 or code != 0
+    if lines:
+        print_banner(lines, failed)
+    if failed:
+        raise StackFailed(code or result.returncode)
+
+
 def invoke(command: list[str], dry_run: bool) -> None:
     if dry_run:
         print(display(command))
+        return
+    action = next((STACK_ACTIONS[item] for item in command if item in STACK_ACTIONS), None)
+    if action:
+        run_stack(command, action)
     else:
         subprocess.run(command, check=True)
 
@@ -334,6 +385,8 @@ def main() -> int:
         else:
             invoke([*base, {"status": "stack-status", "links": "links", "reset": "reset"}[args.action]], args.dry_run)
         return 0
+    except StackFailed as failure:  # the banner is already the last output; nothing may be printed after it
+        return failure.code
     except (ValueError, OSError, subprocess.CalledProcessError) as error:
         print(f"demo: {error}", file=sys.stderr)
         return 2

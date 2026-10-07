@@ -86,7 +86,7 @@
 <summary>Why the comparison between versions is fair</summary>
 <p>All three releases run on the same Fargate task size (0.5 vCPU / 1 GB, <code>service_sizing</code> in <code>terraform/aws/variables.tf</code>). Any difference in latency or CPU between versions therefore comes from the code, not from the task size.</p>
 </details>
-<p>Open this Chapter in the <a href="setup.html#3-open-the-datadog-stock-dashboard" data-stack-link="overview-dashboard">demo home</a>, group &quot;3. The incident&quot;: p95 by version, ECS CPU against the task's whole vCPU and unhealthy targets, with the Amazon ECS events as markers, and links to APM and the 1.1.0 traces.</p>
+<p>Open this Chapter in the <a href="setup.html#3-open-the-datadog-stock-dashboard" data-stack-link="overview-dashboard">demo home</a>, group &quot;3. The incident&quot;: lookup p95 by version, ECS CPU against the task's whole vCPU and unhealthy targets, with the Amazon ECS events as markers, and links to APM and the 1.1.0 traces.</p>
 <h4 id="turn-on-the-releases-layer">Turn on the releases layer <a class="header-anchor" href="#turn-on-the-releases-layer">#</a></h4>
 <p>Skip this if you chose everything at once, or if <code>releases</code> is already in your <code>layers:</code> line (<code>make layers-status</code> shows <code>releases: ON</code>).</p>
 <ol>
@@ -127,7 +127,7 @@
 <div data-path="panel" markdown="1">
 <p><strong>With the control panel</strong></p>
 <ol>
-<li>In the <a href="setup.html#2-open-the-control-panel" data-stack-link="control">control panel</a>, press <strong>Full reset</strong> on the <strong>Background sales</strong> card and confirm. It stops background sales and sets the routing to 100 / 0 / 0. Wait for <code>full-reset succeeded</code>.</li>
+<li>In the <a href="setup.html#2-open-the-control-panel" data-stack-link="control">control panel</a>, press <strong>Full demo reset</strong> on the <strong>Background sales and reset</strong> card and confirm. It stops background sales and sets the routing to 100 / 0 / 0. Wait for <code>full-reset succeeded</code>.</li>
 <li>Press <strong>Canary 1.1.0 (10%)</strong> on the <strong>Release routing</strong> card and confirm. The tiles should read 90% for 1.0.0, 10% for 1.1.0 and 0% for 1.2.0, and the line under them <code>Live 90/10/0 · previous (for Rollback): 100/0/0</code>.</li>
 </ol>
 </div>
@@ -234,11 +234,11 @@ current=100 0 0 previous=90 10 0
 <p>The canary's traces stay in Datadog, so you can now look for the cause while shoppers use the healthy release.</p>
 </details>
 <h4 id="6-compare-releases-in-apm">6. Compare releases in APM <a class="header-anchor" href="#6-compare-releases-in-apm">#</a></h4>
-<p>Open the <a href="setup.html#3-open-the-datadog-stock-dashboard" data-stack-link="apm"><code>APM inventory-api 1.1.0:</code> link</a> and look at the <strong>Deployments</strong> section of the service page. Each row is one version, with its p95 latency and error rate. You should see 1.1.0 far above 1.0.0.</p>
+<p>Open the <a href="setup.html#3-open-the-datadog-stock-dashboard" data-stack-link="apm"><code>APM inventory-api 1.1.0:</code> link</a> within 15 minutes of the load (later, set the time range to when the load ran) and look at the <strong>Deployments</strong> section of the service page. You should see 1.1.0 far above 1.0.0 in p95 latency.</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Inventory-api latency by version"><img src="img/lab3-02-apm-latency-by-version.png" alt="Inventory-api latency by version" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>Inventory-api latency by version</figcaption></figure>
 <details>
 <summary>Two more views, our numbers, and why the three numbers differ</summary>
-<p>Without the link: APM &gt; <code>inventory-api</code> with environment <code>dd-demo-hybrid</code>, past 15 minutes, operation <code>flask.request</code> (the APM link redirects to <code>/apm/entity/service:inventory-api</code>). During the canary, 1.1.0 is far above 1.0.0 at p95: around a second or more, against under ten milliseconds.</p>
+<p>Without the link: APM &gt; <code>inventory-api</code> with environment <code>dd-demo-hybrid</code>, the load window, operation <code>flask.request</code>, and the filter <code>resource_name:get_/api/availability/_product_id</code> (the APM link redirects to <code>/apm/entity/service:inventory-api</code>). Each Deployments row is one version, with its p95 latency and error rate. After the canary ends, the only 1.1.0 traffic is the load balancer's health checks (<code>get_/readyz</code>, about 6 per minute per version), so a later or longer window without that filter shows a 1.1.0 p95 of about 2 ms. During the canary, 1.1.0 is far above 1.0.0 at p95: around a second or more, against under ten milliseconds.</p>
 <p>You can read the comparison in three places. The first is the <strong>Deployments</strong> section above; the other two follow.</p>
 <p>In our run (2026-10-06, every release on 0.5 vCPU) the load script measured a client-side p95 of about 1.5 s for 1.1.0 and about 10 ms for 1.0.0 at 90 / 10 / 0. Your numbers will differ.</p>
 <ol start="2">
@@ -259,7 +259,7 @@ current=100 0 0 previous=90 10 0
 <p>The three numbers agree when no requests wait, as on 1.0.0 and 1.2.0. Use the APM number to say how much time the code takes, and the client number to say what a shopper experienced.</p>
 </details>
 <h4 id="7-open-one-slow-trace">7. Open one slow trace <a class="header-anchor" href="#7-open-one-slow-trace">#</a></h4>
-<p>Open Traces filtered to <code>version:1.1.0</code> and open a slow request's <abbr title="The full record of one request, made of spans: one timed step each.">trace</abbr>. You should see a <code>catalogue.prepare</code> span that takes most of the request time and a short <code>stock.read</code> span (the Redis reads).</p>
+<p>From the <a href="setup.html#3-open-the-datadog-stock-dashboard" data-stack-link="apm">APM service page</a>, open Traces filtered to <code>version:1.1.0</code> and open a slow request's <abbr title="The full record of one request, made of spans: one timed step each.">trace</abbr>. You should see a <code>catalogue.prepare</code> span that takes most of the request time and a short <code>stock.read</code> span (the Redis reads).</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Trace waterfall with catalogue.prepare and stock.read"><img src="img/lab3-03-trace-catalogue-prepare.png" alt="Trace waterfall with catalogue.prepare and stock.read" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>Trace waterfall with catalogue.prepare and stock.read</figcaption></figure>
 <details><summary>More about this step</summary>
 <p><strong>If you do not see the spans.</strong> If the trace does not show them at first, switch to the <strong>Waterfall</strong> view and look for <code>catalogue.prepare</code> and <code>stock.read</code> there.</p>
@@ -267,7 +267,7 @@ current=100 0 0 previous=90 10 0
 <p><em>What just happened:</em> every span carries the <em>unified service tags</em> <code>env</code>, <code>service</code> and <code>version</code>, so APM can compare releases directly, even when one of them got only a tenth of the traffic. The catalogue work uses CPU and runs again in every request, so latency grows with load, while the Redis read stays fast.</p>
 </details>
 <h4 id="8-rule-out-the-stream">8. Rule out the stream <a class="header-anchor" href="#8-rule-out-the-stream">#</a></h4>
-<p>On the <a href="setup.html#3-open-the-datadog-stock-dashboard" data-stack-link="stock-dashboard">stock dashboard</a> the <strong>Freshness</strong> group has not changed, and the <strong>Service objective</strong> group shows <code>inventory-api p95 latency by version</code> rising for 1.1.0 only.</p>
+<p>On the <a href="setup.html#3-open-the-datadog-stock-dashboard" data-stack-link="stock-dashboard">stock dashboard</a> the <strong>Freshness</strong> group has not changed, and the <strong>Service objective</strong> group shows <code>inventory-api lookup p95 by version (s)</code> rising for 1.1.0 only.</p>
 <details><summary>The DSM map and the p95 monitor</summary>
 <p>The <a href="setup.html#3-open-the-datadog-stock-dashboard" data-stack-link="dsm">DSM map</a> shows the same healthy edges as in Lab 1.1. The monitor &quot;[dd-demo-hybrid] inventory-api p95 latency above 0.2s on 1.1.0&quot; can go to Alert after its evaluation window, depending on how many 1.1.0 samples fell into that window.</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: P95 monitor in Alert for version 1.1.0"><img src="img/lab3-04-p95-monitor.png" alt="P95 monitor in Alert for version 1.1.0" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>P95 monitor in Alert for version 1.1.0</figcaption></figure>
@@ -328,7 +328,7 @@ current=100 0 0 previous=90 10 0
   </div>
 </dialog>
 <div class="sr-only" aria-live="polite" id="live"></div>
-<script src="assets/stack.js?v=ec6a04c228"></script>
+<script src="assets/stack.js?v=d196eb9022"></script>
 <script src="assets/site.js?v=1de1666aca" defer></script>
 </body>
 </html>

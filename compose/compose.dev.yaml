@@ -137,7 +137,7 @@ services:
     depends_on:
       kafka-init: {condition: service_completed_successfully}
       schema-registry: {condition: service_healthy}
-    # Release routing card and Full reset in local mode: the panel reads routing.conf and drops weight
+    # Release routing card and Full demo reset in local mode: the panel reads routing.conf and drops weight
     # requests into the nginx-routing volume; nginx's routing-watch.sh applies them (render, nginx -t, reload).
     environment:
       NGINX_ROUTING_DIR: /routing

@@ -144,7 +144,7 @@ def test_watcher_rejects_malformed_requests_without_touching_nginx(vol):
     assert vol.conf() == render(100, 0, 0) and vol.nginx_calls() == []
 
 
-# --- the panel with the nginx backend: Release routing card, Full reset ----------------------------------------------
+# --- the panel with the nginx backend: Release routing card, Full demo reset ----------------------------------------------
 def panel(vol, sales=None, reset=None):
     r = fakeredis.FakeRedis()
     nx = backend(vol, r)

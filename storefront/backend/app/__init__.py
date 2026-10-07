@@ -10,9 +10,10 @@ from typing import Any, Callable
 from werkzeug.exceptions import HTTPException, NotFound
 from flask import Flask, Response, jsonify, request, send_file, send_from_directory
 
+from .alternatives import MAX_ALTERNATIVES, comparable_pool, display
 from .beacon import BeaconRejected, display_delay_seconds
 from .catalogue import get_product, load_products, model_variants, product_image_path
-from .cart import ValidationError, build_cart_event
+from .cart import CART_ID_RE, ValidationError, apply_cart_event, build_cart_event, cart_key, read_cart
 from .config import Config
 from .illustrations import render_svg
 from .offers import OfferConsumer, OfferStore, offer_to_json
@@ -37,6 +38,48 @@ class Deps:
 
 def _error(status: int, code: str, message: str):
     return jsonify({"error": code, "message": message}), status
+
+
+def _cart_json(cart_id: str, scenario_id: str, quantities: dict[str, int]) -> dict:
+    """Cart contents for the shop's cart drawer, with display facts from the catalogue."""
+    items = []
+    for product_id, quantity in quantities.items():
+        product = get_product(product_id) or {}
+        items.append({"product_id": product_id, "quantity": quantity, "name": product.get("name"),
+                      "brand": product.get("brand"), "size": product.get("size"),
+                      "colour": (product.get("colour") or {}).get("name"), "price_eur": product.get("price_eur")})
+    return {"cart_id": cart_id, "scenario_id": scenario_id, "items": items,
+            "count": sum(quantities.values())}
+
+
+def _jev_choice_label(choice: str | None, original_product_id: str) -> str | None:
+    """Jev's choice as the shopper reads it: the product name ("Pathfinder Air"), plus its colour when it is the
+    same model as the sold-out item ("Dolomia Evo in Glacier blue"); "a restock notice" for notify-me. None when Jev
+    returned no choice or the id is not in the catalogue (the card then shows the id)."""
+    if choice == "notify_me":
+        return "a restock notice"
+    if not choice or not choice.startswith("alt:"):
+        return None
+    product = get_product(choice[4:])
+    if not product:
+        return None
+    original = get_product(original_product_id) or {}
+    if product.get("name") == original.get("name"):
+        return f"{product['name']} in {(product.get('colour') or {}).get('name')}"
+    return product["name"]
+
+
+def _offer_json(offer: dict) -> dict:
+    """Offer as served, plus the offered alternative's display facts from the catalogue (null without one),
+    Jev's choice by name, and `no_offer`: the worker found no eligible alternative and no near restock, so it
+    published the case without an Offer (offer-worker README: chosen_choice null, no product)."""
+    body = offer_to_json(offer)
+    alt = get_product(body["product_id"]) if body.get("product_id") else None
+    body["alternative"] = display(alt) if alt else None
+    body["jev_choice_label"] = _jev_choice_label(body.get("jev_choice"), body["original_product_id"])
+    body["no_offer"] = (body["chosen_choice"] is None and body.get("product_id") is None
+                        and body.get("decision_reason") in ("no_alternative", "invalid_choice"))
+    return body
 
 
 def create_app(cfg: Config, deps: Deps) -> Flask:
@@ -136,8 +179,36 @@ def create_app(cfg: Config, deps: Deps) -> Flask:
             log.exception("cart event publish failed", extra={"cart_id": value["cart_id"]})
             return _error(502, "publish_failed", f"could not publish cart event: {type(exc).__name__}: {exc}")
         log.info("cart event published", extra={k: value[k] for k in ("event_id", "cart_id", "event_type", "store_id", "product_id", "scenario_id")})
-        return jsonify({"cart_id": value["cart_id"], "event_id": value["event_id"],
-                        "event_type": value["event_type"], "scenario_id": scenario}), 201
+        try:
+            quantities = apply_cart_event(deps.redis, value)
+        except Exception as exc:  # noqa: BLE001
+            key = cart_key(scenario, value["cart_id"])
+            log.exception("cart contents update failed after publish", extra={"cart_id": value["cart_id"]})
+            return _error(503, "redis_error", f"cart event {value['event_id']} was published but the cart contents "
+                          f"in Redis key {key} were not updated: {type(exc).__name__}: {exc}")
+        return jsonify({**_cart_json(value["cart_id"], scenario, quantities), "event_id": value["event_id"],
+                        "event_type": value["event_type"]}), 201
+
+    @app.get("/api/cart/<cart_id>")
+    def cart_contents(cart_id: str):
+        if not CART_ID_RE.match(cart_id):
+            return _error(400, "invalid_request", "cart_id must be a value previously returned by this API")
+        try:
+            scenario = current_scenario()
+        except LookupError as exc:
+            return _error(503, "scenario_missing", str(exc))
+        except Exception as exc:  # noqa: BLE001
+            log.exception("redis read of %s failed", SCENARIO_KEY)
+            return _error(503, "redis_error", f"cannot read {SCENARIO_KEY}: {type(exc).__name__}: {exc}")
+        try:
+            quantities = read_cart(deps.redis, scenario, cart_id)
+        except Exception as exc:  # noqa: BLE001
+            log.exception("cart contents read failed", extra={"cart_id": cart_id})
+            return _error(503, "redis_error", f"cannot read {cart_key(scenario, cart_id)}: {type(exc).__name__}: {exc}")
+        if not quantities:
+            # Expired, emptied, or started before the current scenario (a reset): the shop starts a new cart.
+            return _error(404, "cart_not_found", f"no cart {cart_id} in scenario {scenario}")
+        return jsonify(_cart_json(cart_id, scenario, quantities))
 
     @app.get("/api/offers")
     def offers():
@@ -153,8 +224,10 @@ def create_app(cfg: Config, deps: Deps) -> Flask:
         except Exception as exc:  # noqa: BLE001
             log.exception("redis read of %s failed", SCENARIO_KEY)
             return _error(503, "redis_error", f"cannot read {SCENARIO_KEY}: {type(exc).__name__}: {exc}")
-        offer = deps.offer_store.get(scenario, cart_id)
-        return jsonify({"offer": offer_to_json(offer) if offer else None})
+        # `offers`: one per sold-out cart item (oldest first). `offer`: the most recent one, kept for older readers.
+        offers = [_offer_json(o) for o in deps.offer_store.get_all(scenario, cart_id)]
+        latest = deps.offer_store.get(scenario, cart_id)
+        return jsonify({"offer": _offer_json(latest) if latest else None, "offers": offers})
 
     @app.post("/api/beacon/display")
     def beacon():
@@ -177,6 +250,16 @@ def create_app(cfg: Config, deps: Deps) -> Flask:
         if product is None:
             return _error(404, "not_found", f"unknown product {product_id}")
         return jsonify({**product, "variants": model_variants(product)})
+
+    @app.get("/api/products/<product_id>/alternatives")
+    def product_alternatives(product_id: str):
+        """Comparable products in the offer-worker's order, without stock: the shop keeps the first
+        `max_alternatives` that the availability API confirms in stock (the worker's rule)."""
+        product = get_product(product_id)
+        if product is None:
+            return _error(404, "not_found", f"unknown product {product_id}")
+        return jsonify({"product_id": product_id, "max_alternatives": MAX_ALTERNATIVES,
+                        "candidates": [display(p) for p in comparable_pool(product, load_products())]})
 
     @app.get("/img/<product_id>.svg")
     def product_image(product_id: str):

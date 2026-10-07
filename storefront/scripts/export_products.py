@@ -33,10 +33,39 @@ HEX = {
     "Forest green": "#2f6b4f", "Burnt orange": "#d2662d", "Navy": "#1f3a63", "Slate": "#5a6678",
     "Sand": "#c8b38a", "Ember red": "#b73a2e", "Glacier blue": "#4f93b8", "Charcoal": "#33373d",
 }
+# Kind of product per product type (the name without its last word), from the photo prompts in
+# assets-src/gen_keys.py (TYPES). WATERPROOF_TYPES are the types whose photo prompt says "waterproof"; a "GTX"
+# (Gore-Tex) in the name also makes a model waterproof. Nothing else is guessed from the name.
+KIND = {
+    "Trailrunner": "trail running shoe", "Pathfinder": "hiking shoe", "Dolomia": "hiking boot",
+    "Brenta": "approach shoe", "Cresta": "mountaineering boot", "Rifugio": "trekking boot",
+    "Sentinel": "winter hiking boot",
+    "Rain Jacket": "rain jacket", "Softshell": "softshell jacket", "Windshell": "wind jacket",
+    "Fleece Midlayer": "fleece midlayer", "Base Layer": "base layer", "Trek Shorts": "trekking shorts",
+    "Hydration Vest": "hydration vest", "Gaiters": "gaiters", "Trekking Poles": "trekking poles",
+    "Merino Beanie": "beanie", "Trail Cap": "running cap",
+}
+WATERPROOF_TYPES = {"Dolomia", "Rain Jacket"}
+# Uses per kind, so models of the same kind share one family of uses (the hash picks one inside the family).
 USE = {
-    "footwear": ["long ridge runs", "wet gravel descents", "technical scrambles", "early morning trail laps"],
-    "apparel": ["changeable mountain weather", "cold starts above the treeline", "fast hikes in the wind", "long days out"],
-    "accessories": ["day hikes", "alpine mornings", "long trail runs", "packing light"],
+    "trail running shoe": ["early morning trail laps", "long ridge runs", "fast runs on rough trails"],
+    "hiking shoe": ["day hikes on marked trails", "fast hikes on dry paths"],
+    "hiking boot": ["wet hikes over rough ground"],
+    "approach shoe": ["rocky approaches and easy scrambles"],
+    "mountaineering boot": ["glacier and crampon days"],
+    "trekking boot": ["multi-day treks with a pack"],
+    "winter hiking boot": ["snowy winter hikes"],
+    "rain jacket": ["changeable mountain weather", "long days in the rain"],
+    "softshell jacket": ["cold starts above the treeline"],
+    "wind jacket": ["fast hikes in the wind"],
+    "fleece midlayer": ["cold starts above the treeline"],
+    "base layer": ["long days out"],
+    "trekking shorts": ["warm days on the trail"],
+    "hydration vest": ["long trail runs"],
+    "gaiters": ["wet and muddy trails"],
+    "trekking poles": ["day hikes", "long descents"],
+    "beanie": ["alpine mornings"],
+    "running cap": ["sunny trail runs"],
 }
 FEEL = ["Light and quick", "Durable and dependable", "Warm without bulk", "Balanced and responsive", "Compact and packable"]
 
@@ -112,7 +141,8 @@ PINNED = {
     "P0061": ("Pathfinder Air", "Ember red", "EU 42"),
     "P0146": ("Sentinel Storm", "Forest green", "EU 42"),
 }
-# Offer pool of P0042 before the variants existed (same category and size, price within +/- 20%, closest first).
+# Offer pool of P0042 before the variants existed (same category and size, price within +/- 20%; same kind, then same
+# waterproofing, then closest price first). None of them is a trail running shoe or waterproof, so the order is by price.
 P0042_OFFER_POOL = ["P0160", "P0061", "P0146"]
 DESCRIPTION = {"Trailrunner GTX": "Balanced and responsive, built for early morning trail laps."}
 
@@ -125,11 +155,28 @@ def slug(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
 
 
-def describe(name: str, category: str) -> str:
+def product_type(name: str) -> str:
+    """The name without its last word (the suffix): selects the photo set and the kind."""
+    return " ".join(name.split()[:-1])
+
+
+def kind_of(name: str) -> str:
+    t = product_type(name)
+    if t not in KIND:
+        raise SystemExit(f"export_products.py: product type {t!r} of {name!r} has no KIND")
+    return KIND[t]
+
+
+def is_waterproof(name: str) -> bool:
+    return "GTX" in name.split() or product_type(name) in WATERPROOF_TYPES
+
+
+def describe(name: str) -> str:
     if name in DESCRIPTION:
         return DESCRIPTION[name]
+    uses = USE[kind_of(name)]
     feel = FEEL[h(name, "feel") % len(FEEL)]
-    use = USE[category][h(name, "use") % len(USE[category])]
+    use = uses[h(name, "use") % len(uses)]
     return f"{feel}, built for {use}."
 
 
@@ -163,7 +210,9 @@ def build() -> list[dict]:
             "product_id": pid, "name": name, "brand": brand, "category": category, "size": size,
             "price_eur": price,
             "colour": {"name": colour, "hex": HEX[colour]},
-            "description": describe(name, category),
+            "kind": kind_of(name),
+            "waterproof": is_waterproof(name),
+            "description": describe(name),
             "model_id": slug(f"{brand} {name}"),
             "variant_rank": rank,
         })
@@ -171,11 +220,13 @@ def build() -> list[dict]:
 
 
 def offer_pool(original: dict, items: list[dict]) -> list[str]:
-    """Mirror of offer-worker policy.build_candidates eligibility and order (before the stock check)."""
+    """Mirror of offer-worker policy.build_candidates eligibility and order (before the stock check):
+    same kind first, then same waterproofing, then closest price."""
     lo, hi = original["price_eur"] * 0.8, original["price_eur"] * 1.2
     pool = [p for p in items if p["product_id"] != original["product_id"] and p["category"] == original["category"]
             and p["size"] == original["size"] and lo <= p["price_eur"] <= hi]
-    pool.sort(key=lambda p: (abs(p["price_eur"] - original["price_eur"]), p["product_id"]))
+    pool.sort(key=lambda p: (p["kind"] != original["kind"], p["waterproof"] != original["waterproof"],
+                             abs(p["price_eur"] - original["price_eur"]), p["product_id"]))
     return [p["product_id"] for p in pool]
 
 
@@ -189,7 +240,7 @@ def check(items: list[dict], generated: list[dict]) -> None:
     if pool != P0042_OFFER_POOL:
         raise SystemExit(f"export_products.py: offer pool of P0042 changed to {pool}, expected {P0042_OFFER_POOL}")
     for p in items:
-        photo = IMAGES / f"{slug(' '.join(p['name'].split()[:-1]))}--{slug(p['colour']['name'])}.jpg"
+        photo = IMAGES / f"{slug(product_type(p['name']))}--{slug(p['colour']['name'])}.jpg"
         if not photo.is_file():
             raise SystemExit(f"export_products.py: {p['product_id']} has no photo {photo.name}")
 

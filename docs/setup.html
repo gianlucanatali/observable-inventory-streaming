@@ -115,7 +115,7 @@ The build takes about 30 minutes with the default core layers, about 36 with eve
 </tr>
 <tr>
 <td>TypeSafe Jev (optional)</td>
-<td>An API key for the Jev decision API. Without it, everything still works, and every offer in Lab 5.1 uses the rule default</td>
+<td>An API key for the Jev decision API. Without it, everything still works, and every offer in Lab 5.1 uses the safe rule</td>
 </tr>
 </tbody>
 </table></div>
@@ -288,7 +288,7 @@ chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>d
 </tr>
 <tr>
 <td><code>jev_api_key</code></td>
-<td>Optional, commented out in the file. Leave it commented out to use only the rule default</td>
+<td>Optional, commented out in the file. Leave it commented out to use only the safe rule</td>
 </tr>
 <tr>
 <td><code>keep_images</code></td>
@@ -445,7 +445,7 @@ chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>d
 </ol>
 <p>With the <code>confluent</code> CLI, after <code>confluent login</code>: <code>confluent api-key create --resource cloud</code>.</p>
 <p>Official docs: <a href="https://docs.confluent.io/cloud/current/security/authenticate/workload-identities/service-accounts/api-keys/manage-api-keys.html" rel="noopener" target="_blank">Manage API Keys in Confluent Cloud</a>, <a href="https://docs.confluent.io/confluent-cli/current/command-reference/api-key/confluent_api-key_create.html" rel="noopener" target="_blank">confluent api-key create</a></p>
-<p><strong>Where do I get <code>jev_api_key</code>?</strong> This key is optional. Jev is the external decision API from TypeSafe that the offer worker asks to choose an offer in <a href="chapter-5.html#lab-51-offers-with-a-safe-default">Lab 5.1</a>. If you have access to Jev, remove the leading <code># </code> from the <code>jev_api_key</code> line and put your Jev API key after the colon, without quotes. Leave it commented out and every offer uses the rule default; all labs still work.</p>
+<p><strong>Where do I get <code>jev_api_key</code>?</strong> This key is optional. Jev is the external decision API from TypeSafe that the offer worker asks to choose an offer in <a href="chapter-5.html#lab-51-offers-with-a-safe-default">Lab 5.1</a>. If you have access to Jev, remove the leading <code># </code> from the <code>jev_api_key</code> line and put your Jev API key after the colon, without quotes. Leave it commented out and every offer uses the safe rule; all labs still work.</p>
 </details>
 <h3 id="022-run-the-preflight-no-cloud-costs-yet">0.2.2 Run the preflight (no cloud costs yet) <a class="header-anchor" href="#022-run-the-preflight-no-cloud-costs-yet">#</a></h3>
 <p>Sign in to AWS first; the command opens a browser window:</p>
@@ -461,7 +461,7 @@ chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>d
 <div class="code code-out" data-lang="text"><div class="code-bar"><span class="code-label">Expected output</span></div><pre tabindex="0"><code>demo: allowed_cidr not set; using your current IP &lt;a.b.c.d&gt;/32
 gen-secrets: wrote &lt;repo&gt;/.env.secrets (&lt;n&gt; passwords, mode 600, values not shown)
 ...
-   note: JEV_API_KEY not set: offers use the rule default only
+   note: JEV_API_KEY not set: offers use the safe rule only
    AWS login session via refresh profile dd-demo-auto: ok
    ...
    terraform/account: valid
@@ -617,7 +617,7 @@ stack hybrid, core always on; optional layers:
 </thead>
 <tbody>
 <tr>
-<td><strong>Background sales</strong> (<strong>Full reset</strong>)</td>
+<td><strong>Background sales and reset</strong> (<strong>Full demo reset</strong>)</td>
 <td>Every lab, to start from a clean state</td>
 </tr>
 <tr>
@@ -668,7 +668,7 @@ DSM map: https://app.datadoghq.eu/data-streams?env=dd-demo-hybrid
 <div data-path="panel" markdown="1">
 <p><strong>With the control panel</strong></p>
 <ol>
-<li>In the <a href="#2-open-the-control-panel" data-stack-link="control">control panel</a>, on the <strong>Background sales</strong> card, press <strong>Full reset</strong> and confirm. Wait until the card reads <code>full-reset succeeded: ...</code>.</li>
+<li>In the <a href="#2-open-the-control-panel" data-stack-link="control">control panel</a>, on the <strong>Background sales and reset</strong> card, press <strong>Full demo reset</strong> and confirm. Wait until the card reads <code>full-reset succeeded: ...</code>.</li>
 <li>On the <strong>Checks</strong> card, press <strong>Verify</strong>. You should see <code>VERIFY PASSED</code>.</li>
 </ol>
 </div>
@@ -683,9 +683,9 @@ make<span class="w"> </span>verify
 <details><summary>More about this step</summary>
 <div data-path="panel" markdown="1">
 <p><strong>With the control panel</strong></p>
-<p><strong>Full reset</strong> turns background sales off, sends all stock lookups to release 1.0.0 and writes the seeded stock back into the five stores. The card ends with <code>full-reset succeeded: Full reset done: background sales off (rate 0), routing 100/0/0 verified, demo data at the seeded baseline and Redis converged; ...</code>.</p>
+<p><strong>Full demo reset</strong> turns background sales off, sends all stock lookups to release 1.0.0 and writes the seeded stock back into the five stores. The card ends with <code>full-reset succeeded: Full demo reset done: background sales off (rate 0), routing 100/0/0 verified, demo data at the seeded baseline and Redis converged; ...</code>.</p>
 <p>After a few seconds <strong>Verify</strong> shows <code>VERIFY PASSED</code> in the result box, and the status line reads <code>verify succeeded: Verify passed: 0 position mismatch(es), 0 sellable mismatch(es)</code>.</p>
-<p>If you press <strong>Verify</strong> before <strong>Full reset</strong>, it can fail with a list such as <code>sellable P0011: sources sum 97, redis 96</code>. Nothing is broken: background sales were changing the stock while Verify compared it. Press <strong>Full reset</strong>, then <strong>Verify</strong> again.</p>
+<p>If you press <strong>Verify</strong> before <strong>Full demo reset</strong>, it can fail with a list such as <code>sellable P0011: sources sum 97, redis 96</code>. Nothing is broken: background sales were changing the stock while Verify compared it. Press <strong>Full demo reset</strong>, then <strong>Verify</strong> again.</p>
 </div>
 <div data-path="terminal" markdown="1">
 <p><strong>With the terminal</strong></p>
@@ -699,7 +699,7 @@ reset ok: scenario &lt;id&gt;, &lt;n&gt; positions at baseline, sellable caught 
 <p>The last line is <code>verify</code>: every store matches Redis. If you run <code>verify</code> before <code>reset</code>, it can report mismatches, because background sales were changing the stock while it compared. Run <code>reset</code>, then <code>verify</code> again.</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Key lines of make reset and make verify"><img src="img/build-03-reset-verify-smoke.png" alt="Key lines of make reset and make verify" width="2600" height="593" loading="lazy" decoding="async"></button><figcaption>Key lines of make reset and make verify</figcaption></figure>
 </div>
-<p><strong>Why background sales stay off, and why Datadog needs minutes.</strong> When the build ends, background sales are running: every store sells a few products each minute, so the stock keeps changing. Every lab starts by stopping them and writing the seeded stock back, so that you know what the page should show. Background sales stay off until you turn them on; the labs do not need them. Datadog needs about 10 minutes of data before its charts are useful, and the freshness probe keeps sending data while sales are off.</p>
+<p><strong>Why background sales stay off, and why Datadog needs minutes.</strong> The build leaves background sales running: every store sells a few products each minute, so the stock keeps changing. <strong>Full demo reset</strong>, the first step of most labs, turns them off and writes the seeded stock back, so that you know what the page should show. The labs that need traffic say when to turn sales on. Datadog needs about 10 minutes of data before its charts are useful, and the freshness probe keeps sending data while sales are off.</p>
 </details>
 <h3 id="027-checkpoint">0.2.7 Checkpoint <a class="header-anchor" href="#027-checkpoint">#</a></h3>
 <ul class="contains-task-list">
@@ -710,7 +710,7 @@ reset ok: scenario &lt;id&gt;, &lt;n&gt; positions at baseline, sellable caught 
 <p><input class="task-list-item-checkbox"  type="checkbox"> The <a href="#1-open-the-online-shop" data-stack-link="shop-home">Online shop</a>, the <a href="#2-open-the-control-panel" data-stack-link="control">control panel</a> and the Datadog <a href="#3-open-the-datadog-stock-dashboard" data-stack-link="stock-dashboard">stock dashboard</a> are open (<a href="#025-open-the-shop-the-control-panel-and-datadog">0.2.5</a>).</p>
 </li>
 <li class="task-list-item enabled">
-<p><input class="task-list-item-checkbox"  type="checkbox"> The reset ended and verify passed. <strong>Control panel:</strong> <strong>Full reset</strong> ended with <code>full-reset succeeded</code>, and <strong>Verify</strong> showed <code>VERIFY PASSED</code> · <strong>Terminal:</strong> <code>make reset</code> printed <code>reset ok</code>, and <code>make verify</code> printed <code>&quot;mismatches&quot;: 0, &quot;sellable_mismatches&quot;: 0</code> (<a href="#026-start-from-a-clean-state">0.2.6</a>).</p>
+<p><input class="task-list-item-checkbox"  type="checkbox"> The reset ended and verify passed. <strong>Control panel:</strong> <strong>Full demo reset</strong> ended with <code>full-reset succeeded</code>, and <strong>Verify</strong> showed <code>VERIFY PASSED</code> · <strong>Terminal:</strong> <code>make reset</code> printed <code>reset ok</code>, and <code>make verify</code> printed <code>&quot;mismatches&quot;: 0, &quot;sellable_mismatches&quot;: 0</code> (<a href="#026-start-from-a-clean-state">0.2.6</a>).</p>
 </li>
 </ul>
 
@@ -737,7 +737,7 @@ reset ok: scenario &lt;id&gt;, &lt;n&gt; positions at baseline, sellable caught 
   </div>
 </dialog>
 <div class="sr-only" aria-live="polite" id="live"></div>
-<script src="assets/stack.js?v=ec6a04c228"></script>
+<script src="assets/stack.js?v=d196eb9022"></script>
 <script src="assets/site.js?v=1de1666aca" defer></script>
 </body>
 </html>

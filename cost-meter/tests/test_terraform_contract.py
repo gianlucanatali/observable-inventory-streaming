@@ -69,10 +69,10 @@ def test_account_cost_dashboard_makes_pre_tax_estimates_and_ccm_actuals_unambigu
     cost = (TF / "account/cost.tf").read_text()
 
     for title in (
-        "Cost now, all vendors (USD/h, pre-tax estimate)",
+        "Burn now (estimate), all vendors (USD/h, pre-tax)",
         "Spent since start, all vendors (USD, pre-tax estimate)",
         "Confluent billed so far (USD, pre-tax actual bill after credits, about 1 h behind)",
-        "Confluent org billed, all stacks (USD, pre-tax gross before promo credits)",
+        "Confluent trial credit used, all stacks (USD, gross billed last 30 days, pre-tax, about 1 h behind)",
         "Confluent billed at list price (USD, pre-tax actual before credits)",
         "Cost rate by vendor (USD/h, pre-tax estimate)",
         "Spent by vendor (USD, pre-tax estimate) and Confluent billed (pre-tax actual)",
@@ -96,6 +96,21 @@ def test_account_cost_dashboard_makes_pre_tax_estimates_and_ccm_actuals_unambigu
     assert "CCM data lags 24–72 hours overall" in cost
     assert "AWS CUR data specifically takes 48–72 hours after a complete report" in cost
     assert "https://docs.datadoghq.com/cloud_cost_management/setup/aws/" in cost
+
+
+def test_account_cost_dashboard_shows_month_to_date_spend_and_credit_left():
+    cost = (TF / "account/cost.tf").read_text()
+
+    assert "confluent_trial_credit_usd = 400" in cost
+    assert 'confluent_credit_used_query = "max:dd_demo.cost.aggregate_org_billed_list_usd_total{project:dd-demo}"' in cost
+    assert 'title       = "Confluent credit left (USD, ${local.confluent_trial_credit_usd} trial credit minus gross billed' in cost
+    assert 'formulas        = [{ formula = "${local.confluent_trial_credit_usd} - used" }]' in cost
+    # Month-to-date window: a documented widget live_span value of the Datadog provider.
+    assert 'time = { live_span = "month_to_date" }' in cost
+    assert 'query       = "sum:aws.cost.unblended{!aws_cost_type:Tax}.rollup(sum, 86400)"' in cost
+    assert 'query       = "${local.confluent_credit_used_query}.rollup(max, 86400)"' in cost
+    for formula in ('formula = "cumsum(aws)"', 'formula = "confluent"', 'formula = "cumsum(aws) + confluent"'):
+        assert formula in cost
 
 
 def test_account_adopts_existing_cost_meter_identity_without_new_role_grants():
@@ -152,4 +167,4 @@ def test_fargate_surface_preserves_application_identity_and_stack_scope():
     assert 'project:dd-demo,stack:${var.stack}' in text
     assert 'notify_no_data' in text
     main = (TF / "datadog/main.tf").read_text()
-    assert 'trace.flask.request{${local.svc}} by {version}' in main
+    assert 'trace.flask.request{${local.svc},${local.lookup}} by {version}' in main

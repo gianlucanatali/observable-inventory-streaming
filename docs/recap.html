@@ -75,42 +75,42 @@
 <tr>
 <td>Is the stock in the Online shop current?</td>
 <td>Freshness group: probe age, feed state, apply delay, sellable age</td>
-<td>1, 2</td>
+<td>1.1, 2.1</td>
 </tr>
 <tr>
 <td>Which store stopped reporting?</td>
 <td><code>stock.feed.state</code> by store, per-store monitor</td>
-<td>2</td>
+<td>2.1</td>
 </tr>
 <tr>
 <td>Should this release reach more shoppers?</td>
 <td>The <code>canary-check</code> gates on the canary's samples, errors, p95 and correctness</td>
-<td>3, 4</td>
+<td>3.1, 4.1</td>
 </tr>
 <tr>
 <td>Is the slowness in the release or in the stream?</td>
 <td>APM latency by version, <code>catalogue.prepare</code> span, unchanged freshness and DSM</td>
-<td>3</td>
+<td>3.1</td>
 </tr>
 <tr>
 <td>Is the fix safe to roll out further?</td>
 <td>APM Deployments by version, plus the <code>canary-check</code> gates</td>
-<td>4</td>
+<td>4.1</td>
 </tr>
 <tr>
 <td>Are restock orders flowing?</td>
 <td>Restock group, config-change events, restock monitors</td>
-<td>5</td>
+<td>5.2</td>
 </tr>
 <tr>
 <td>Why did the shopper get this offer?</td>
 <td>LLM Observability span input and output, <code>offer.decision</code> by reason</td>
-<td>6</td>
+<td>5.1</td>
 </tr>
 <tr>
 <td>Is the platform healthy, and what does it cost?</td>
 <td>AWS-native dashboard, Confluent consumer lag, Synthetics, monitors, cost dashboard</td>
-<td>7</td>
+<td>6.1</td>
 </tr>
 </tbody>
 </table></div>
@@ -151,7 +151,7 @@
   </div>
 </dialog>
 <div class="sr-only" aria-live="polite" id="live"></div>
-<script src="assets/stack.js?v=ec6a04c228"></script>
+<script src="assets/stack.js?v=d196eb9022"></script>
 <script src="assets/site.js?v=1de1666aca" defer></script>
 </body>
 </html>

@@ -32,7 +32,7 @@ mode: local
 datadog_site: datadoghq.eu          # your Datadog site
 dd_api_key: <your Datadog API key>
 layers: core                        # optional: core (default), all, or a list such as core,releases
-# jev_api_key: <your Jev key>       # optional: the AI choice for offers; without it the rule default is used
+# jev_api_key: <your Jev key>       # optional: the AI choice for offers; without it the safe rule is used
 ```
 
 If you already have a cloud `demo.yaml`, you can instead add `mode: local` to it: the cloud keys are ignored locally.
@@ -88,7 +88,7 @@ The shop is at http://localhost:8088 and the control panel at http://localhost:8
 | Serving view | ElastiCache | local Redis |
 | Ingress and canary routing | Application Load Balancer, weighted rule | nginx weighted upstream (exact 10 in 100, `nginx/render-routing.sh`) |
 | Releases 1.0.0 / 1.1.0 / 1.2.0 | ECS Fargate, 0.5 vCPU / 1 GB | containers in the VM, 2 CPU / 768 MB each; whether 1.1.0 fails the canary gate in the VM is not yet measured |
-| Control panel | all cards | all cards, including Release routing, Full reset and Links (nginx and local Redis instead of the ALB and ElastiCache) |
+| Control panel | all cards | all cards, including Release routing, Full demo reset and Links (nginx and local Redis instead of the ALB and ElastiCache) |
 | Confluent Cloud console, Stream Lineage, Lab 1.2 | yes | **no** (inspect the local topics with `kafka-console-consumer` in the `kafka` container) |
 | Control Center | optional layer | **no** |
 | Datadog APM, DSM, logs, metrics | yes | yes, env `dd-demo-dev` (the DSM map is shorter: no Flink hop) |
@@ -96,7 +96,7 @@ The shop is at http://localhost:8088 and the control panel at http://localhost:8
 | Datadog Synthetics | yes | **no** (Datadog's test locations cannot reach `localhost`) |
 | Datadog Confluent integration, AWS dashboard, ECS | yes | **no** |
 | Cost dashboard, cost meter AWS/Confluent lines | yes | **no** (nothing is billed) |
-| Bedrock (offers AI) | yes | **no**; Jev only if `jev_api_key` is set, otherwise the rule default |
+| Bedrock (offers AI) | yes | **no**; Jev only if `jev_api_key` is set, otherwise the safe rule |
 | RUM | `dd-rum` layer | **no** without setting the RUM ids by hand |
 
 The Links card and `make links-json` work locally too. The workshop guide's "Connect your stack" box accepts the local

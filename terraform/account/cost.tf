@@ -9,7 +9,7 @@ locals {
 
   cost_value = {
     rate_now = {
-      title = "Cost now, all vendors (USD/h, pre-tax estimate)"
+      title = "Burn now (estimate), all vendors (USD/h, pre-tax)"
       query = "max:dd_demo.cost.aggregate_usd_per_hour{${local.cost_scope},vendor:all}"
     }
     spent = {
@@ -21,7 +21,7 @@ locals {
       query = "max:dd_demo.cost.aggregate_billed_usd_total{${local.cost_scope}}"
     }
     org_billed = {
-      title = "Confluent org billed, all stacks (USD, pre-tax gross before promo credits)"
+      title = "Confluent trial credit used, all stacks (USD, gross billed last 30 days, pre-tax, about 1 h behind)"
       query = "max:dd_demo.cost.aggregate_org_billed_list_usd_total{${local.cost_scope}}"
     }
     billed_list = {
@@ -29,6 +29,11 @@ locals {
       query = "max:dd_demo.cost.aggregate_billed_list_usd_total{${local.cost_scope}}"
     }
   }
+
+  # Trial credit of the Confluent Cloud organisation (USD), not read from any API: the Costs API has no promo balance.
+  confluent_trial_credit_usd = 400
+  # Org-wide, so not narrowed by the stack variable; emitted by every running cost-meter.
+  confluent_credit_used_query = "max:dd_demo.cost.aggregate_org_billed_list_usd_total{project:dd-demo}"
 
   cost_widgets = concat(
     [for k, v in local.cost_value : {
@@ -46,6 +51,49 @@ locals {
       }
     }],
     [
+      {
+        definition = {
+          type        = "query_value"
+          title       = "Confluent credit left (USD, ${local.confluent_trial_credit_usd} trial credit minus gross billed, about 1 h behind)"
+          precision   = 2
+          autoscale   = false
+          custom_unit = "$"
+          requests = [{
+            response_format = "scalar"
+            queries         = [{ data_source = "metrics", name = "used", query = local.confluent_credit_used_query, aggregator = "last" }]
+            formulas        = [{ formula = "${local.confluent_trial_credit_usd} - used" }]
+          }]
+        }
+      },
+      {
+        definition = {
+          type  = "timeseries"
+          title = "Spent this month, cumulative (USD, pre-tax actual bills: AWS whole account via CCM, 24-72 h behind; Confluent trial credit used, about 1 h behind)"
+          # Fixed to the calendar month whatever the dashboard time picker says; cumsum restarts at the window start.
+          time = { live_span = "month_to_date" }
+          requests = [{
+            display_type    = "line"
+            response_format = "timeseries"
+            queries = [
+              {
+                data_source = "cloud_cost"
+                name        = "aws"
+                query       = "sum:aws.cost.unblended{!aws_cost_type:Tax}.rollup(sum, 86400)"
+              },
+              {
+                data_source = "metrics"
+                name        = "confluent"
+                query       = "${local.confluent_credit_used_query}.rollup(max, 86400)"
+              },
+            ]
+            formulas = [
+              { formula = "cumsum(aws)", alias = "AWS billed, month to date (CCM actual, 24-72 h behind)" },
+              { formula = "confluent", alias = "Confluent trial credit used (gross billed, already cumulative)" },
+              { formula = "cumsum(aws) + confluent", alias = "Total (AWS + Confluent)" },
+            ]
+          }]
+        }
+      },
       {
         definition = {
           type  = "timeseries"

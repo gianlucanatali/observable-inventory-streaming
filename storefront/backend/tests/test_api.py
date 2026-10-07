@@ -88,6 +88,66 @@ def test_cart_publish_failure_is_502(make):
     assert r.status_code == 502 and "broker down" in r.get_json()["message"]
 
 
+def test_cart_contents_are_stored_in_redis_and_read_back(make):
+    client, deps = make()
+    first = client.post("/api/cart", json=cart_body()).get_json()
+    cart_id = first["cart_id"]
+    assert first["count"] == 1 and first["items"][0]["product_id"] == "P0042"
+    client.post("/api/cart", json=cart_body(cart_id=cart_id))
+    client.post("/api/cart", json=cart_body(cart_id=cart_id, product_id="P0160"))
+    key = f"cart:sc-1:{cart_id}"
+    assert deps.redis.ttl[key] == 7200
+    r = client.get(f"/api/cart/{cart_id}")
+    assert r.status_code == 200
+    body = r.get_json()
+    assert body["cart_id"] == cart_id and body["scenario_id"] == "sc-1" and body["count"] == 3
+    p42 = next(i for i in body["items"] if i["product_id"] == "P0042")
+    assert p42["quantity"] == 2 and p42["name"] == "Trailrunner GTX" and p42["size"] == "EU 42"
+
+
+def test_abandon_removes_the_item_from_the_cart_contents(make):
+    client, deps = make()
+    cart_id = client.post("/api/cart", json=cart_body()).get_json()["cart_id"]
+    client.post("/api/cart", json=cart_body(cart_id=cart_id, product_id="P0160"))
+    r = client.post("/api/cart", json=cart_body(cart_id=cart_id, event_type="ABANDON"))
+    assert [i["product_id"] for i in r.get_json()["items"]] == ["P0160"]
+    client.post("/api/cart", json=cart_body(cart_id=cart_id, product_id="P0160", event_type="ABANDON"))
+    assert client.get(f"/api/cart/{cart_id}").status_code == 404
+    # The Kafka event format is unchanged: every call still published one cart event.
+    assert [v["event_type"] for _, v in deps.publisher.sent] == ["ADD", "ADD", "ABANDON", "ABANDON"]
+
+
+def test_cart_from_an_earlier_scenario_is_not_found(make):
+    client, deps = make()
+    cart_id = client.post("/api/cart", json=cart_body()).get_json()["cart_id"]
+    deps.redis.data["scenario:current"] = "sc-2"  # what a reset / Full reset does
+    r = client.get(f"/api/cart/{cart_id}")
+    assert r.status_code == 404 and r.get_json()["error"] == "cart_not_found"
+
+
+def test_get_cart_validates_the_id(make):
+    client, _ = make()
+    assert client.get("/api/cart/nope").status_code == 400
+
+
+def test_cart_contents_not_written_when_publish_fails(make):
+    client, deps = make()
+    deps.publisher.fail = RuntimeError("broker down")
+    assert client.post("/api/cart", json=cart_body()).status_code == 502
+    assert not [k for k in deps.redis.data if k.startswith("cart:")]
+
+
+def test_cart_contents_redis_failure_after_publish_is_503(make):
+    client, deps = make()
+
+    def broken_pipeline(transaction=True):
+        raise ConnectionError("redis gone")
+    deps.redis.pipeline = broken_pipeline
+    r = client.post("/api/cart", json=cart_body())
+    assert r.status_code == 503 and "was published" in r.get_json()["message"]
+    assert len(deps.publisher.sent) == 1
+
+
 def test_offers_latest_wins_and_ignores_other_scenario(make):
     client, deps = make()
     base = dict(offer_id="o", cart_id="cart-1", scenario_id="sc-1", offer_type="NOTIFY_ME",
@@ -98,7 +158,70 @@ def test_offers_latest_wins_and_ignores_other_scenario(make):
     deps.offer_store.put({**base, "scenario_id": "old", "headline": "stale"})
     r = client.get("/api/offers?cart_id=cart-1")
     assert r.get_json()["offer"]["headline"] == "h2"
-    assert client.get("/api/offers?cart_id=other").get_json() == {"offer": None}
+    assert [o["headline"] for o in r.get_json()["offers"]] == ["h2"]
+    assert client.get("/api/offers?cart_id=other").get_json() == {"offer": None, "offers": []}
+
+
+def test_two_sold_out_items_in_one_cart_keep_one_offer_each(make):
+    client, deps = make()
+    base = dict(cart_id="cart-1", scenario_id="sc-1", original_store_id="ONLINE", discount_pct=10, body="b",
+                decision_route="RULE_DEFAULT", text_route="TEMPLATE", offer_type="ALTERNATIVE_PRODUCT")
+    deps.offer_store.put({**base, "offer_id": "o42", "original_product_id": "P0042", "product_id": "P0160",
+                          "headline": "trail shoe", "decision_reason": "low_confidence"})
+    deps.offer_store.put({**base, "offer_id": "o48", "original_product_id": "P0048", "product_id": "P0059",
+                          "headline": "boot", "decision_route": "JEV", "decision_reason": "accepted"})
+    deps.offer_store.put({**base, "offer_id": "x", "cart_id": "cart-2", "original_product_id": "P0042",
+                          "product_id": "P0160", "headline": "other cart"})
+    body = client.get("/api/offers?cart_id=cart-1").get_json()
+    assert [(o["original_product_id"], o["product_id"]) for o in body["offers"]] == [("P0042", "P0160"), ("P0048", "P0059")]
+    assert body["offer"]["offer_id"] == "o48"  # the most recent, for older readers
+    assert body["offers"][1]["alternative"] == {
+        "product_id": "P0059", "name": "Dolomia Evo", "brand": "Ridgeline", "size": "EU 42", "colour": "Glacier blue",
+        "kind": "hiking boot", "waterproof": True, "price_eur": 164.9}
+    # A newer offer for the same item replaces only that item's offer.
+    deps.offer_store.put({**base, "offer_id": "o42b", "original_product_id": "P0042", "product_id": None,
+                          "offer_type": "NOTIFY_ME", "headline": "notify"})
+    body = client.get("/api/offers?cart_id=cart-1").get_json()
+    assert [o["offer_id"] for o in body["offers"]] == ["o48", "o42b"]
+    assert body["offers"][1]["alternative"] is None
+
+
+def test_offer_names_jev_choice_and_flags_no_offer(make):
+    client, deps = make()
+    base = dict(cart_id="cart-1", scenario_id="sc-1", original_store_id="ONLINE", body="b", text_route="TEMPLATE")
+    deps.offer_store.put({**base, "offer_id": "o42", "original_product_id": "P0042", "product_id": "P0061",
+                          "offer_type": "ALTERNATIVE_PRODUCT", "discount_pct": 10, "headline": "h",
+                          "decision_route": "JEV", "decision_reason": "accepted", "jev_choice": "alt:P0061",
+                          "jev_confidence": 0.9, "min_confidence": 0.8, "chosen_choice": "alt:P0061"})
+    deps.offer_store.put({**base, "offer_id": "o48", "original_product_id": "P0048", "product_id": "P0059",
+                          "offer_type": "ALTERNATIVE_PRODUCT", "discount_pct": 10, "headline": "h",
+                          "decision_route": "JEV", "decision_reason": "accepted", "jev_choice": "alt:P0059",
+                          "chosen_choice": "alt:P0059"})
+    deps.offer_store.put({**base, "offer_id": "o92", "original_product_id": "P0092", "product_id": None,
+                          "offer_type": "NOTIFY_ME", "discount_pct": 0, "headline": "Pathfinder Lite just sold out",
+                          "decision_route": "RULE_DEFAULT", "decision_reason": "no_alternative",
+                          "rule_choice": None, "chosen_choice": None})
+    offers = {o["original_product_id"]: o for o in client.get("/api/offers?cart_id=cart-1").get_json()["offers"]}
+    assert offers["P0042"]["jev_choice_label"] == "Pathfinder Air" and offers["P0042"]["no_offer"] is False
+    assert offers["P0048"]["jev_choice_label"] == "Dolomia Evo in Glacier blue"
+    assert offers["P0092"]["no_offer"] is True and offers["P0092"]["jev_choice_label"] is None
+
+
+def test_restock_notice_is_an_offer(make):
+    client, deps = make()
+    deps.offer_store.put(dict(offer_id="o", cart_id="c", scenario_id="sc-1", original_store_id="ONLINE",
+                              original_product_id="P0092", product_id=None, offer_type="NOTIFY_ME", discount_pct=0,
+                              headline="h", body="Back in about 3 days.", decision_route="RULE_DEFAULT",
+                              decision_reason="no_alternative", chosen_choice="notify_me", text_route="TEMPLATE"))
+    assert client.get("/api/offers?cart_id=c").get_json()["offers"][0]["no_offer"] is False
+
+
+def test_product_alternatives_in_worker_order(make):
+    client, _ = make()
+    body = client.get("/api/products/P0048/alternatives").get_json()
+    assert body["max_alternatives"] == 2
+    assert [c["product_id"] for c in body["candidates"][:2]] == ["P0059", "P0079"]
+    assert client.get("/api/products/P9999/alternatives").status_code == 404
 
 
 def test_offers_disabled(make):

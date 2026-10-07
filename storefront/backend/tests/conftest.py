@@ -21,6 +21,7 @@ class FakePublisher:
 class FakeRedis:
     def __init__(self, scenario="sc-1"):
         self.data = {"scenario:current": scenario} if scenario else {}
+        self.ttl = {}
         self.fail = None
 
     def get(self, key):
@@ -37,6 +38,54 @@ class FakeRedis:
         if self.fail:
             raise self.fail
         return True
+
+    # Hash commands used by the cart contents read model (redis-py semantics, decode_responses=True).
+    def hincrby(self, key, field, amount=1):
+        if self.fail:
+            raise self.fail
+        h = self.data.setdefault(key, {})
+        h[field] = str(int(h.get(field, 0)) + amount)
+        return int(h[field])
+
+    def hdel(self, key, *fields):
+        if self.fail:
+            raise self.fail
+        h = self.data.get(key, {})
+        removed = sum(1 for f in fields if h.pop(f, None) is not None)
+        if key in self.data and not h:
+            del self.data[key]
+            self.ttl.pop(key, None)
+        return removed
+
+    def expire(self, key, seconds):
+        if self.fail:
+            raise self.fail
+        if key not in self.data:
+            return False
+        self.ttl[key] = seconds
+        return True
+
+    def hgetall(self, key):
+        if self.fail:
+            raise self.fail
+        return dict(self.data.get(key, {}))
+
+    def pipeline(self, transaction=True):
+        return FakePipeline(self)
+
+
+class FakePipeline:
+    def __init__(self, redis):
+        self._redis, self._calls = redis, []
+
+    def __getattr__(self, name):
+        def queue(*args):
+            self._calls.append((name, args))
+            return self
+        return queue
+
+    def execute(self):
+        return [getattr(self._redis, name)(*args) for name, args in self._calls]
 
 
 class FakeStatsd:

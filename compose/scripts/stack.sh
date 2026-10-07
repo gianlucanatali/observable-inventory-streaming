@@ -63,11 +63,19 @@ AWS_CONFIG_FILE="$STATE_DIR/aws-config"
 LOG_DIR="$STATE_DIR/logs"
 mkdir -p "$STATE_DIR"; printf '*\n' > "$STATE_DIR/.gitignore"
 
-die() { echo "stack.sh: $*" >&2; exit 1; }
+OUTCOME_FILE="$STATE_DIR/stack-$STACK.outcome"   # up/down: exit=<n>, then the final banner (run_logged and ./demo print it last)
+CAUSE_FILE=""   # when set, die and note_cause append the failure reason here (the banner quotes its first line)
+LEFT_FILE=""    # when set, the leftover check appends one "<provider> <resource>" line per billable leftover
+note_cause() { if [ -n "$CAUSE_FILE" ]; then printf '%s\n' "$*" >> "$CAUSE_FILE"; fi; }
+die() { echo "stack.sh: $*" >&2; note_cause "$*"; exit 1; }
+first_line() { # first_line <file> : first non-empty line, trimmed, at most 220 characters; nothing when the file is empty
+  if [ -s "$1" ]; then awk 'NF { sub(/^[ \t]+/, ""); print substr($0, 1, 220); exit }' "$1"; fi
+}
 configure_aws_refresh_profile() {
   AWS_PROFILE="${AWS_SOURCE_PROFILE}-auto"
   AWS_CONFIG_FILE="$STATE_DIR/aws-config"
-  local tmp="$AWS_CONFIG_FILE.tmp"
+  # A unique temporary file: the background cloud destroy and the foreground layers both call this at the same time.
+  local tmp; tmp="$(mktemp "$AWS_CONFIG_FILE.XXXXXX")" || die "could not create a temporary AWS refresh profile next to $AWS_CONFIG_FILE"
   printf '[profile %s]\ncredential_process = env -u AWS_CONFIG_FILE -u AWS_PROFILE aws configure export-credentials --profile %s --format process\nregion = %s\n' \
     "$AWS_PROFILE" "$AWS_SOURCE_PROFILE" "${AWS_REGION:-eu-west-1}" > "$tmp" \
     || die "could not write AWS refresh profile $tmp"
@@ -87,8 +95,10 @@ step() { # step <label> <command...>
 mk() { make --no-print-directory -C "$OVERLAY" MODE=cloud STACK="$STACK" TOPOLOGY="$TOPOLOGY" "$@"; }
 
 run_logged() { # run_logged <command> <function> [args...]
-  local command="$1" log_file latest_link status statuses=()
+  local command="$1" log_file latest_link status statuses=() color=0
   shift
+  if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then color=1; fi   # decided here: below, stdout is the tee pipe
+  case "$command" in up|down) rm -f "$OUTCOME_FILE" || die "could not remove the old banner $OUTCOME_FILE";; esac
   mkdir -p "$LOG_DIR" || die "could not create log directory $LOG_DIR"
   chmod 700 "$LOG_DIR" || die "could not protect log directory $LOG_DIR"
   log_file="$LOG_DIR/$STACK-$command-$(date +%Y%m%d-%H%M%S).log"
@@ -108,7 +118,35 @@ run_logged() { # run_logged <command> <function> [args...]
     [ "${statuses[1]}" = 0 ] || status="${statuses[1]}"
   fi
   printf '== log finished: %s (exit %s)\n' "$log_file" "$status" | tee -a "$log_file"
+  if case "$command" in up|down) true;; *) false;; esac && [ -s "$OUTCOME_FILE" ]; then
+    # The final banner is the last thing printed. Under ./demo (DEMO_BANNER=1) ./demo prints it after make exits instead.
+    sed 1d "$OUTCOME_FILE" >> "$log_file" || die "could not copy the final banner into $log_file"
+    [ "${DEMO_BANNER:-}" = 1 ] || print_banner "$color"
+    [ "$status" = 0 ] || notify_failure "$(sed -n 3p "$OUTCOME_FILE")"
+  fi
   return "$status"
+}
+
+write_outcome() { # write_outcome <exit code> <banner line...> : the final banner of up/down, framed by a rule
+  local code="$1" rule='############################################################'
+  shift
+  { echo "exit=$code"; echo "$rule"; printf '%s\n' "$@"; echo "$rule"; } > "$OUTCOME_FILE" \
+    || { echo "stack.sh: could not write the final banner $OUTCOME_FILE" >&2; exit 1; }
+}
+print_banner() { # print_banner <1 for colour> : the banner of $OUTCOME_FILE, red on failure, green on success
+  local on="" off=""
+  if [ "$1" = 1 ]; then
+    off=$'\033[0m'
+    if [ "$(sed -n 1p "$OUTCOME_FILE")" = exit=0 ]; then on=$'\033[1;32m'; else on=$'\033[1;31m'; fi
+  fi
+  echo
+  sed 1d "$OUTCOME_FILE" | while IFS= read -r line; do printf '%s%s%s\n' "$on" "$line" "$off"; done
+}
+notify_failure() { # notify_failure <headline> : macOS notification, only on a Mac outside CI (STACK_NOTIFY=0 turns it off)
+  [ "$(uname -s)" = Darwin ] && [ -z "${CI:-}" ] && [ "${STACK_NOTIFY:-1}" != 0 ] && command -v osascript >/dev/null || return 0
+  local text; text="$(printf '%s' "$1" | tr -d '"\\')"
+  osascript -e "display notification \"$text\" with title \"dd-demo stack $STACK\" sound name \"Basso\"" >/dev/null 2>&1 \
+    || echo "stack.sh: note: the macOS notification could not be shown (the banner above is the result)" >&2
 }
 
 load_env() { # provider credentials from ENV_DIR/.env, never echoed
@@ -326,32 +364,59 @@ apply_log_has_expired_token() { # apply_log_has_expired_token <terraform stderr 
   grep -q 'ExpiredToken' "$1"
 }
 
+# Network errors that say nothing about the configuration: a fresh plan after a short wait usually goes through.
+# Only these are retried, and only when every Terraform "Error:" of the run is one of them.
+TF_TRANSIENT_RE='no such host|connection reset by peer|TLS handshake timeout|RequestLimitExceeded'
+TF_RETRY_DELAYS="${TF_RETRY_DELAYS:-10 30}"   # seconds before attempt 2 and attempt 3
+first_tf_error() { # first_tf_error <terraform stderr file> : the first "Error:" line, without colours and box characters
+  sed $'s/\x1b\\[[0-9;]*m//g' "$1" | awk '/Error:/ { sub(/^.*Error:/, "Error:"); print substr($0, 1, 200); exit }'
+}
+tf_retry_transient() { # tf_retry_transient <dir> <phase> <attempt> <stderr file> : waits and returns 0 when a retry is due
+  local dir="$1" phase="$2" attempt="$3" err="$4" counts delay
+  [ "$attempt" -lt 3 ] || return 1
+  counts="$(sed $'s/\x1b\\[[0-9;]*m//g' "$err" | awk -v re="$TF_TRANSIENT_RE" '/Error:/ { n++; if ($0 ~ re) t++ } END { print n + 0, t + 0 }')" \
+    || die "could not read the terraform errors of terraform/$dir ($err)"
+  set -- $counts
+  [ "$1" -gt 0 ] && [ "$1" = "$2" ] || return 1
+  delay="$(printf '%s\n' $TF_RETRY_DELAYS | sed -n "${attempt}p")"
+  [[ "$delay" =~ ^[0-9]+$ ]] || die "TF_RETRY_DELAYS needs two whole numbers of seconds, got '$TF_RETRY_DELAYS'"
+  echo "WARNING: terraform $phase in terraform/$dir failed on a transient network error (attempt $attempt/3): $(first_tf_error "$err")" >&2
+  echo "WARNING: retrying terraform/$dir with a fresh plan in ${delay}s (attempt $((attempt + 1))/3)" >&2
+  sleep "$delay"
+}
+
 tf_apply() { # tf_apply <dir> [destroy] [attempt]
-  local dir="$1" mode="${2:-}" attempt="${3:-1}" plan="$STATE_DIR/$STACK-$1.tfplan" vars=() v
+  local dir="$1" mode="${2:-}" attempt="${3:-1}" plan="$STATE_DIR/$STACK-$1.tfplan" vars=() v plan_args="-input=false"
   local err="$STATE_DIR/$STACK-$1-attempt-$attempt.err"
   load_env; tf_init "$dir"
   [ "$dir" = datadog ] && datadog_streams_env
   local vf; vf="$(vars_of "$dir")" || die "could not build the variables for terraform/$dir"
   while IFS= read -r v; do vars+=("$v"); done <<< "$vf"
   echo "   terraform/$dir workspace $STACK: ${vars[*]}"
-  if [ "$mode" = destroy ]; then
-    tf "$dir" plan -destroy -input=false -out="$plan" "${vars[@]}" >/dev/null || { rm -f "$plan"; die "terraform plan -destroy failed in terraform/$dir"; }
-  else
-    if ! tf "$dir" plan -input=false -out="$plan" "${vars[@]}" >/dev/null 2> "$err"; then
-      cat "$err" >&2
-      if [ "$dir" = cloud ] && grep -q 'This server does not host this topic-partition' "$err" && [ "$attempt" -lt 3 ]; then
-        rm -f "$plan" "$err"
-        echo "WARNING: Confluent returned the transient topic-read 404; retrying terraform/cloud with a fresh plan (attempt $((attempt + 1))/3)" >&2
-        sleep 20
-        tf_apply "$dir" "$mode" "$((attempt + 1))"
-        return
-      fi
+  [ "$mode" = destroy ] && plan_args="-destroy -input=false"
+  # TF_DESTROY_TARGET: a destroy limited to one resource address (and what depends on it), e.g. the VM alone.
+  [ "$mode" = destroy ] && [ -n "${TF_DESTROY_TARGET:-}" ] && plan_args="$plan_args -target=$TF_DESTROY_TARGET"
+  # shellcheck disable=SC2086  # plan_args: fixed flags, split on purpose
+  if ! tf "$dir" plan $plan_args -out="$plan" "${vars[@]}" >/dev/null 2> "$err"; then
+    cat "$err" >&2
+    if [ "$dir" = cloud ] && [ "$mode" != destroy ] && grep -q 'This server does not host this topic-partition' "$err" && [ "$attempt" -lt 3 ]; then
       rm -f "$plan" "$err"
-      die "terraform plan failed in terraform/$dir (re-run: terraform -chdir=terraform/$dir plan ${vars[*]})"
+      echo "WARNING: Confluent returned the transient topic-read 404; retrying terraform/cloud with a fresh plan (attempt $((attempt + 1))/3)" >&2
+      sleep 20
+      tf_apply "$dir" "$mode" "$((attempt + 1))"
+      return
     fi
-    [ ! -s "$err" ] || cat "$err" >&2
-    rm -f "$err"
+    if tf_retry_transient "$dir" plan "$attempt" "$err"; then
+      rm -f "$plan" "$err"
+      tf_apply "$dir" "$mode" "$((attempt + 1))"
+      return
+    fi
+    note_cause "terraform/$dir: $(first_tf_error "$err")"
+    rm -f "$plan" "$err"
+    die "terraform plan${mode:+ -$mode} failed in terraform/$dir (re-run: terraform -chdir=terraform/$dir plan ${vars[*]})"
   fi
+  [ ! -s "$err" ] || cat "$err" >&2
+  rm -f "$err"
   # Summary only: resource addresses and actions, no attribute values.
   tf "$dir" show -no-color "$plan" | grep -E '^  # .* (will|must) be|^Plan:|^No changes|^Changes to Outputs' | sed 's/^/   /' || true
   if tf "$dir" show -no-color "$plan" | grep -q '^No changes'; then rm -f "$plan"; echo "   terraform/$dir: nothing to do"; return 0; fi
@@ -369,8 +434,14 @@ tf_apply() { # tf_apply <dir> [destroy] [attempt]
       rm -f "$plan" "$err"
       die "AWS login expired during apply of terraform/$dir: run aws login --profile $AWS_SOURCE_PROFILE, then ./demo create again (stack-down: rerun stack-down); resources being created when it failed are left tainted and are rebuilt, which costs extra minutes"
     fi
+    if tf_retry_transient "$dir" "${mode:-apply}" "$attempt" "$err"; then
+      rm -f "$plan" "$err"
+      tf_apply "$dir" "$mode" "$((attempt + 1))"
+      return
+    fi
+    note_cause "terraform/$dir: $(first_tf_error "$err")"
     rm -f "$plan" "$err"
-    die "terraform apply failed in terraform/$dir"
+    die "terraform ${mode:-apply} failed in terraform/$dir"
   fi
   [ ! -s "$err" ] || cat "$err" >&2
   rm -f "$err"
@@ -1040,7 +1111,7 @@ preflight() {
     for n in CONFLUENT_CLOUD_API_KEY CONFLUENT_CLOUD_API_SECRET DD_API_KEY DD_APP_KEY; do
       grep -q "^$n=." "$ENV_DIR/.env" || { echo "   MISSING in .env: $n"; ok=0; }
     done
-    grep -q '^JEV_API_KEY=.' "$ENV_DIR/.env" || echo "   note: JEV_API_KEY not set: offers use the rule default only"
+    grep -q '^JEV_API_KEY=.' "$ENV_DIR/.env" || echo "   note: JEV_API_KEY not set: offers use the safe rule only"
   fi
   [ -f "$ENV_DIR/.env.secrets" ] || echo "   note: .env.secrets absent; stack-up creates it (make secrets)"
   [ -f "$HOME/.ssh/id_ed25519.pub" ] || { echo "   MISSING ~/.ssh/id_ed25519.pub (terraform/vm key pair; or set TF_VAR_ssh_public_key_path)"; ok=0; }
@@ -1289,11 +1360,13 @@ EOF
 }
 
 DOWN_FAILED=""
+down_cause_file() { printf '%s\n' "$STATE_DIR/$STACK-down-$1.cause"; }   # the first reason a layer's destroy failed
 down_layer() { # down_layer <layer> <function> : one layer's destroy in a subshell (die ends only that layer); failures collected
   local layer="$1" s; shift
   echo; echo "== [destroy $layer]"
   s=$(date +%s)
-  if ( "$@" ); then
+  rm -f "$(down_cause_file "$layer")" || die "could not reset $(down_cause_file "$layer")"
+  if ( CAUSE_FILE="$(down_cause_file "$layer")"; "$@" ); then
     echo "   [destroy $layer] took $(( $(date +%s) - s )) s (stack $STACK, total $(( $(date +%s) - T0 )) s)"
   else
     echo "stack.sh: destroy of layer '$layer' FAILED (see the error above); continuing with the remaining layers" >&2
@@ -1313,6 +1386,10 @@ down_vm() {
   if [ -n "$ip" ]; then
     if ssh-keygen -R "$ip" >/dev/null 2>&1; then echo "   removed $ip from known_hosts"; else echo "   note: could not remove $ip from known_hosts"; fi
   fi
+}
+down_vm_instance() { # after a failed aws layer: terminate the VM (the hourly cost) but keep its security group,
+  # which terraform/aws still references (rules on it, and the Redis rule pointing at it); a rerun removes the rest.
+  TF_DESTROY_TARGET=aws_instance.main tf_apply vm destroy
 }
 down_cloud() { detach_cloud_schemas_before_destroy || return 1; tf_apply cloud destroy; }
 down_images() { tf_apply images destroy; }   # force_delete: the images go with their repositories
@@ -1368,8 +1445,9 @@ down() {
   [ -f "$LAYERS_FILE" ] || set_layers "${VALID_LAYERS// /,}"   # destroy needs a variable set; every valid layer is the superset
   export TF_DESTROY=1
   # Order: datadog, then cloud in the background while aws, vm and images run in turn. Each layer runs even when an
-  # earlier one failed, except vm after aws: terraform/aws owns an ElastiCache rule that references the VM security
-  # group, and AWS refuses to delete a referenced group (DependencyViolation), so the vm destroy would stall and fail.
+  # earlier one failed. vm after a failed aws is limited to the EC2 instance: terraform/aws owns rules on the VM security
+  # group and an ElastiCache rule that references it, and AWS refuses to delete a referenced group (DependencyViolation),
+  # so a full vm destroy would stall and fail. The instance is the hourly cost and nothing in aws depends on it.
   # cloud shares nothing with aws, vm or images (destroy plans use placeholders, never another layer's outputs), and
   # CONFIRM=yes means no prompt can compete for the terminal, so it runs in parallel (it bills the most).
   DOWN_FAILED=""
@@ -1378,8 +1456,9 @@ down() {
   case " $found " in *" aws "*) down_layer aws down_aws;; esac
   case " $found " in *" vm "*)
     case " $DOWN_FAILED " in
-      *" aws "*) echo; echo "== [destroy vm] SKIPPED: terraform/aws failed and still references the VM security group; the EC2 VM keeps billing until aws is fixed and stack-down is rerun" >&2
-                 DOWN_FAILED="$DOWN_FAILED vm(skipped)";;
+      *" aws "*) echo; echo "== [destroy vm] EC2 instance only: terraform/aws failed and still references the VM security group, so the group, key pair and IAM role (no hourly cost) stay for the rerun"
+                 down_layer vm down_vm_instance
+                 case " $DOWN_FAILED " in *" vm "*) ;; *) DOWN_FAILED="$DOWN_FAILED vm(partial)";; esac;;
       *) down_layer vm down_vm;;
     esac;;
   esac
@@ -1394,12 +1473,130 @@ down() {
   if [ -n "$DOWN_FAILED" ]; then
     echo >&2
     echo "stack.sh: FAILED:$DOWN_FAILED; Terraform state, local env files and docker context kept. Fix the cause printed above (log: $LOG_DIR/$STACK-latest.log) and rerun stack-down: it resumes with the layers that still have state." >&2
+    local left=0
+    leftover_report || left=$?
+    destroy_outcome "$left"
     exit 1
   fi
   if docker context inspect "$CTX" >/dev/null 2>&1; then docker context rm -f "$CTX" >/dev/null && echo "   removed docker context $CTX"; fi
   rm -f "$ENV_CLOUD" "$LAYERS_FILE" "$DEFER_FILE" "$DD_APPLIED" "$DD_RUM_APPLIED" "$IMAGE_TAGS_FILE" "$IMAGES_PUSHED_FILE" "$SSM_DIGEST_FILE" "$STATE_DIR/layers-$STACK.env" "$STATE_DIR/dd-layers-$STACK" "$STATE_DIR/routing-$STACK"
-  leftover_check || die "stack $STACK: resources still exist after the destroy (list above); delete them or rerun stack-down"
+  local left=0
+  leftover_report || left=$?
+  destroy_outcome "$left"
+  [ "$left" = 0 ] || { echo "stack.sh: stack $STACK: the leftover check did not pass (list above); rerun stack-down" >&2; exit 1; }
   echo "== stack $STACK destroyed in $(( $(date +%s) - T0 )) s"
+}
+
+# ---------------------------------------------------------------------------------------------- final banner
+# Estimates from the ./demo create cost note (AWS about $0.50/h, Confluent Cloud about $1 to $2/h); not a bill.
+billing_estimate() { # billing_estimate <aws 0|1> <confluent 0|1>
+  local parts=""
+  [ "$1" = 1 ] && parts="AWS about \$0.50/h"
+  [ "$2" = 1 ] && parts="${parts:+$parts + }Confluent Cloud about \$1 to \$2/h"
+  [ -z "$parts" ] || printf 'estimate: %s\n' "$parts"
+}
+left_items() { # left_items : the leftover list of $LEFT_FILE on one line, at most 8 items
+  awk 'NF { n++; if (n <= 8) out = out (n > 1 ? ", " : "") $0 } END { if (n > 8) out = out sprintf(", and %d more (list above)", n - 8); print out }' "$LEFT_FILE"
+}
+leftover_report() { # read-only; returns 0 nothing billable left, 1 leftovers listed in $LEFT_FILE, 2 the check itself failed
+  LEFT_FILE="$STATE_DIR/stack-$STACK.left"
+  : > "$LEFT_FILE" || die "could not create $LEFT_FILE"
+  rm -f "$LEFT_FILE.rc" "$LEFT_FILE.cause" || die "could not reset $LEFT_FILE.rc"
+  local status=0
+  ( CAUSE_FILE="$LEFT_FILE.cause"; leftover_check ) || status=$?
+  if [ ! -f "$LEFT_FILE.rc" ]; then
+    echo "stack.sh: the leftover check could not finish (exit $status): $(first_line "$LEFT_FILE.cause")" >&2
+    return 2
+  fi
+  return "$(cat "$LEFT_FILE.rc")"
+}
+destroy_outcome() { # destroy_outcome <leftover_report status> : DESTROY COMPLETE only when no layer failed and nothing is left
+  local left="$1" aws=0 confluent=0 l est cause lines=()
+  if [ -z "$DOWN_FAILED" ] && [ "$left" = 0 ]; then
+    write_outcome 0 "DESTROY COMPLETE: nothing left billing for stack $STACK"
+    return 0
+  fi
+  case " $DOWN_FAILED " in *" aws "*|*" vm "*) aws=1;; esac
+  case " $DOWN_FAILED " in *" cloud "*) confluent=1;; esac
+  if [ "$left" = 1 ]; then
+    grep -q '^AWS ' "$LEFT_FILE" && aws=1
+    grep -q '^Confluent ' "$LEFT_FILE" && confluent=1
+  fi
+  if [ "$left" = 2 ] && [ -z "$DOWN_FAILED" ]; then aws=1; confluent=1; fi   # unknown: assume the worst
+  est="$(billing_estimate "$aws" "$confluent")"
+  if [ -n "$est" ]; then lines+=("DESTROY INCOMPLETE: stack $STACK is STILL BILLING ($est)")
+  else lines+=("DESTROY INCOMPLETE: stack $STACK (what is left has no hourly cost)"); fi
+  [ -z "$DOWN_FAILED" ] || lines+=("Not destroyed (Terraform state kept):$DOWN_FAILED")
+  case "$left" in
+    1) lines+=("Left: $(left_items)");;
+    2) lines+=("Left: unknown, the leftover check failed: $(first_line "$LEFT_FILE.cause")");;
+  esac
+  for l in $DOWN_FAILED; do
+    case "$l" in
+      "vm(partial)") lines+=("Note: vm: EC2 instance terminated; its security group, key pair and IAM role (no hourly cost) wait for the aws layer");;
+      *) cause="$(first_line "$(down_cause_file "$l")")"
+         lines+=("Cause: $l layer failed: ${cause:-see the error above}");;
+    esac
+  done
+  [ -n "$DOWN_FAILED" ] || [ "$left" != 1 ] || lines+=("Cause: resources still exist after terraform destroy (leftover check above)")
+  lines+=("Fix: ./demo destroy --yes   (it resumes; log: $LOG_DIR/$STACK-latest.log)")
+  write_outcome 1 "${lines[@]}"
+}
+layers_with_state() { # layers_with_state : "<dir>(<n> resources)" for every terraform dir of the stack with state; read-only
+  local d workspaces state n out=""
+  local dirs="cloud vm datadog"
+  hybrid_enabled && dirs="$dirs aws images"
+  for d in $dirs; do
+    [ -d "$TF/$d/.terraform" ] || continue
+    workspaces="$(tf "$d" workspace list)" || { out="$out $d(state unreadable)"; continue; }
+    printf '%s\n' "$workspaces" | tr -d '* ' | grep -qx "$STACK" || continue
+    tf "$d" workspace select "$STACK" >/dev/null || { out="$out $d(state unreadable)"; continue; }
+    state="$(tf "$d" state list)" || { out="$out $d(state unreadable)"; continue; }
+    n="$(printf '%s\n' "$state" | awk 'NF { n++ } END { print n + 0 }')"
+    [ "$n" = 0 ] || out="$out $d($n resources)"
+  done
+  printf '%s\n' "$out"
+}
+create_outcome() { # after a failed up: what is half-built, what bills, why it failed
+  local built left=0 aws=0 confluent=0 est cause lines=()
+  echo; echo "== [create FAILED] checking what stack $STACK already has (read-only)"
+  built="$(layers_with_state)"
+  echo "   Terraform state:${built:- none}"
+  leftover_report || left=$?
+  case "$built" in *" aws("*|*" vm("*) aws=1;; esac
+  case "$built" in *" cloud("*) confluent=1;; esac
+  if [ "$left" = 1 ]; then
+    grep -q '^AWS ' "$LEFT_FILE" && aws=1
+    grep -q '^Confluent ' "$LEFT_FILE" && confluent=1
+  fi
+  est="$(billing_estimate "$aws" "$confluent")"
+  if [ -n "$est" ]; then lines+=("CREATE FAILED: stack $STACK is half-built and STILL BILLING ($est)")
+  else lines+=("CREATE FAILED: stack $STACK (nothing billed hourly was found)"); fi
+  lines+=("Half-built (Terraform state):${built:- none}")
+  case "$left" in
+    1) lines+=("Left: $(left_items)");;
+    2) lines+=("Left: unknown, the leftover check failed: $(first_line "$LEFT_FILE.cause")");;
+  esac
+  cause="$(first_line "$CAUSE_FILE")"
+  lines+=("Cause: ${cause:-see the error above}")
+  lines+=("Fix: fix the cause, then ./demo create --yes (it resumes), or ./demo destroy --yes to stop the billing")
+  write_outcome 1 "${lines[@]}"
+}
+reported() { # reported up|down : runs it in a subshell; a failure always ends with a final banner in $OUTCOME_FILE
+  local command="$1" status=0 cause
+  CAUSE_FILE="$STATE_DIR/stack-$STACK.cause"
+  : > "$CAUSE_FILE" || die "could not create $CAUSE_FILE"
+  ( "$command" ) || status=$?
+  [ "$status" != 0 ] || return 0
+  if [ ! -s "$OUTCOME_FILE" ]; then
+    case "$command" in
+      up) create_outcome;;
+      down) cause="$(first_line "$CAUSE_FILE")"
+            write_outcome 1 "DESTROY INCOMPLETE: stack $STACK was not destroyed and may be STILL BILLING" \
+              "Cause: ${cause:-see the error above}" "Fix: fix the cause, then ./demo destroy --yes   (it resumes)";;
+    esac
+  fi
+  return "$status"
 }
 
 # ---------------------------------------------------------------------------------------------- leftover check
@@ -1492,6 +1689,10 @@ aws_leftovers() { # confirm every tagged project=dd-demo ARN; returns 1 when thi
   fi
   echo "WARNING: ${#mine[@]} resource(s) of stack $STACK still exist and may bill:" >&2
   printf 'WARNING:   %s\n' "${mine[@]}" >&2
+  if [ -n "$LEFT_FILE" ]; then
+    printf '%s\n' "${mine[@]}" | awk -F'\t' '{ split($1, a, ":"); r = a[6]; for (i = 7; i in a; i++) r = r ":" a[i]; print "AWS " a[3] " " r }' >> "$LEFT_FILE" \
+      || die "could not write $LEFT_FILE"
+  fi
   return 1
 }
 
@@ -1525,6 +1726,7 @@ confluent_leftovers() { # returns 1 when a dd-demo-* environment still exists
   if [ -z "$envs" ]; then echo "   no dd-demo-* Confluent environment"; return 0; fi
   if printf '%s\n' "$envs" | grep -qx "dd-demo-$STACK"; then
     printf 'WARNING: Confluent environment still exists (billed hourly): %s\n' "$envs" >&2
+    if [ -n "$LEFT_FILE" ]; then echo "Confluent environment dd-demo-$STACK" >> "$LEFT_FILE" || die "could not write $LEFT_FILE"; fi
     return 1
   fi
   printf '   other stacks, not part of this teardown: Confluent environment %s\n' $envs
@@ -1535,6 +1737,7 @@ leftover_check() { # read-only; also standalone: make MODE=cloud STACK=<s> stack
   echo
   aws_leftovers || rc=1
   confluent_leftovers || rc=1
+  if [ -n "$LEFT_FILE" ]; then echo "$rc" > "$LEFT_FILE.rc" || die "could not write $LEFT_FILE.rc"; fi
   return "$rc"
 }
 
@@ -1544,8 +1747,8 @@ dispatch_command() { # dispatch_command <command> [args...]
   case "$1" in preflight|up|layer-tf) resolve_presenter_cidr;; esac
   case "$1" in
     preflight) preflight;;
-    up) up;;
-    down) down;;
+    up) reported up;;
+    down) reported down;;
     leftovers) leftover_check;;
     status) load_env; status;;
     account-up)   [ "$STACK" = account ] || die "account-up: run with STACK=account (account-wide, not per stack)"; tf_apply account;;

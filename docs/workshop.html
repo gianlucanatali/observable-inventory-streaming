@@ -417,7 +417,7 @@ The build takes about 30 minutes with the default core layers, about 36 with eve
 </tr>
 <tr>
 <td>TypeSafe Jev (optional)</td>
-<td>An API key for the Jev decision API. Without it, everything still works, and every offer in Lab 5.1 uses the rule default</td>
+<td>An API key for the Jev decision API. Without it, everything still works, and every offer in Lab 5.1 uses the safe rule</td>
 </tr>
 </tbody>
 </table></div>
@@ -591,7 +591,7 @@ chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>d
 </tr>
 <tr>
 <td><code>jev_api_key</code></td>
-<td>Optional, commented out in the file. Leave it commented out to use only the rule default</td>
+<td>Optional, commented out in the file. Leave it commented out to use only the safe rule</td>
 </tr>
 <tr>
 <td><code>keep_images</code></td>
@@ -748,7 +748,7 @@ chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>d
 </ol>
 <p>With the <code>confluent</code> CLI, after <code>confluent login</code>: <code>confluent api-key create --resource cloud</code>.</p>
 <p>Official docs: <a href="https://docs.confluent.io/cloud/current/security/authenticate/workload-identities/service-accounts/api-keys/manage-api-keys.html" rel="noopener" target="_blank">Manage API Keys in Confluent Cloud</a>, <a href="https://docs.confluent.io/confluent-cli/current/command-reference/api-key/confluent_api-key_create.html" rel="noopener" target="_blank">confluent api-key create</a></p>
-<p><strong>Where do I get <code>jev_api_key</code>?</strong> This key is optional. Jev is the external decision API from TypeSafe that the offer worker asks to choose an offer in <a href="#lab-51-offers-with-a-safe-default">Lab 5.1</a>. If you have access to Jev, remove the leading <code># </code> from the <code>jev_api_key</code> line and put your Jev API key after the colon, without quotes. Leave it commented out and every offer uses the rule default; all labs still work.</p>
+<p><strong>Where do I get <code>jev_api_key</code>?</strong> This key is optional. Jev is the external decision API from TypeSafe that the offer worker asks to choose an offer in <a href="#lab-51-offers-with-a-safe-default">Lab 5.1</a>. If you have access to Jev, remove the leading <code># </code> from the <code>jev_api_key</code> line and put your Jev API key after the colon, without quotes. Leave it commented out and every offer uses the safe rule; all labs still work.</p>
 </details>
 <h3 id="022-run-the-preflight-no-cloud-costs-yet">0.2.2 Run the preflight (no cloud costs yet) <a class="header-anchor" href="#022-run-the-preflight-no-cloud-costs-yet">#</a></h3>
 <p>Sign in to AWS first; the command opens a browser window:</p>
@@ -764,7 +764,7 @@ chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>d
 <div class="code code-out" data-lang="text"><div class="code-bar"><span class="code-label">Expected output</span></div><pre tabindex="0"><code>demo: allowed_cidr not set; using your current IP &lt;a.b.c.d&gt;/32
 gen-secrets: wrote &lt;repo&gt;/.env.secrets (&lt;n&gt; passwords, mode 600, values not shown)
 ...
-   note: JEV_API_KEY not set: offers use the rule default only
+   note: JEV_API_KEY not set: offers use the safe rule only
    AWS login session via refresh profile dd-demo-auto: ok
    ...
    terraform/account: valid
@@ -916,7 +916,7 @@ stack hybrid, core always on; optional layers:
 </thead>
 <tbody>
 <tr>
-<td><strong>Background sales</strong> (<strong>Full reset</strong>)</td>
+<td><strong>Background sales and reset</strong> (<strong>Full demo reset</strong>)</td>
 <td>Every lab, to start from a clean state</td>
 </tr>
 <tr>
@@ -967,7 +967,7 @@ DSM map: https://app.datadoghq.eu/data-streams?env=dd-demo-hybrid
 <div data-path="panel" markdown="1">
 <p><strong>With the control panel</strong></p>
 <ol>
-<li>In the <a href="#2-open-the-control-panel" data-stack-link="control">control panel</a>, on the <strong>Background sales</strong> card, press <strong>Full reset</strong> and confirm. Wait until the card reads <code>full-reset succeeded: ...</code>.</li>
+<li>In the <a href="#2-open-the-control-panel" data-stack-link="control">control panel</a>, on the <strong>Background sales and reset</strong> card, press <strong>Full demo reset</strong> and confirm. Wait until the card reads <code>full-reset succeeded: ...</code>.</li>
 <li>On the <strong>Checks</strong> card, press <strong>Verify</strong>. You should see <code>VERIFY PASSED</code>.</li>
 </ol>
 </div>
@@ -982,9 +982,9 @@ make<span class="w"> </span>verify
 <details><summary>More about this step</summary>
 <div data-path="panel" markdown="1">
 <p><strong>With the control panel</strong></p>
-<p><strong>Full reset</strong> turns background sales off, sends all stock lookups to release 1.0.0 and writes the seeded stock back into the five stores. The card ends with <code>full-reset succeeded: Full reset done: background sales off (rate 0), routing 100/0/0 verified, demo data at the seeded baseline and Redis converged; ...</code>.</p>
+<p><strong>Full demo reset</strong> turns background sales off, sends all stock lookups to release 1.0.0 and writes the seeded stock back into the five stores. The card ends with <code>full-reset succeeded: Full demo reset done: background sales off (rate 0), routing 100/0/0 verified, demo data at the seeded baseline and Redis converged; ...</code>.</p>
 <p>After a few seconds <strong>Verify</strong> shows <code>VERIFY PASSED</code> in the result box, and the status line reads <code>verify succeeded: Verify passed: 0 position mismatch(es), 0 sellable mismatch(es)</code>.</p>
-<p>If you press <strong>Verify</strong> before <strong>Full reset</strong>, it can fail with a list such as <code>sellable P0011: sources sum 97, redis 96</code>. Nothing is broken: background sales were changing the stock while Verify compared it. Press <strong>Full reset</strong>, then <strong>Verify</strong> again.</p>
+<p>If you press <strong>Verify</strong> before <strong>Full demo reset</strong>, it can fail with a list such as <code>sellable P0011: sources sum 97, redis 96</code>. Nothing is broken: background sales were changing the stock while Verify compared it. Press <strong>Full demo reset</strong>, then <strong>Verify</strong> again.</p>
 </div>
 <div data-path="terminal" markdown="1">
 <p><strong>With the terminal</strong></p>
@@ -998,7 +998,7 @@ reset ok: scenario &lt;id&gt;, &lt;n&gt; positions at baseline, sellable caught 
 <p>The last line is <code>verify</code>: every store matches Redis. If you run <code>verify</code> before <code>reset</code>, it can report mismatches, because background sales were changing the stock while it compared. Run <code>reset</code>, then <code>verify</code> again.</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Key lines of make reset and make verify"><img src="img/build-03-reset-verify-smoke.png" alt="Key lines of make reset and make verify" width="2600" height="593" loading="lazy" decoding="async"></button><figcaption>Key lines of make reset and make verify</figcaption></figure>
 </div>
-<p><strong>Why background sales stay off, and why Datadog needs minutes.</strong> When the build ends, background sales are running: every store sells a few products each minute, so the stock keeps changing. Every lab starts by stopping them and writing the seeded stock back, so that you know what the page should show. Background sales stay off until you turn them on; the labs do not need them. Datadog needs about 10 minutes of data before its charts are useful, and the freshness probe keeps sending data while sales are off.</p>
+<p><strong>Why background sales stay off, and why Datadog needs minutes.</strong> The build leaves background sales running: every store sells a few products each minute, so the stock keeps changing. <strong>Full demo reset</strong>, the first step of most labs, turns them off and writes the seeded stock back, so that you know what the page should show. The labs that need traffic say when to turn sales on. Datadog needs about 10 minutes of data before its charts are useful, and the freshness probe keeps sending data while sales are off.</p>
 </details>
 <h3 id="027-checkpoint">0.2.7 Checkpoint <a class="header-anchor" href="#027-checkpoint">#</a></h3>
 <ul class="contains-task-list">
@@ -1009,7 +1009,7 @@ reset ok: scenario &lt;id&gt;, &lt;n&gt; positions at baseline, sellable caught 
 <p><input class="task-list-item-checkbox"  type="checkbox"> The <a href="#1-open-the-online-shop" data-stack-link="shop-home">Online shop</a>, the <a href="#2-open-the-control-panel" data-stack-link="control">control panel</a> and the Datadog <a href="#3-open-the-datadog-stock-dashboard" data-stack-link="stock-dashboard">stock dashboard</a> are open (<a href="#025-open-the-shop-the-control-panel-and-datadog">0.2.5</a>).</p>
 </li>
 <li class="task-list-item enabled">
-<p><input class="task-list-item-checkbox"  type="checkbox"> The reset ended and verify passed. <strong>Control panel:</strong> <strong>Full reset</strong> ended with <code>full-reset succeeded</code>, and <strong>Verify</strong> showed <code>VERIFY PASSED</code> · <strong>Terminal:</strong> <code>make reset</code> printed <code>reset ok</code>, and <code>make verify</code> printed <code>&quot;mismatches&quot;: 0, &quot;sellable_mismatches&quot;: 0</code> (<a href="#026-start-from-a-clean-state">0.2.6</a>).</p>
+<p><input class="task-list-item-checkbox"  type="checkbox"> The reset ended and verify passed. <strong>Control panel:</strong> <strong>Full demo reset</strong> ended with <code>full-reset succeeded</code>, and <strong>Verify</strong> showed <code>VERIFY PASSED</code> · <strong>Terminal:</strong> <code>make reset</code> printed <code>reset ok</code>, and <code>make verify</code> printed <code>&quot;mismatches&quot;: 0, &quot;sellable_mismatches&quot;: 0</code> (<a href="#026-start-from-a-clean-state">0.2.6</a>).</p>
 </li>
 </ul>
 <hr />
@@ -1065,7 +1065,7 @@ reset ok: scenario &lt;id&gt;, &lt;n&gt; positions at baseline, sellable caught 
 </tr>
 </tbody>
 </table></div>
-<p>Every lab follows the same pattern: start from a clean state with <strong>Full reset</strong> (or <code>make reset</code>; Lab 4.1 continues from Lab 3.1 instead), do one thing to the shop, look at the result in the shop and in Datadog, then tick the checkpoint.</p>
+<p>Every lab follows the same pattern: start from a clean state with <strong>Full demo reset</strong> (or <code>make reset</code>; Lab 1.2 and Lab 4.1 continue from the lab before, and Lab 6.1 turns background sales on instead), do one thing to the shop, look at the result in the shop and in Datadog, then tick the checkpoint.</p>
 <details><summary>Before each lab: the stack name, and where to get help</summary>
 <p>The labs tell one story about UrbanStreet's Online shop. Do them in order: each lab uses what the one before showed you. They are grouped by the layers they need (<a href="#which-layers-each-chapter-needs">Which layers each Chapter needs</a>).</p>
 <p>Every lab expects the stack from <a href="#02-build-the-stack">0.2 Build the stack</a> to be running and warmed up. On the terminal path, run the commands from the repository root: the make commands read your stack name from <code>demo.yaml</code>. The examples use the stack name <code>hybrid</code>; if you chose another one (<a href="#the-stack-name">the stack name in 0.2.1</a>), read <code>dd-demo-&lt;your name&gt;</code> for the <code>hybrid</code> environment name and <code>stack:&lt;your name&gt;</code> for the <code>hybrid</code> stack tag. Each lab first says what you will do and why, then shows the part of the architecture it uses. If something does not work, see <a href="#troubleshooting">Troubleshooting</a>.</p>
@@ -1080,7 +1080,7 @@ reset ok: scenario &lt;id&gt;, &lt;n&gt; positions at baseline, sellable caught 
 <p>You follow product P0042, the Alpenpace Trailrunner GTX in Forest green, size EU 42. Its seeded quantities in the five stores are 2, 1, 3, 1 and 2, so 9 in total.</p>
 <div data-path="panel" markdown="1">
 <p><strong>With the control panel</strong></p>
-<p>Press <strong>Full reset</strong> on the <strong>Background sales</strong> card of the control panel (<a href="#2-open-the-control-panel" data-stack-link="control">how to open it</a>) and confirm. Wait until the card reads <code>full-reset succeeded</code>. Background sales are now off.</p>
+<p>Press <strong>Full demo reset</strong> on the <strong>Background sales and reset</strong> card of the control panel (<a href="#2-open-the-control-panel" data-stack-link="control">how to open it</a>) and confirm. Wait until the card reads <code>full-reset succeeded</code>. Background sales are now off.</p>
 </div>
 <div data-path="terminal" markdown="1">
 <p><strong>With the terminal</strong></p>
@@ -1240,7 +1240,7 @@ reset ok: scenario &lt;id&gt;, &lt;n&gt; positions at baseline, sellable caught 
 <p><em>You should see:</em> <code>op: &quot;u&quot;</code>, <code>change_reason: &quot;sale&quot;</code> and <code>after.quantity</code> 0. <code>after.revision</code> holds the new revision.</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Inventory.cdc message for P0042 in Confluent Cloud"><img src="img/lab1-03-confluent-inventory-cdc.png" alt="Inventory.cdc message for P0042 in Confluent Cloud" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>Inventory.cdc message for P0042 in Confluent Cloud</figcaption></figure>
 <details><summary>More about this step</summary>
-<p><strong>Missed it?</strong> The records may have left the screen. Press <strong>Full reset</strong> on the <strong>Background sales</strong> card (it puts P0042 back to 9), then press <strong>Sell out product</strong> on the <strong>Actions</strong> card again while you watch the messages.</p>
+<p><strong>Missed it?</strong> The records may have left the screen. Press <strong>Full demo reset</strong> on the <strong>Background sales and reset</strong> card (it puts P0042 back to 9), then press <strong>Sell out product</strong> on the <strong>Actions</strong> card again while you watch the messages.</p>
 <p><strong>Sale or start-up record?</strong> An older <code>P0042</code> record may also match your search. Tell them apart by these fields:</p>
 <div class="table-wrap" tabindex="0"><table>
 <thead>
@@ -1304,7 +1304,7 @@ reset ok: scenario &lt;id&gt;, &lt;n&gt; positions at baseline, sellable caught 
 <h4 id="1-reset-and-open-the-page">1. Reset and open the page <a class="header-anchor" href="#1-reset-and-open-the-page">#</a></h4>
 <div data-path="panel" markdown="1">
 <p><strong>With the control panel</strong></p>
-<p>Press <strong>Full reset</strong> on the <strong>Background sales</strong> card of the control panel (<a href="#2-open-the-control-panel" data-stack-link="control">how to open it</a>) and confirm. Wait until the card reads <code>full-reset succeeded</code>. Background sales are now off.</p>
+<p>Press <strong>Full demo reset</strong> on the <strong>Background sales and reset</strong> card of the control panel (<a href="#2-open-the-control-panel" data-stack-link="control">how to open it</a>) and confirm. Wait until the card reads <code>full-reset succeeded</code>. Background sales are now off.</p>
 </div>
 <div data-path="terminal" markdown="1">
 <p><strong>With the terminal</strong></p>
@@ -1384,7 +1384,7 @@ reset ok: scenario &lt;id&gt;, &lt;n&gt; positions at baseline, sellable caught 
 <summary>Why the comparison between versions is fair</summary>
 <p>All three releases run on the same Fargate task size (0.5 vCPU / 1 GB, <code>service_sizing</code> in <code>terraform/aws/variables.tf</code>). Any difference in latency or CPU between versions therefore comes from the code, not from the task size.</p>
 </details>
-<p>Open this Chapter in the <a href="#3-open-the-datadog-stock-dashboard" data-stack-link="overview-dashboard">demo home</a>, group &quot;3. The incident&quot;: p95 by version, ECS CPU against the task's whole vCPU and unhealthy targets, with the Amazon ECS events as markers, and links to APM and the 1.1.0 traces.</p>
+<p>Open this Chapter in the <a href="#3-open-the-datadog-stock-dashboard" data-stack-link="overview-dashboard">demo home</a>, group &quot;3. The incident&quot;: lookup p95 by version, ECS CPU against the task's whole vCPU and unhealthy targets, with the Amazon ECS events as markers, and links to APM and the 1.1.0 traces.</p>
 <h4 id="turn-on-the-releases-layer">Turn on the releases layer <a class="header-anchor" href="#turn-on-the-releases-layer">#</a></h4>
 <p>Skip this if you chose everything at once, or if <code>releases</code> is already in your <code>layers:</code> line (<code>make layers-status</code> shows <code>releases: ON</code>).</p>
 <ol>
@@ -1425,7 +1425,7 @@ reset ok: scenario &lt;id&gt;, &lt;n&gt; positions at baseline, sellable caught 
 <div data-path="panel" markdown="1">
 <p><strong>With the control panel</strong></p>
 <ol>
-<li>In the <a href="#2-open-the-control-panel" data-stack-link="control">control panel</a>, press <strong>Full reset</strong> on the <strong>Background sales</strong> card and confirm. It stops background sales and sets the routing to 100 / 0 / 0. Wait for <code>full-reset succeeded</code>.</li>
+<li>In the <a href="#2-open-the-control-panel" data-stack-link="control">control panel</a>, press <strong>Full demo reset</strong> on the <strong>Background sales and reset</strong> card and confirm. It stops background sales and sets the routing to 100 / 0 / 0. Wait for <code>full-reset succeeded</code>.</li>
 <li>Press <strong>Canary 1.1.0 (10%)</strong> on the <strong>Release routing</strong> card and confirm. The tiles should read 90% for 1.0.0, 10% for 1.1.0 and 0% for 1.2.0, and the line under them <code>Live 90/10/0 · previous (for Rollback): 100/0/0</code>.</li>
 </ol>
 </div>
@@ -1532,11 +1532,11 @@ current=100 0 0 previous=90 10 0
 <p>The canary's traces stay in Datadog, so you can now look for the cause while shoppers use the healthy release.</p>
 </details>
 <h4 id="6-compare-releases-in-apm">6. Compare releases in APM <a class="header-anchor" href="#6-compare-releases-in-apm">#</a></h4>
-<p>Open the <a href="#3-open-the-datadog-stock-dashboard" data-stack-link="apm"><code>APM inventory-api 1.1.0:</code> link</a> and look at the <strong>Deployments</strong> section of the service page. Each row is one version, with its p95 latency and error rate. You should see 1.1.0 far above 1.0.0.</p>
+<p>Open the <a href="#3-open-the-datadog-stock-dashboard" data-stack-link="apm"><code>APM inventory-api 1.1.0:</code> link</a> within 15 minutes of the load (later, set the time range to when the load ran) and look at the <strong>Deployments</strong> section of the service page. You should see 1.1.0 far above 1.0.0 in p95 latency.</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Inventory-api latency by version"><img src="img/lab3-02-apm-latency-by-version.png" alt="Inventory-api latency by version" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>Inventory-api latency by version</figcaption></figure>
 <details>
 <summary>Two more views, our numbers, and why the three numbers differ</summary>
-<p>Without the link: APM &gt; <code>inventory-api</code> with environment <code>dd-demo-hybrid</code>, past 15 minutes, operation <code>flask.request</code> (the APM link redirects to <code>/apm/entity/service:inventory-api</code>). During the canary, 1.1.0 is far above 1.0.0 at p95: around a second or more, against under ten milliseconds.</p>
+<p>Without the link: APM &gt; <code>inventory-api</code> with environment <code>dd-demo-hybrid</code>, the load window, operation <code>flask.request</code>, and the filter <code>resource_name:get_/api/availability/_product_id</code> (the APM link redirects to <code>/apm/entity/service:inventory-api</code>). Each Deployments row is one version, with its p95 latency and error rate. After the canary ends, the only 1.1.0 traffic is the load balancer's health checks (<code>get_/readyz</code>, about 6 per minute per version), so a later or longer window without that filter shows a 1.1.0 p95 of about 2 ms. During the canary, 1.1.0 is far above 1.0.0 at p95: around a second or more, against under ten milliseconds.</p>
 <p>You can read the comparison in three places. The first is the <strong>Deployments</strong> section above; the other two follow.</p>
 <p>In our run (2026-10-06, every release on 0.5 vCPU) the load script measured a client-side p95 of about 1.5 s for 1.1.0 and about 10 ms for 1.0.0 at 90 / 10 / 0. Your numbers will differ.</p>
 <ol start="2">
@@ -1557,7 +1557,7 @@ current=100 0 0 previous=90 10 0
 <p>The three numbers agree when no requests wait, as on 1.0.0 and 1.2.0. Use the APM number to say how much time the code takes, and the client number to say what a shopper experienced.</p>
 </details>
 <h4 id="7-open-one-slow-trace">7. Open one slow trace <a class="header-anchor" href="#7-open-one-slow-trace">#</a></h4>
-<p>Open Traces filtered to <code>version:1.1.0</code> and open a slow request's <abbr title="The full record of one request, made of spans: one timed step each.">trace</abbr>. You should see a <code>catalogue.prepare</code> span that takes most of the request time and a short <code>stock.read</code> span (the Redis reads).</p>
+<p>From the <a href="#3-open-the-datadog-stock-dashboard" data-stack-link="apm">APM service page</a>, open Traces filtered to <code>version:1.1.0</code> and open a slow request's <abbr title="The full record of one request, made of spans: one timed step each.">trace</abbr>. You should see a <code>catalogue.prepare</code> span that takes most of the request time and a short <code>stock.read</code> span (the Redis reads).</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Trace waterfall with catalogue.prepare and stock.read"><img src="img/lab3-03-trace-catalogue-prepare.png" alt="Trace waterfall with catalogue.prepare and stock.read" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>Trace waterfall with catalogue.prepare and stock.read</figcaption></figure>
 <details><summary>More about this step</summary>
 <p><strong>If you do not see the spans.</strong> If the trace does not show them at first, switch to the <strong>Waterfall</strong> view and look for <code>catalogue.prepare</code> and <code>stock.read</code> there.</p>
@@ -1565,7 +1565,7 @@ current=100 0 0 previous=90 10 0
 <p><em>What just happened:</em> every span carries the <em>unified service tags</em> <code>env</code>, <code>service</code> and <code>version</code>, so APM can compare releases directly, even when one of them got only a tenth of the traffic. The catalogue work uses CPU and runs again in every request, so latency grows with load, while the Redis read stays fast.</p>
 </details>
 <h4 id="8-rule-out-the-stream">8. Rule out the stream <a class="header-anchor" href="#8-rule-out-the-stream">#</a></h4>
-<p>On the <a href="#3-open-the-datadog-stock-dashboard" data-stack-link="stock-dashboard">stock dashboard</a> the <strong>Freshness</strong> group has not changed, and the <strong>Service objective</strong> group shows <code>inventory-api p95 latency by version</code> rising for 1.1.0 only.</p>
+<p>On the <a href="#3-open-the-datadog-stock-dashboard" data-stack-link="stock-dashboard">stock dashboard</a> the <strong>Freshness</strong> group has not changed, and the <strong>Service objective</strong> group shows <code>inventory-api lookup p95 by version (s)</code> rising for 1.1.0 only.</p>
 <details><summary>The DSM map and the p95 monitor</summary>
 <p>The <a href="#3-open-the-datadog-stock-dashboard" data-stack-link="dsm">DSM map</a> shows the same healthy edges as in Lab 1.1. The monitor &quot;[dd-demo-hybrid] inventory-api p95 latency above 0.2s on 1.1.0&quot; can go to Alert after its evaluation window, depending on how many 1.1.0 samples fell into that window.</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: P95 monitor in Alert for version 1.1.0"><img src="img/lab3-04-p95-monitor.png" alt="P95 monitor in Alert for version 1.1.0" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>P95 monitor in Alert for version 1.1.0</figcaption></figure>
@@ -1727,7 +1727,10 @@ CANARY GATES PASSED
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Product page during the 10% canary"><img src="img/lab4-01-shop-canary-10.png" alt="Product page during the 10% canary" width="2880" height="2300" loading="lazy" decoding="async"></button><figcaption>Product page during the 10% canary</figcaption></figure>
 </details>
 <h4 id="2-compare-the-versions-in-apm">2. Compare the versions in APM <a class="header-anchor" href="#2-compare-the-versions-in-apm">#</a></h4>
-<p>Open the <code>inventory-api</code> service page (environment <code>dd-demo-hybrid</code>, past 15 minutes). The <strong>Deployments</strong> section now lists three versions: 1.0.0, 1.1.0 (from the Lab 3.1 canary) and 1.2.0. The p95 of 1.2.0 is close to that of 1.0.0 and much lower than that of 1.1.0.</p>
+<p>Open the <a href="#3-open-the-datadog-stock-dashboard" data-stack-link="apm"><code>inventory-api</code> service page</a> (environment <code>dd-demo-hybrid</code>) within 15 minutes of the load; later, set the time range to when the load ran. In the <strong>Deployments</strong> section, filter on <code>resource_name:get_/api/availability/_product_id</code>. You should see the p95 of 1.2.0 close to that of 1.0.0 and much lower than that of 1.1.0.</p>
+<details><summary>Why the filter and the time range</summary>
+<p>After a canary ends, the only traffic left on that version is the load balancer's health checks (<code>get_/readyz</code>, about 6 per minute per version). A long or late window without the filter averages them in, so 1.1.0 shows a p95 of about 2 ms, or the window holds no lookups at all. The Deployments section lists three versions: 1.0.0, 1.1.0 (from the Lab 3.1 canary) and 1.2.0.</p>
+</details>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Deployments table comparing the versions"><img src="img/lab4-02-deployments-by-version.png" alt="Deployments table comparing the versions" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>Deployments table comparing the versions</figcaption></figure>
 <h4 id="3-go-to-50-then-practise-backing-out">3. Go to 50%, then practise backing out <a class="header-anchor" href="#3-go-to-50-then-practise-backing-out">#</a></h4>
 <p>Do this step only if the 10% gate passed.</p>
@@ -1819,16 +1822,16 @@ make<span class="w"> </span>canary-check<span class="w"> </span><span class="nv"
 </ul>
 <p>The fix now gets all traffic. You widened it in steps, each step passed the same gate that stopped 1.1.0, and you tested the way back. Lab 5.1 starts with a reset, which sets the routing back to 100 / 0 / 0. <strong>Next:</strong> <a href="#lab-51-offers-with-a-safe-default">Lab 5.1</a>.</p>
 <h3 id="lab-51-offers-with-a-safe-default" class="lab">Lab 5.1: Offers with a safe default <a class="header-anchor" href="#lab-51-offers-with-a-safe-default">#</a></h3>
-<p><em>About 20 minutes.</em> When a product in a shopper's cart sells out, the Online shop offers an alternative. An external AI service can choose it, but its choice counts only when it is confident enough; otherwise a fixed rule decides. The AI part is optional, so the shop still works when the AI is slow, wrong or switched off, and every offer records why it was made.</p>
+<p><em>About 20 minutes.</em> When a product in a shopper's cart sells out, the Online shop offers an alternative. An external AI service can choose it, but its choice counts only when it is confident enough; otherwise a safe rule decides. You put three products in one cart and sell out all three: the AI picks the offer for two of them, and the third has nothing comparable, so the AI is not even asked. The AI part is optional, so the shop still works when the AI is slow, wrong or switched off, and every offer records why it was made.</p>
 <p><strong>Needs:</strong> the <code>offers</code> layer. Lab 5.1 starts by turning it on (skip that if you chose everything at once). Lab 5.2 needs the <code>restock</code> layer and turns it on the same way.</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Offers layer: the shop publishes cart adds; Flink cart at risk joins carts with sellable totals; the offer worker asks Jev and publishes offers"><img src="img/arch-4-offers.png" alt="Offers layer: the shop publishes cart adds; Flink cart at risk joins carts with sellable totals; the offer worker asks Jev and publishes offers" width="3820" height="1620" loading="lazy" decoding="async"></button>
 <figcaption>Figure 5: the offers layer adds a Flink &quot;cart at risk&quot; statement, the offer worker on Fargate, and an optional call to the external Jev API.</figcaption></figure>
-<p>A <em>cart at risk</em> is an active cart that holds a product whose sellable stock just reached zero.</p>
+<p>A <em>cart at risk</em> is a cart item whose product's sellable stock just reached zero. Each sold-out item in a cart gets its own <em>offer</em>: one alternative at 10% off, or a <em>Restock notice</em> when the product is due back soon. With neither, the shopper sees honestly that nothing comparable is in stock.</p>
 <details><summary>How the offer is chosen</summary>
-<p>For each one, <code>offer-worker</code> builds up to two <abbr title="In stock, same category and size, price within 20% of the sold-out product.">eligible alternatives</abbr> plus a &quot;notify me&quot; option. It sends Jev, an external decision API, the product facts, the restock ETA and a few synthetic cart signals (cart value, item count, new or returning shopper), never cart or shopper IDs. Jev returns a choice and a confidence score. The worker accepts the choice only if it is one of the options and its confidence is at least 0.8, the <em>confidence threshold</em>. Otherwise it uses the <em>rule default</em>: the in-stock alternative closest in price, or &quot;notify me&quot; if there is none.</p>
+<p>For each cart at risk, <code>offer-worker</code> builds up to two <abbr title="In stock, same category and size, price within 20% of the sold-out product; most comparable first: same kind, then same waterproofing, then closest price.">eligible alternatives</abbr>, plus a Restock notice only when a purchase order for the product is due within 7 days. With no eligible alternative there is nothing to choose, so the worker does not call Jev. Otherwise it sends Jev, an external decision API, each option compared with the sold-out product (kind, waterproofing, use, colour, price difference), the restock date, the cart's value and item count, and a synthetic new-or-returning-shopper signal, never cart or shopper IDs. Jev returns a choice and a confidence score. The worker accepts the choice only if it is one of the options and its confidence is at least 0.8, the <em>confidence threshold</em>. Otherwise the <em>safe rule</em> decides: the most comparable in-stock alternative, else the Restock notice, else no offer.</p>
 </details>
 <aside class="admonition admonition-note" role="note"><p class="admonition-title"><span class="admonition-icon" aria-hidden="true"></span>Note</p>
-<p>Without a Jev key every offer takes the rule default with reason <code>disabled</code>, and LLM Observability has no AI call to show. The rest of the lab works the same way.</p>
+<p>Without a Jev key every offer comes from the safe rule with reason <code>disabled</code>, and LLM Observability has no AI call to show. The rest of the lab works the same way.</p>
 </aside>
 <p>Open this Chapter in the <a href="#3-open-the-datadog-stock-dashboard" data-stack-link="overview-dashboard">demo home</a>, group &quot;5. The AI offer&quot;: decisions by route and reason, with links to LLM Observability and the offer-worker service.</p>
 <h4 id="turn-on-the-offers-layer">Turn on the offers layer <a class="header-anchor" href="#turn-on-the-offers-layer">#</a></h4>
@@ -1836,79 +1839,91 @@ make<span class="w"> </span>canary-check<span class="w"> </span><span class="nv"
 <div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>layer-on<span class="w"> </span><span class="nv">L</span><span class="o">=</span>offers<span class="w"> </span><span class="nv">CONFIRM</span><span class="o">=</span>yes
 </code></pre></div>
 <details><summary>What this creates</summary>
-<p>This creates two Kafka topics and one more Flink statement (&quot;cart at risk&quot;) in Confluent Cloud, starts the <code>offer-worker</code> Fargate service, and switches the Online shop's offer branch on. If you set <code>jev_api_key</code> in <code>demo.yaml</code>, the worker can call Jev; without it every offer uses the rule default.</p>
+<p>This creates two Kafka topics and one more Flink statement (&quot;cart at risk&quot;) in Confluent Cloud, starts the <code>offer-worker</code> Fargate service, and switches the Online shop's offer branch on. If you set <code>jev_api_key</code> in <code>demo.yaml</code>, the worker can call Jev; without it every offer comes from the safe rule.</p>
 </details>
-<p>Check with <code>make layers-status</code>: <code>offers: ON</code>.</p>
-<h4 id="1-reset-and-add-to-cart">1. Reset and add to cart <a class="header-anchor" href="#1-reset-and-add-to-cart">#</a></h4>
+<p>Check with <code>make layers-status</code>: <code>offers: ON</code>. Then reload the <a href="#hop-5-the-shop-page" data-stack-link="shop">Online shop</a> so it shows the offer card.</p>
+<h4 id="1-reset-and-fill-the-cart">1. Reset and fill the cart <a class="header-anchor" href="#1-reset-and-fill-the-cart">#</a></h4>
 <div data-path="panel" markdown="1">
 <p><strong>With the control panel</strong></p>
-<p>In the <a href="#2-open-the-control-panel" data-stack-link="control">control panel</a>, press <strong>Full reset</strong> on the <strong>Background sales</strong> card and confirm. Wait for <code>full-reset succeeded</code>.</p>
+<p>In the <a href="#2-open-the-control-panel" data-stack-link="control">control panel</a>, press <strong>Full demo reset</strong> on the <strong>Background sales and reset</strong> card and confirm. Wait for <code>full-reset succeeded</code>.</p>
 </div>
 <div data-path="terminal" markdown="1">
 <p><strong>With the terminal</strong></p>
 <div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>reset
 </code></pre></div>
 </div>
-<p>Open the <a href="#hop-5-the-shop-page" data-stack-link="shop">product page</a> of <code>P0042</code> and click <strong>Add to cart</strong>. The cart badge should show 1.</p>
+<p>In the <a href="#hop-5-the-shop-page" data-stack-link="shop">Online shop</a>, add three products to the cart, all in EU 42: open <code>P0042</code> (Trailrunner GTX) and click <strong>Add to cart</strong>, then do the same for <code>P0048</code> (Dolomia Evo, Charcoal) and <code>P0092</code> (Pathfinder Lite, Navy). You should see the cart badge at 3.</p>
 <details><summary>What adding to the cart does</summary>
-<p>The Online shop has published a cart <code>ADD</code> event to Kafka.</p>
+<p>The Online shop publishes one cart <code>ADD</code> event to Kafka per click and keeps the cart server side, so it stays after a reload. To open another product, change the product id at the end of the page address (<code>#/product/P0048</code>).</p>
 </details>
-<h4 id="2-sell-it-out">2. Sell it out <a class="header-anchor" href="#2-sell-it-out">#</a></h4>
-<p>Keep the <a href="#hop-5-the-shop-page" data-stack-link="shop">product page</a> open where you can see it.</p>
+<h4 id="2-sell-out-the-trail-shoe-the-ai-decides">2. Sell out the trail shoe: the AI decides <a class="header-anchor" href="#2-sell-out-the-trail-shoe-the-ai-decides">#</a></h4>
+<p>Go back to the <a href="#hop-5-the-shop-page" data-stack-link="shop"><code>P0042</code> product page</a>.</p>
 <div data-path="panel" markdown="1">
 <p><strong>With the control panel</strong></p>
-<p>In the <a href="#2-open-the-control-panel" data-stack-link="control">control panel</a>, on the <strong>Actions</strong> card, keep <code>P0042</code> in the <strong>Product ID</strong> field, press <strong>Sell out product</strong> and confirm.</p>
+<p>In the <a href="#2-open-the-control-panel" data-stack-link="control">control panel</a>, on the <strong>Actions</strong> card, press <strong>P0042</strong> next to <strong>Product ID</strong>, then <strong>Sell out product</strong>, and confirm.</p>
 </div>
 <div data-path="terminal" markdown="1">
 <p><strong>With the terminal</strong></p>
 <div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>sell-out<span class="w"> </span><span class="nv">PRODUCT</span><span class="o">=</span>P0042<span class="w"> </span><span class="nv">GAP</span><span class="o">=</span><span class="m">1</span>.5
 </code></pre></div>
 </div>
-<p>About 8 to 10 seconds after the last store sells out, an offer card appears below the product.</p>
-<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Offer card proposing an eligible alternative at 10% off after P0042 sold out"><img src="img/lab6-01-offer-rule-default.png" alt="Offer card proposing an eligible alternative at 10% off after P0042 sold out" width="2880" height="2716" loading="lazy" decoding="async"></button><figcaption>Offer card proposing an eligible alternative at 10% off after P0042 sold out</figcaption></figure>
-<details><summary>More about this step</summary>
-<p><strong>Which offer you get, and why a different model.</strong> With the default threshold, the offer is usually the rule default: the closest-priced eligible alternative, at 10% off. For P0042 (Trailrunner GTX, EU 42) that is P0160, the Brenta Storm in EU 42.</p>
-<p>It is a different model because the Trailrunner GTX exists in EU 42 only in Forest green, so there is no other colour of it to offer in that size.</p>
-<p><em>What just happened:</em> Flink joined your cart (topic <code>carts.events</code>) with the <code>stock.sellable</code> value of 0 and emitted a cart at risk. <code>offer-worker</code> built the alternatives, asked Jev, compared Jev's confidence with 0.8, checked the stock again, and published the offer to the <code>offers</code> topic, where the Online shop reads it.</p>
+<p>You should see, a few seconds after the last store sells out, an offer card for the Pathfinder Air that reads &quot;Decided by: AI — chose Pathfinder Air (confidence 0.90, threshold 0.8)&quot;. The confidence changes a little from run to run.</p>
+<details><summary>What just happened</summary>
+<p>Flink joined your cart (topic <code>carts.events</code>) with the <code>stock.sellable</code> value of 0 and emitted a cart at risk for this cart item. <code>offer-worker</code> found two eligible alternatives in EU 42, the Brenta Storm (approach shoe) and the Pathfinder Air (hiking shoe), and sent both to Jev with their kind, waterproofing, use and price difference. Jev chose the Pathfinder Air with a confidence above 0.8, so its choice stands. The worker checked the stock again and published the offer to the <code>offers</code> topic, where the Online shop reads it. Alone, the safe rule would have picked the Brenta Storm, the closest in price.</p>
 </details>
-<h4 id="3-see-why-in-llm-observability">3. See why in LLM Observability <a class="header-anchor" href="#3-see-why-in-llm-observability">#</a></h4>
-<p>In Datadog, open AI Observability &gt; Agent Observability &gt; Traces and select the application <code>urbanstreet-offers</code> (the picker may show another application first). Open the latest trace and its <code>offer.jev.call</code> span, the step that called Jev. The input shows the eligible alternatives as <code>criteria</code>. The output shows the <code>choice</code> and its <code>confidence</code>.</p>
-<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Offer.jev.call span input and output"><img src="img/lab6-03-llmobs-span-io.png" alt="Offer.jev.call span input and output" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>Offer.jev.call span input and output</figcaption></figure>
-<details><summary>More about this step</summary>
-<p><strong>What LLM Observability keeps.</strong></p>
-<p><abbr title="Datadog's record of each AI call as a trace, with what was sent and what came back.">LLM Observability</abbr> keeps the Jev calls here.</p>
-<p><strong>The trace list, and the same request in APM.</strong></p>
-<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: LLM Observability trace list for urbanstreet-offers"><img src="img/lab6-02-llmobs-traces.png" alt="LLM Observability trace list for urbanstreet-offers" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>LLM Observability trace list for urbanstreet-offers</figcaption></figure>
-<p>The same request also appears in APM (service <code>offer-worker</code>, span <code>offer.process</code>). Its linked logs state the decision, for example route <code>RULE_DEFAULT</code> with reason <code>low_confidence</code>.</p>
-</details>
-<h4 id="4-lower-the-threshold-live">4. Lower the threshold, live <a class="header-anchor" href="#4-lower-the-threshold-live">#</a></h4>
-<p>This setting exists only in the control panel, so you use the panel in both paths (<a href="#2-open-the-control-panel" data-stack-link="control">how to open it</a>). In the <code>offers</code> settings, set <strong>Jev minimum confidence</strong> (<code>jev_min_confidence</code>) to <code>0.7</code> and press <strong>Save</strong>. Then reset, reload the page, add P0042 to the cart again, and sell it out.</p>
+<h4 id="3-sell-out-the-boot-the-ai-picks-the-same-boot-in-another-colour">3. Sell out the boot: the AI picks the same boot in another colour <a class="header-anchor" href="#3-sell-out-the-boot-the-ai-picks-the-same-boot-in-another-colour">#</a></h4>
+<p>Open the <code>P0048</code> product page.</p>
 <div data-path="panel" markdown="1">
 <p><strong>With the control panel</strong></p>
-<p>In the <a href="#2-open-the-control-panel" data-stack-link="control">control panel</a>, press <strong>Full reset</strong>, reload the <a href="#hop-5-the-shop-page" data-stack-link="shop">product page</a>, click <strong>Add to cart</strong>, then press <strong>Sell out product</strong> with <code>P0042</code>.</p>
+<p>Press <strong>P0048</strong> next to <strong>Product ID</strong>, then <strong>Sell out product</strong>, and confirm.</p>
 </div>
 <div data-path="terminal" markdown="1">
 <p><strong>With the terminal</strong></p>
-<p>Reload the <a href="#hop-5-the-shop-page" data-stack-link="shop">product page</a> and click <strong>Add to cart</strong> after the reset:</p>
-<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>reset
-make<span class="w"> </span>sell-out<span class="w"> </span><span class="nv">PRODUCT</span><span class="o">=</span>P0042<span class="w"> </span><span class="nv">GAP</span><span class="o">=</span><span class="m">1</span>.5
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>sell-out<span class="w"> </span><span class="nv">PRODUCT</span><span class="o">=</span>P0048<span class="w"> </span><span class="nv">GAP</span><span class="o">=</span><span class="m">1</span>.5
 </code></pre></div>
 </div>
-<p>With the lower threshold, some runs use the AI choice and some still use the rule default.</p>
-<details><summary>Why reset before each run</summary>
-<p>The reset expires the carts from the previous run, so each sell-out produces exactly one offer, and it cancels the purchase orders left from an earlier Lab 5.2 run.</p>
+<p>You should see an offer card that reads &quot;The same Dolomia Evo in Glacier blue is in stock. Take 10% off if you switch.&quot; and &quot;Decided by: AI — chose Dolomia Evo in Glacier blue (confidence 1.00, threshold 0.8)&quot;.</p>
+<details><summary>If the safe rule decides instead</summary>
+<p>The AI's choice counts only when its confidence is at least 0.8, the confidence threshold. Below it, the card reads &quot;Decided by: safe rule&quot; and shows the AI's suggestion with its score. The offer stays the same: the safe rule also picks the Glacier blue boot (P0059), the same kind, waterproofing and price.</p>
 </details>
-<h4 id="5-use-the-kill-switch">5. Use the kill switch <a class="header-anchor" href="#5-use-the-kill-switch">#</a></h4>
-<p>In the <a href="#2-open-the-control-panel" data-stack-link="control">control panel</a>, set <strong>AI kill switch</strong> (<code>offers_kill_switch</code>) to <code>1</code> and press <strong>Save</strong>. Then repeat the reset, add to cart and sell-out. You should see the decision line &quot;safe rule — AI did not return a decision&quot; in the Online shop.</p>
-<details><summary>More about the kill switch</summary>
-<p>This <abbr title="A setting that stops all calls to Jev, so every offer uses the rule default.">kill switch</abbr> takes effect on the next offer. The decision line in the Online shop reads &quot;safe rule — AI did not return a decision&quot;, the reason on the dashboard is <code>kill_switch</code>, and the worker makes no Jev call. On the stock dashboard, in the <strong>Offers</strong> group, <code>offer.decision by route and reason</code> shows each of your runs.</p>
-</details>
-<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Offers group by route and reason"><img src="img/lab6-04-offers-group.png" alt="Offers group by route and reason" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>Offers group by route and reason</figcaption></figure>
-<h4 id="6-restore-the-defaults">6. Restore the defaults <a class="header-anchor" href="#6-restore-the-defaults">#</a></h4>
-<p>In the <a href="#2-open-the-control-panel" data-stack-link="control">control panel</a>, set <code>jev_min_confidence</code> back to <code>0.8</code> and <code>offers_kill_switch</code> back to <code>0</code> (or press <strong>Reset to default</strong> on each), then reset.</p>
+<h4 id="4-sell-out-the-light-hiking-shoe-nothing-comparable">4. Sell out the light hiking shoe: nothing comparable <a class="header-anchor" href="#4-sell-out-the-light-hiking-shoe-nothing-comparable">#</a></h4>
+<p>Open the <code>P0092</code> product page.</p>
 <div data-path="panel" markdown="1">
 <p><strong>With the control panel</strong></p>
-<p>Press <strong>Full reset</strong> and confirm.</p>
+<p>Press <strong>P0092</strong> next to <strong>Product ID</strong>, then <strong>Sell out product</strong>, and confirm.</p>
+</div>
+<div data-path="terminal" markdown="1">
+<p><strong>With the terminal</strong></p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>sell-out<span class="w"> </span><span class="nv">PRODUCT</span><span class="o">=</span>P0092<span class="w"> </span><span class="nv">GAP</span><span class="o">=</span><span class="m">1</span>.5
+</code></pre></div>
+</div>
+<p>You should see a card that reads &quot;Sold out everywhere, and nothing comparable is in stock right now.&quot; and &quot;Decided by: safe rule, no eligible alternative&quot;.</p>
+<details><summary>Why there is no offer, and no AI call</summary>
+<p>The Pathfinder Lite costs EUR 119.90. No other footwear in EU 42 is priced within 20% of it (EUR 95.92 to 143.88), so it has no eligible alternative and the worker does not call Jev: there is nothing to choose. The worker still publishes the outcome, so the shop and Datadog see the case (reason <code>no_alternative</code>). If the restock layer is on and a purchase order for this product is due within 7 days, the card offers a Restock notice instead: &quot;Back in about N days. We will let you know as soon as it is back in stock.&quot;</p>
+</details>
+<h4 id="5-open-the-cart">5. Open the cart <a class="header-anchor" href="#5-open-the-cart">#</a></h4>
+<p>Click the cart badge. You should see three items marked &quot;Sold out&quot;: the trail shoe and the boot each with its offer (alternative, −10%, &quot;Decided by: AI&quot;) and a <strong>Swap</strong> button, and the Pathfinder Lite with &quot;No comparable product in stock&quot;.</p>
+<details><summary>What the cart shows, and what Swap does</summary>
+<p>The offer is the one alternative picked for that item; &quot;AI: 0.90&quot; next to an alternative is Jev's confidence for the option it chose. The other eligible alternative is listed at full price, the way the worker found it: same category and size, in stock now. <strong>Swap</strong> removes the sold-out item and adds the alternative through the normal cart events (<code>ABANDON</code>, then <code>ADD</code>); swapping to the offer's alternative is recorded in RUM as the action <code>offer_accepted</code>.</p>
+</details>
+<h4 id="6-read-a-jev-call-in-llm-observability">6. Read a Jev call in LLM Observability <a class="header-anchor" href="#6-read-a-jev-call-in-llm-observability">#</a></h4>
+<p>Open the <a href="#6-read-a-jev-call-in-llm-observability" data-stack-link="llm-obs">LLM Observability</a> link and open the latest trace and its <code>offer.jev.call</code> span. You should see in the input each option with its kind, waterproofing, use and price difference, and in the output the choice and the confidence; there are two Jev calls, for the trail shoe and the boot, and none for the Pathfinder Lite.</p>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: The offer.jev.call span for the boot: the options with their match summaries in the input, the choice and the confidence in the output"><img src="img/lab6-05-llmobs-jev-input-output.png" alt="The offer.jev.call span for the boot: the options with their match summaries in the input, the choice and the confidence in the output" width="1325" height="736" loading="lazy" decoding="async"></button><figcaption>The offer.jev.call span for the boot: the options with their match summaries in the input, the choice and the confidence in the output</figcaption></figure>
+<details><summary>No Restock notice? And the other ways in</summary>
+<p>A Restock notice is only offered when a purchase order is due within 7 days. Turn on restock in Lab 5.2 to see it.</p>
+<p>From the Datadog menu, the same page is AI Observability &gt; Agent Observability &gt; Traces, application <code>urbanstreet-offers</code> (the picker may show another application first). The same requests also appear in APM (service <code>offer-worker</code>, span <code>offer.process</code>); their linked logs state each decision, for example route <code>JEV</code> with reason <code>accepted</code>, or route <code>RULE_DEFAULT</code> with reason <code>no_alternative</code> for the Pathfinder Lite.</p>
+</details>
+<h4 id="7-use-the-kill-switch">7. Use the kill switch <a class="header-anchor" href="#7-use-the-kill-switch">#</a></h4>
+<p>In the <a href="#2-open-the-control-panel" data-stack-link="control">control panel</a>, set <strong>AI kill switch</strong> (<code>offers_kill_switch</code>) to <code>1</code> and press <strong>Save</strong>. Then repeat steps 1 to 4. You should see &quot;Decided by: safe rule — AI did not return a decision&quot; on the trail shoe and the boot (the trail shoe now gets the Brenta Storm), and the same &quot;nothing comparable&quot; card for the Pathfinder Lite.</p>
+<details><summary>More about the kill switch</summary>
+<p>This <abbr title="A setting that stops all calls to Jev, so every offer comes from the safe rule.">kill switch</abbr> takes effect on the next offer. The reason on the dashboard is <code>kill_switch</code>, and the worker makes no Jev call. On the stock dashboard, in the <strong>Offers</strong> group, <code>offer.decision by route and reason</code> shows each of your runs.</p>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Offers group by route and reason"><img src="img/lab6-04-offers-group.png" alt="Offers group by route and reason" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>Offers group by route and reason</figcaption></figure>
+</details>
+<h4 id="8-restore-the-defaults">8. Restore the defaults <a class="header-anchor" href="#8-restore-the-defaults">#</a></h4>
+<p>In the <a href="#2-open-the-control-panel" data-stack-link="control">control panel</a>, on the <strong>AI kill switch</strong> row, press <strong>Reset to default</strong>. You should see the value back at <code>0</code>. Then reset; a reset does not change the offer settings, which is why you restore the kill switch first.</p>
+<div data-path="panel" markdown="1">
+<p><strong>With the control panel</strong></p>
+<p>Press <strong>Full demo reset</strong> and confirm.</p>
 </div>
 <div data-path="terminal" markdown="1">
 <p><strong>With the terminal</strong></p>
@@ -1917,10 +1932,11 @@ make<span class="w"> </span>sell-out<span class="w"> </span><span class="nv">PRO
 </div>
 <h4 id="checkpoint-5" class="checkpoint">Checkpoint <a class="header-anchor" href="#checkpoint-5">#</a></h4>
 <ul class="contains-task-list">
-<li class="task-list-item enabled"><input class="task-list-item-checkbox"  type="checkbox"> You have seen at least one offer card (<a href="#2-sell-it-out">step 2</a>).</li>
-<li class="task-list-item enabled"><input class="task-list-item-checkbox"  type="checkbox"> <code>offer.decision</code> shows at least two reasons, for example <code>accepted</code> or <code>low_confidence</code>, and <code>kill_switch</code> (or <code>disabled</code> without a Jev key) (<a href="#5-use-the-kill-switch">step 5</a>).</li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"  type="checkbox"> One cart showed three sold-out items: two offers decided by the AI and one &quot;nothing comparable&quot; (<a href="#5-open-the-cart">step 5</a>).</li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"  type="checkbox"> An <code>offer.jev.call</code> span showed the options in its input and the choice and confidence in its output (<a href="#6-read-a-jev-call-in-llm-observability">step 6</a>).</li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"  type="checkbox"> With the kill switch on, the safe rule decided every offer (<a href="#7-use-the-kill-switch">step 7</a>).</li>
 </ul>
-<p>The shop does not depend on the AI. Fixed rules decide what may be offered, the rule default always gives an answer, and the trace shows why each offer was made. An offer is only an offer: nothing in this lab proves that it saved a sale. <strong>Next:</strong> <a href="#lab-52-restock-that-learns">Lab 5.2</a> (optional) or <a href="#lab-61-datadog-on-top-of-the-solution">Lab 6.1</a>.</p>
+<p>The shop does not depend on the AI. Fixed rules decide what may be offered, the safe rule always gives an answer, the AI is asked only when there is a real choice, and the trace shows why each offer was made. An offer is only an offer: nothing in this lab proves that it saved a sale. <strong>Next:</strong> <a href="#lab-52-restock-that-learns">Lab 5.2</a> (optional) or <a href="#lab-61-datadog-on-top-of-the-solution">Lab 6.1</a>.</p>
 <!-- box: also-lab-5-2
 Also in this chapter: Lab 5.2, restock that learns (optional)
 -->
@@ -1947,10 +1963,10 @@ Also in this chapter: Lab 5.2, restock that learns (optional)
 <div data-path="panel" markdown="1">
 <p><strong>With the control panel</strong></p>
 <ol>
-<li>In the <a href="#2-open-the-control-panel" data-stack-link="control">control panel</a>, press <strong>Full reset</strong> on the <strong>Background sales</strong> card and confirm.</li>
+<li>In the <a href="#2-open-the-control-panel" data-stack-link="control">control panel</a>, press <strong>Full demo reset</strong> on the <strong>Background sales and reset</strong> card and confirm.</li>
 </ol>
-<details><summary>Why Full reset, not Reset demo data</summary>
-<p>When the restock layer is on, it also cancels open purchase orders and clears the restock ETA keys in Redis. <strong>Reset demo data</strong> does neither of these, so use <strong>Full reset</strong>.</p>
+<details><summary>Why Full demo reset, not Reset demo data</summary>
+<p>When the restock layer is on, it also cancels open purchase orders and clears the restock ETA keys in Redis. <strong>Reset demo data</strong> does neither of these, so use <strong>Full demo reset</strong>.</p>
 </details>
 2. In the [control panel](#2-open-the-control-panel "stack-link:control"), on the **Actions** card, keep `P0042` in the **Product ID** field and press **Sell out product**. Wait for `succeeded: Source and Redis verification completed`.
 </div>
@@ -1962,7 +1978,7 @@ make<span class="w"> </span>sell-out<span class="w"> </span><span class="nv">PRO
 <p>You should see the five <code>{&quot;store&quot;: ..., &quot;remaining_store&quot;: 0, ...}</code> lines from Lab 1.1.</p>
 </div>
 <h4 id="2-watch-the-eta-appear">2. Watch the ETA appear <a class="header-anchor" href="#2-watch-the-eta-appear">#</a></h4>
-<p>After a few seconds the page shows &quot;Out of stock online&quot; with &quot;Back in stock in about N hours&quot; and the note &quot;demo clock: 1 min = 1 h&quot;.</p>
+<p>Open the <a href="#hop-5-the-shop-page" data-stack-link="shop">product page</a> of <code>P0042</code>. After a few seconds it shows &quot;Out of stock online&quot; with &quot;Back in stock in about N hours&quot; and the note &quot;demo clock: 1 min = 1 h&quot;.</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Product page showing Out of stock online with a restock ETA"><img src="img/lab5-01-restock-eta.png" alt="Product page showing Out of stock online with a restock ETA" width="2880" height="2468" loading="lazy" decoding="async"></button><figcaption>Product page showing Out of stock online with a restock ETA</figcaption></figure>
 <details><summary>More about this step</summary>
 <p><strong>What the ETA is.</strong> This is the <abbr title="Estimated time until the product is back in stock.">ETA</abbr>. The default lead time is 48 business hours and each order gets a random variation (jitter), so N is a few tens of hours. We saw 28, 29 and 37.</p>
@@ -1971,7 +1987,7 @@ make<span class="w"> </span>sell-out<span class="w"> </span><span class="nv">PRO
 <p><em>What just happened:</em> Flink emitted one restock request per store. A <abbr title="A Kafka Connect connector that copies Kafka records into a database table.">JDBC sink connector</abbr> wrote each request into the procurement database as a purchase order, and Debezium streamed the orders back into Kafka. That is how Flink knows the stock is on order and does not order it twice. The supplier simulator (<code>supplier-sim</code>) wrote the earliest due time to Redis, and the page shows it as the ETA.</p>
 </details>
 <h4 id="3-open-the-control-panel">3. Open the control panel <a class="header-anchor" href="#3-open-the-control-panel">#</a></h4>
-<p>Open the <a href="#2-open-the-control-panel" data-stack-link="control">control panel</a> in both paths (<a href="#2-open-the-control-panel" data-stack-link="control">how to open it</a>) and scroll below the cards to the <code>restock</code> settings. You should see the restock parameters: supplier lead time, lead time jitter, safety factor, coverage after delivery, minimum order quantity, demand window and the demo clock (<code>time_compression</code>, 60 by default).</p>
+<p>Open the <a href="#2-open-the-control-panel" data-stack-link="control">control panel</a> in both paths and scroll below the cards to the <code>restock</code> settings. You should see the restock parameters: supplier lead time, lead time jitter, safety factor, coverage after delivery, minimum order quantity, demand window and the demo clock (<code>time_compression</code>, 60 by default).</p>
 <details><summary>Your changes become Datadog events</summary>
 <p>Each change you save is also sent to Datadog as an event.</p>
 </details>
@@ -2067,6 +2083,19 @@ make<span class="w"> </span>layer-on<span class="w"> </span><span class="nv">L</
 </tbody>
 </table></div>
 </details>
+<h4 id="turn-on-background-sales">Turn on background sales <a class="header-anchor" href="#turn-on-background-sales">#</a></h4>
+<div data-path="panel" markdown="1">
+<p><strong>With the control panel</strong></p>
+<p>In the <a href="#2-open-the-control-panel" data-stack-link="control">control panel</a>, press <strong>Sales on</strong> on the <strong>Background sales and reset</strong> card and confirm. You should see <code>sales-on succeeded: Background sales are on: 24/min per store; ...</code>.</p>
+</div>
+<div data-path="terminal" markdown="1">
+<p><strong>With the terminal</strong></p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>sales-on
+</code></pre></div>
+</div>
+<details><summary>Why turn sales on here</summary>
+<p>The earlier labs started with a reset, which turned background sales off so that the numbers were predictable. This lab looks at the platform under steady traffic, so you turn them back on. Within a few minutes the dashboards show live traffic.</p>
+</details>
 <h4 id="1-read-back-the-stack">1. Read back the stack <a class="header-anchor" href="#1-read-back-the-stack">#</a></h4>
 <div data-path="panel" markdown="1">
 <p><strong>With the control panel</strong></p>
@@ -2090,7 +2119,7 @@ make<span class="w"> </span>layer-on<span class="w"> </span><span class="nv">L</
 <p><strong>Why not DSM for connectors.</strong> This is where you check connectors. DSM shows the data flow, but it does not show connector status.</p>
 </details>
 <h4 id="2-aws-native-online-dashboard">2. AWS-native online dashboard <a class="header-anchor" href="#2-aws-native-online-dashboard">#</a></h4>
-<p>Open the <a href="#3-open-the-datadog-stock-dashboard" data-stack-link="online-dashboard">AWS-native online dashboard</a>. It shows Fargate CPU and memory by service and version, ElastiCache memory and CPU, and ALB unhealthy targets, next to <code>inventory-api</code> p95 by version. If you ran Lab 3.1, you can see the CPU peak of release 1.1.0.</p>
+<p>Open the <a href="#3-open-the-datadog-stock-dashboard" data-stack-link="online-dashboard">AWS-native online dashboard</a>. It shows Fargate CPU and memory by service and version, ElastiCache memory and CPU, and ALB unhealthy targets, next to <code>inventory-api</code> lookup p95 by version. If you ran Lab 3.1, you can see the CPU peak of release 1.1.0.</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: AWS-native online dashboard"><img src="img/lab7-01-aws-online-dashboard.png" alt="AWS-native online dashboard" width="2880" height="2300" loading="lazy" decoding="async"></button><figcaption>AWS-native online dashboard</figcaption></figure>
 <h4 id="3-confluent-cloud-integration">3. Confluent Cloud integration <a class="header-anchor" href="#3-confluent-cloud-integration">#</a></h4>
 <p>On the <a href="#3-open-the-datadog-stock-dashboard" data-stack-link="stock-dashboard">stock dashboard</a>, in the <strong>Pipeline</strong> group, the chart &quot;Confluent Cloud consumer lag (offsets) by group&quot; comes from the Confluent <abbr title="Datadog reading metrics from another provider's account, here Confluent Cloud.">integration</abbr> (the <code>dd-streams</code> layer). <abbr title="The number of messages a consumer group has not read yet.">Consumer lag</abbr> for <code>stock-projector</code> and <code>connect-sellable-redis</code> should stay near zero, which agrees with the probe.</p>
@@ -2116,6 +2145,7 @@ make<span class="w"> </span>layer-on<span class="w"> </span><span class="nv">L</
 <h4 id="6-cost">6. Cost <a class="header-anchor" href="#6-cost">#</a></h4>
 <p>Open the <a href="#3-open-the-datadog-stock-dashboard" data-stack-link="cost-dashboard"><code>account-cost dashboard:</code> link</a> and set <code>stack</code> to <code>hybrid</code>.</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Account cost dashboard"><img src="img/lab7-04-cost-dashboard.png" alt="Account cost dashboard" width="2880" height="2520" loading="lazy" decoding="async"></button><figcaption>Account cost dashboard</figcaption></figure>
+<p><code>Burn now (estimate)</code> is the cost per hour right now. <code>Spent this month, cumulative</code> shows the month-to-date bill per vendor and the total, and <code>Confluent credit left</code> shows what remains of the $400 trial credit.</p>
 <details><summary>More about this step</summary>
 <p><strong>Where the numbers come from, and when the billed cost arrives.</strong> The <code>cost-meter</code> service estimates the hourly cost of the AWS pieces from list prices and reads Confluent usage. The billed AWS cost arrives later: AWS writes it to the <abbr title="AWS's detailed billing export, delivered to an S3 bucket.">Cost and Usage Report</abbr>, and Datadog Cloud Cost Management reads it from there, typically 48 to 72 hours after the first complete report.</p>
 <p><strong>Why the fix does not change the price of a task.</strong> Fargate bills each task by its vCPU and memory size, so the cost estimate follows the task size set in <code>service_sizing</code> (<code>terraform/aws/variables.tf</code>). All three releases use the same size (0.5 vCPU / 1 GB). The fix therefore does not change the hourly price of a task. It changes how much traffic one task can handle (see the CPU comparison in <a href="#5-prove-it-latency-cpu-and-cost">Lab 4.1</a>).</p>
@@ -2285,12 +2315,12 @@ make<span class="w"> </span>layer-on<span class="w"> </span><span class="nv">L</
 <tr>
 <td><code>failed: Action failed: source verification failed for S0n/P0042: ...</code></td>
 <td>A store's Source did not end with a live position of zero</td>
-<td>Check <code>status</code> and <code>verify</code>, then retry. If in doubt, use <code>make ... reset</code></td>
+<td>Check <code>status</code> and <code>verify</code>, then retry. If in doubt, use <code>make reset</code></td>
 </tr>
 <tr>
-<td><strong>Reset demo data</strong> does not start: <code>Background sales are on (&lt;rate&gt;/min per store): press Sales off first, or use Full reset</code></td>
+<td><strong>Reset demo data</strong> does not start: <code>Background sales are on (&lt;rate&gt;/min per store): press Sales off first, or use Full demo reset</code></td>
 <td>Background sales are on. <strong>Reset demo data</strong> does not stop them, and while sales keep changing the stock the reset can never match the baseline, so the panel refuses to run it</td>
-<td>Press <strong>Full reset</strong> on the <strong>Background sales</strong> card (sales off, routing 100 / 0 / 0, data reset), or press <strong>Sales off</strong> and then <strong>Reset demo data</strong>, or run <code>make reset</code></td>
+<td>Press <strong>Full demo reset</strong> on the <strong>Background sales and reset</strong> card (sales off, routing 100 / 0 / 0, data reset), or press <strong>Sales off</strong> and then <strong>Reset demo data</strong>, or run <code>make reset</code></td>
 </tr>
 <tr>
 <td><code>failed: Action failed: sell-out P0042 did not converge in 30s ...</code>, or <code>reset did not converge</code> with sales already off</td>
@@ -2325,7 +2355,7 @@ make<span class="w"> </span>layer-on<span class="w"> </span><span class="nv">L</
 <tr>
 <td><code>no previous routing recorded; make a routing change first</code></td>
 <td><strong>Rollback</strong> has nothing to restore because no routing change was made through the panel yet. The panel keeps its own record, separate from the make commands</td>
-<td>Press a preset first, then <strong>Rollback</strong>, or use <code>make ... rollback</code></td>
+<td>Press a preset first, then <strong>Rollback</strong>, or use <code>make rollback</code></td>
 </tr>
 <tr>
 <td><code>Release routing is not configured in this deployment (ALB_INVENTORY_* variables absent)</code></td>
@@ -2383,9 +2413,9 @@ make<span class="w"> </span>layer-on<span class="w"> </span><span class="nv">L</
 <td>Run <code>make sales-on</code> to start them, then press <strong>Sales on</strong></td>
 </tr>
 <tr>
-<td><strong>Full reset</strong> is disabled, or fails with <code>Full reset needs ALB release routing (hybrid stack)</code></td>
+<td><strong>Full demo reset</strong> is disabled, or fails with <code>Full demo reset needs ALB release routing (hybrid stack)</code></td>
 <td>The control panel runs without the routing settings</td>
-<td>Use <code>make ... reset</code>, or use the hybrid stack</td>
+<td>Use <code>make reset</code>, or use the hybrid stack</td>
 </tr>
 <tr>
 <td>No data in Datadog charts</td>
@@ -2455,8 +2485,8 @@ make<span class="w"> </span>layer-on<span class="w"> </span><span class="nv">L</
 <td>Read the error above <code>destroy of layer '&lt;layer&gt;' FAILED</code>, fix it, then run <code>./demo destroy</code> again. It continues with the pieces that still exist</td>
 </tr>
 <tr>
-<td><code>[destroy vm] SKIPPED: terraform/aws failed ...</code></td>
-<td>The AWS online side still uses the VM's security group, so AWS cannot delete the VM's network rules yet. The VM keeps billing</td>
+<td><code>[destroy vm] EC2 instance only: terraform/aws failed ...</code></td>
+<td>The AWS online side still uses the VM's security group, so the script stops the VM but keeps its security group, key pair and role (no hourly cost)</td>
 <td>Fix the AWS error above, then run <code>./demo destroy</code> again</td>
 </tr>
 <tr>
@@ -2485,6 +2515,7 @@ make<span class="w"> </span>layer-on<span class="w"> </span><span class="nv">L</
 <div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>./demo<span class="w"> </span>destroy
 </code></pre></div>
 <p>Type <code>yes</code> when the script asks.</p>
+<p>If it ends with DESTROY INCOMPLETE, run it again; it resumes.</p>
 <p>A successful run ends like this:</p>
 <div class="code code-out" data-lang="text"><div class="code-bar"><span class="code-label">Expected output</span></div><pre tabindex="0"><code>== leftover check: AWS resources tagged project=dd-demo, each confirmed with its service API
    &lt;n&gt; tagged ARNs: &lt;n&gt; ECS task-definition revisions skipped (free), &lt;n&gt; already deleted (Tagging API lags)
@@ -2557,42 +2588,42 @@ aws<span class="w"> </span>ecs<span class="w"> </span>list-clusters<span class="
 <tr>
 <td>Is the stock in the Online shop current?</td>
 <td>Freshness group: probe age, feed state, apply delay, sellable age</td>
-<td>1, 2</td>
+<td>1.1, 2.1</td>
 </tr>
 <tr>
 <td>Which store stopped reporting?</td>
 <td><code>stock.feed.state</code> by store, per-store monitor</td>
-<td>2</td>
+<td>2.1</td>
 </tr>
 <tr>
 <td>Should this release reach more shoppers?</td>
 <td>The <code>canary-check</code> gates on the canary's samples, errors, p95 and correctness</td>
-<td>3, 4</td>
+<td>3.1, 4.1</td>
 </tr>
 <tr>
 <td>Is the slowness in the release or in the stream?</td>
 <td>APM latency by version, <code>catalogue.prepare</code> span, unchanged freshness and DSM</td>
-<td>3</td>
+<td>3.1</td>
 </tr>
 <tr>
 <td>Is the fix safe to roll out further?</td>
 <td>APM Deployments by version, plus the <code>canary-check</code> gates</td>
-<td>4</td>
+<td>4.1</td>
 </tr>
 <tr>
 <td>Are restock orders flowing?</td>
 <td>Restock group, config-change events, restock monitors</td>
-<td>5</td>
+<td>5.2</td>
 </tr>
 <tr>
 <td>Why did the shopper get this offer?</td>
 <td>LLM Observability span input and output, <code>offer.decision</code> by reason</td>
-<td>6</td>
+<td>5.1</td>
 </tr>
 <tr>
 <td>Is the platform healthy, and what does it cost?</td>
 <td>AWS-native dashboard, Confluent consumer lag, Synthetics, monitors, cost dashboard</td>
-<td>7</td>
+<td>6.1</td>
 </tr>
 </tbody>
 </table></div>
@@ -2647,7 +2678,7 @@ aws<span class="w"> </span>ecs<span class="w"> </span>list-clusters<span class="
 </tr>
 <tr>
 <td>Cart at risk</td>
-<td>An active cart that holds a product whose sellable stock has just reached zero</td>
+<td>A cart item whose product's sellable stock has just reached zero. Each one gets its own offer, and only this event can ask the AI for a choice</td>
 </tr>
 <tr>
 <td>DSM</td>
@@ -2678,6 +2709,14 @@ aws<span class="w"> </span>ecs<span class="w"> </span>list-clusters<span class="
 <td>A part of the demo that you can switch on or off by itself</td>
 </tr>
 <tr>
+<td>Offer</td>
+<td>The one eligible alternative, or Restock notice, picked for a sold-out cart item, with its incentive (10% off), picked by the AI or by the safe rule. The cart may list other eligible alternatives, but only the offer carries the incentive</td>
+</tr>
+<tr>
+<td>Offer accepted</td>
+<td>The shopper swaps the sold-out item for the offer's alternative. The Online shop records it in RUM as the action <code>offer_accepted</code></td>
+</tr>
+<tr>
 <td>p95</td>
 <td>The latency that 95% of requests stay under</td>
 </tr>
@@ -2698,6 +2737,10 @@ aws<span class="w"> </span>ecs<span class="w"> </span>list-clusters<span class="
 <td>Demand rate × expected supplier lead time × safety factor</td>
 </tr>
 <tr>
+<td>Restock notice</td>
+<td>An offer that tells the shopper when the sold-out product is back. Offered only when a purchase order is due within 7 days, never without a date</td>
+</tr>
+<tr>
 <td>Restock request</td>
 <td>The automatic request a store creates when its inventory position falls to the reorder point</td>
 </tr>
@@ -2706,7 +2749,7 @@ aws<span class="w"> </span>ecs<span class="w"> </span>list-clusters<span class="
 <td>A number that a Source increases on every change to a stock position. The higher number wins</td>
 </tr>
 <tr>
-<td>Rule default</td>
+<td>Safe rule</td>
 <td>The offer that the policy picks by itself when the AI choice is missing, unsure, invalid, late or switched off</td>
 </tr>
 <tr>
@@ -2813,6 +2856,11 @@ aws<span class="w"> </span>ecs<span class="w"> </span>list-clusters<span class="
 <td><code>sellable:*</code>, <code>stock:*</code>, <code>feed:status:*</code></td>
 </tr>
 <tr>
+<td><code>storefront</code> (Fargate)</td>
+<td>Cart contents <code>cart:&lt;scenario&gt;:&lt;cart&gt;</code>, so a cart stays after a reload; a reset starts a new scenario and so new carts</td>
+<td>Its own cart keys</td>
+</tr>
+<tr>
 <td><code>demo-control</code> (Fargate)</td>
 <td>Demo settings <code>demo:config</code>, the routing and last-load notes it keeps for the Checks card</td>
 <td>Demo settings, live routing</td>
@@ -2886,67 +2934,67 @@ aws<span class="w"> </span>ecs<span class="w"> </span>list-clusters<span class="
 <td>Is the feed moving, per store?</td>
 <td><code>stock.probe.age</code>, <code>stock.feed.state</code>, <code>stock.sellable.age</code></td>
 <td><code>freshness-probe</code> via the VM Agent</td>
-<td>1, 2</td>
+<td>1.1, 2.1</td>
 </tr>
 <tr>
 <td>How long do changes take to reach Redis?</td>
 <td><code>stock.freshness.apply_delay</code> (p95)</td>
 <td><code>stock-projector</code></td>
-<td>1, 5</td>
+<td>1.1, 5.2</td>
 </tr>
 <tr>
 <td>Which Kafka edges are healthy?</td>
 <td>DSM map</td>
 <td><code>ddtrace</code> in projector, storefront, inventory-api, offer-worker</td>
-<td>1, 7</td>
+<td>1.1, 6.1</td>
 </tr>
 <tr>
 <td>Which release is slow, and where?</td>
 <td>APM latency by <code>version</code>, the <code>catalogue.prepare</code> span</td>
 <td><code>ddtrace</code> in inventory-api</td>
-<td>3, 4</td>
+<td>3.1, 4.1</td>
 </tr>
 <tr>
 <td>Are the connectors running?</td>
 <td><code>stock.connect.task_running</code></td>
 <td><code>freshness-probe</code> polling the Connect REST API</td>
-<td>1, 7</td>
+<td>1.1, 6.1</td>
 </tr>
 <tr>
 <td>Is consumer lag growing?</td>
 <td><code>confluent_cloud.kafka.consumer_lag_offsets</code></td>
 <td>Confluent Cloud integration</td>
-<td>7</td>
+<td>6.1</td>
 </tr>
 <tr>
 <td>Are ECS, ElastiCache and the ALB healthy?</td>
 <td>AWS-native online dashboard</td>
 <td>AWS integration</td>
-<td>7</td>
+<td>6.1</td>
 </tr>
 <tr>
 <td>Why did the AI pick that offer?</td>
 <td>LLM span input and output, <code>offer.decision</code></td>
 <td>offer-worker</td>
-<td>6</td>
+<td>5.1</td>
 </tr>
 <tr>
 <td>Can a shopper load the page from outside?</td>
 <td>Synthetics API and browser tests</td>
 <td>Datadog location <code>aws:eu-central-1</code></td>
-<td>7</td>
+<td>6.1</td>
 </tr>
 <tr>
 <td>When did a release change or a feed pause happen?</td>
 <td>Events <code>demo action: &lt;name&gt; started/succeeded/failed</code></td>
 <td><code>demo-control</code></td>
-<td>2, 3, 4, 7</td>
+<td>2.1, 3.1, 4.1, 6.1</td>
 </tr>
 <tr>
 <td>What is this costing?</td>
 <td><code>dd_demo.cost.*</code>, account cost dashboard, Cloud Cost Management</td>
 <td><code>cost-meter</code>, AWS Cost and Usage Report</td>
-<td>7</td>
+<td>6.1</td>
 </tr>
 </tbody>
 </table></div>
@@ -3055,7 +3103,7 @@ aws<span class="w"> </span>ecs<span class="w"> </span>list-clusters<span class="
 </tr>
 <tr>
 <td><code>./demo reset</code></td>
-<td>Same as <code>make ... reset</code></td>
+<td>Same as <code>make reset</code></td>
 </tr>
 <tr>
 <td><code>./demo destroy [--yes]</code></td>
@@ -3173,8 +3221,8 @@ aws<span class="w"> </span>ecs<span class="w"> </span>list-clusters<span class="
 <td><code>load</code>, <code>verify</code>, <code>canary-check</code></td>
 </tr>
 <tr>
-<td>Background sales</td>
-<td><strong>Sales off</strong>, <strong>Sales on</strong>, <strong>Full reset</strong></td>
+<td>Background sales and reset</td>
+<td><strong>Sales off</strong>, <strong>Sales on</strong>, <strong>Full demo reset</strong></td>
 <td><code>sales-off</code>, <code>sales-on</code>, <code>reset</code></td>
 </tr>
 </tbody>
@@ -3203,10 +3251,10 @@ aws<span class="w"> </span>ecs<span class="w"> </span>list-clusters<span class="
 </tbody>
 </table></div>
 <p>Both buttons ask you to confirm, and only one action runs at a time. The card shows a progress line such as <code>running: Sold out S01 (1/5); source verified</code> and ends with <code>succeeded: Source and Redis verification completed</code>: before it reports success, the panel reads the Sources back and checks that Redis has the same values.</p>
-<p>The actions change only PostgreSQL; the change travels through Debezium and Confluent Cloud as in Lab 1.1. <strong>Reset demo data</strong> refuses to run while background sales are on: press <strong>Sales off</strong> first, or use <strong>Full reset</strong> on the <strong>Background sales</strong> card.</p>
+<p>The actions change only PostgreSQL; the change travels through Debezium and Confluent Cloud as in Lab 1.1. <strong>Reset demo data</strong> refuses to run while background sales are on: press <strong>Sales off</strong> first, or use <strong>Full demo reset</strong> on the <strong>Background sales and reset</strong> card.</p>
 <details>
 <summary>Why Reset demo data refuses while sales are on</summary>
-<p>Background sales keep changing the stock, so a reset could never match the baseline. <strong>Reset demo data</strong> does not stop background sales, does not change the load balancer routing and does not cancel restock purchase orders. <strong>Full reset</strong> does all of that: it turns sales off, sets routing to 100 / 0 / 0, cancels open purchase orders and then resets the data. <code>make reset</code> does the same from the terminal.</p>
+<p>Background sales keep changing the stock, so a reset could never match the baseline. <strong>Reset demo data</strong> does not stop background sales, does not change the load balancer routing and does not cancel restock purchase orders. <strong>Full demo reset</strong> does all of that: it turns sales off, sets routing to 100 / 0 / 0, cancels open purchase orders and then resets the data. <code>make reset</code> does the same from the terminal.</p>
 </details>
 <p>The <strong>Release routing</strong> card moves the inventory API traffic between the three releases, like the <code>canary-110-10</code>, <code>canary-*</code>, <code>incident</code>, <code>route-baseline</code> and <code>rollback</code> make commands:</p>
 <div class="table-wrap" tabindex="0"><table>
@@ -3283,9 +3331,9 @@ aws<span class="w"> </span>ecs<span class="w"> </span>list-clusters<span class="
 <p><strong>Check canary</strong> picks the gate from the live routing and shows it below the buttons. At 90 / 10 / 0 (Lab 3.1) it checks 1.1.0 against 1.0.0. At 90 / 0 / 10 and 50 / 0 / 50 (Lab 4.1) it checks 1.2.0 against 1.0.0. At 0 / 0 / 100 it checks 1.2.0 alone. At 100 / 0 / 0 there is nothing to check, so it refuses. It also refuses if the routing changed since the last load you ran in the panel, because that load measured a different split. <strong>Run load</strong> blocks the cards for about 2 minutes.</p>
 <details>
 <summary>How the panel's gate matches the make commands</summary>
-<p>The canary is the newer release that receives traffic, and the baseline is the older one. When the canary has less than 50% of the traffic, the gate lowers the minimum number of samples from 100 to 30. These are the same gates as the <code>canary-check CHECK_ARGS=...</code> commands in Labs 3 and 4.</p>
+<p>The canary is the newer release that receives traffic, and the baseline is the older one. When the canary has less than 50% of the traffic, the gate lowers the minimum number of samples from 100 to 30. These are the same gates as the <code>canary-check CHECK_ARGS=...</code> commands in Labs 3.1 and 4.1.</p>
 </details>
-<p>The <strong>Background sales</strong> card controls the sales generator, so you do not need a terminal. The rate tile shows the sales per minute per store (24 by default), or <code>OFF</code> with <code>rate 0 · Sales on restores 24/min</code> when sales are off.</p>
+<p>The <strong>Background sales and reset</strong> card controls the sales generator, so you do not need a terminal. The rate tile shows the sales per minute per store (24 by default), or <code>OFF</code> with <code>rate 0 · Sales on restores 24/min</code> when sales are off.</p>
 <div class="table-wrap" tabindex="0"><table>
 <thead>
 <tr>
@@ -3303,8 +3351,8 @@ aws<span class="w"> </span>ecs<span class="w"> </span>list-clusters<span class="
 <td>Sets the remembered rate again, then waits for a real sale before it reports success</td>
 </tr>
 <tr>
-<td><strong>Full reset</strong></td>
-<td>Like <code>make ... reset</code>: <strong>Sales off</strong>, then <strong>Baseline</strong> (100 / 0 / 0), then <strong>Reset demo data</strong>. When the restock layer runs, it also cancels open purchase orders before the data reset and clears the restock ETA keys after it. Otherwise its progress line says it did not change them. It needs the hybrid stack, which has the load balancer routing</td>
+<td><strong>Full demo reset</strong></td>
+<td>Like <code>make reset</code>: <strong>Sales off</strong>, then <strong>Baseline</strong> (100 / 0 / 0), then <strong>Reset demo data</strong>. When the restock layer runs, it also cancels open purchase orders before the data reset and clears the restock ETA keys after it. Otherwise its progress line says it did not change them. It needs the hybrid stack, which has the load balancer routing</td>
 </tr>
 </tbody>
 </table></div>
@@ -3312,7 +3360,7 @@ aws<span class="w"> </span>ecs<span class="w"> </span>list-clusters<span class="
 <p>Every action also sends a Datadog event named <code>demo action: &lt;name&gt; started</code>, then <code>succeeded</code> or <code>failed</code> (see <a href="#5-monitors">Lab 6.1</a>).</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Actions card with the product field P0042, the Sell out product and Reset demo data buttons, and the status line succeeded: Source and Redis verification completed"><img src="img/build-04-control-actions.png" alt="Actions card with the product field P0042, the Sell out product and Reset demo data buttons, and the status line succeeded: Source and Redis verification completed" width="2328" height="569" loading="lazy" decoding="async"></button><figcaption>Actions card with the product field P0042, the Sell out product and Reset demo data buttons, and the status line succeeded: Source and Redis verification completed</figcaption></figure>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Release routing and Store feed cards"><img src="img/build-05-routing-store-feed.png" alt="Release routing and Store feed cards" width="2328" height="1801" loading="lazy" decoding="async"></button><figcaption>Release routing and Store feed cards</figcaption></figure>
-<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Checks and Background sales cards"><img src="img/build-06-checks-sales.png" alt="Checks and Background sales cards" width="2328" height="1938" loading="lazy" decoding="async"></button><figcaption>Checks and Background sales cards</figcaption></figure>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Checks and Background sales and reset cards"><img src="img/build-06-checks-sales.png" alt="Checks and Background sales and reset cards" width="2328" height="1938" loading="lazy" decoding="async"></button><figcaption>Checks and Background sales and reset cards</figcaption></figure>
 <details>
 <summary>Why one path?</summary>
 <p>The panel stores the demo settings (key <code>demo:config</code>) and its <strong>Rollback</strong> memory (key <code>demo:routing-state</code>) in Redis, in the same ElastiCache instance that holds the serving view, under separate keys. <code>make rollback</code> keeps its memory in a local file on your computer, <code>.state/routing-&lt;stack&gt;</code>. So a <strong>Rollback</strong> in one does not know about a change made in the other: it restores what was live before the last change made by <em>that same</em> path.</p>
@@ -3494,7 +3542,7 @@ aws<span class="w"> </span>ecs<span class="w"> </span>list-clusters<span class="
   </div>
 </dialog>
 <div class="sr-only" aria-live="polite" id="live"></div>
-<script src="assets/stack.js?v=ec6a04c228"></script>
+<script src="assets/stack.js?v=d196eb9022"></script>
 <script src="assets/site.js?v=1de1666aca" defer></script>
 </body>
 </html>

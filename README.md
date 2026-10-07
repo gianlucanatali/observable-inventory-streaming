@@ -16,7 +16,7 @@ What is in this repository:
 - Five PostgreSQL store databases. Debezium, running on Kafka Connect that you manage yourself, writes their changes directly to Confluent Cloud (Kafka, Schema Registry, Flink SQL).
 - A stock projector and a Redis serving view (ElastiCache) that you can rebuild from the stream. The website never queries the store databases.
 - Three releases of the stock lookup service behind an Application Load Balancer with weighted target groups, for the incident and the canary.
-- Optional layers: demand-driven restocking, and offers for carts at risk with an optional AI choice and a rule default.
+- Optional layers: demand-driven restocking, and offers for carts at risk with an optional AI choice and a safe rule.
 - Datadog APM, logs, Data Streams Monitoring, freshness probes, LLM Observability, Synthetics, RUM, dashboards and monitors. All of it is defined as code.
 - Docker Compose, Terraform and Make targets in this directory.
 
@@ -41,7 +41,7 @@ As a learner, you mostly need `./demo` and the [workshop guide](workshop/README.
 | `stock-projector/` | Turns the Debezium change stream into the Redis serving view and the `inventory.state` topic |
 | `storefront/` | UrbanStreet online shop: React frontend and Flask backend, with product photos |
 | `freshness-probe/` | Freshness probe that decide whether the stock feed can be trusted |
-| `offer-worker/` | Offers for carts at risk (optional layer), AI choice with a rule default |
+| `offer-worker/` | Offers for carts at risk (optional layer), AI choice with a safe rule |
 | `supplier-sim/` | Simulated supplier for the restock layer |
 | `demo-control/` | Control panel (`/control/`) and JSON API for the labs: sales, routing, checks |
 | `cost-meter/` | Running cost estimate per vendor, sent to Datadog as metrics |

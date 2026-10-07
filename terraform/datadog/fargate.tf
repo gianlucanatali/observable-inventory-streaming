@@ -22,8 +22,8 @@ locals {
       query = "sum:ecs.fargate.mem.usage{${local.online_scope}} by {service,version}"
     }
     latency = {
-      title = "inventory-api p95 by version (same identity on Fargate)"
-      query = "p95:trace.flask.request{${local.svc}} by {version}"
+      title = "inventory-api lookup p95 by version (Fargate)"
+      query = "p95:trace.flask.request{${local.svc},${local.lookup}} by {version}"
     }
     ecs_cpu = {
       title = "ECS service CPU utilization (%)"

@@ -108,7 +108,7 @@
 </tr>
 <tr>
 <td>Cart at risk</td>
-<td>An active cart that holds a product whose sellable stock has just reached zero</td>
+<td>A cart item whose product's sellable stock has just reached zero. Each one gets its own offer, and only this event can ask the AI for a choice</td>
 </tr>
 <tr>
 <td>DSM</td>
@@ -139,6 +139,14 @@
 <td>A part of the demo that you can switch on or off by itself</td>
 </tr>
 <tr>
+<td>Offer</td>
+<td>The one eligible alternative, or Restock notice, picked for a sold-out cart item, with its incentive (10% off), picked by the AI or by the safe rule. The cart may list other eligible alternatives, but only the offer carries the incentive</td>
+</tr>
+<tr>
+<td>Offer accepted</td>
+<td>The shopper swaps the sold-out item for the offer's alternative. The Online shop records it in RUM as the action <code>offer_accepted</code></td>
+</tr>
+<tr>
 <td>p95</td>
 <td>The latency that 95% of requests stay under</td>
 </tr>
@@ -159,6 +167,10 @@
 <td>Demand rate × expected supplier lead time × safety factor</td>
 </tr>
 <tr>
+<td>Restock notice</td>
+<td>An offer that tells the shopper when the sold-out product is back. Offered only when a purchase order is due within 7 days, never without a date</td>
+</tr>
+<tr>
 <td>Restock request</td>
 <td>The automatic request a store creates when its inventory position falls to the reorder point</td>
 </tr>
@@ -167,7 +179,7 @@
 <td>A number that a Source increases on every change to a stock position. The higher number wins</td>
 </tr>
 <tr>
-<td>Rule default</td>
+<td>Safe rule</td>
 <td>The offer that the policy picks by itself when the AI choice is missing, unsure, invalid, late or switched off</td>
 </tr>
 <tr>
@@ -274,6 +286,11 @@
 <td><code>sellable:*</code>, <code>stock:*</code>, <code>feed:status:*</code></td>
 </tr>
 <tr>
+<td><code>storefront</code> (Fargate)</td>
+<td>Cart contents <code>cart:&lt;scenario&gt;:&lt;cart&gt;</code>, so a cart stays after a reload; a reset starts a new scenario and so new carts</td>
+<td>Its own cart keys</td>
+</tr>
+<tr>
 <td><code>demo-control</code> (Fargate)</td>
 <td>Demo settings <code>demo:config</code>, the routing and last-load notes it keeps for the Checks card</td>
 <td>Demo settings, live routing</td>
@@ -347,67 +364,67 @@
 <td>Is the feed moving, per store?</td>
 <td><code>stock.probe.age</code>, <code>stock.feed.state</code>, <code>stock.sellable.age</code></td>
 <td><code>freshness-probe</code> via the VM Agent</td>
-<td>1, 2</td>
+<td>1.1, 2.1</td>
 </tr>
 <tr>
 <td>How long do changes take to reach Redis?</td>
 <td><code>stock.freshness.apply_delay</code> (p95)</td>
 <td><code>stock-projector</code></td>
-<td>1, 5</td>
+<td>1.1, 5.2</td>
 </tr>
 <tr>
 <td>Which Kafka edges are healthy?</td>
 <td>DSM map</td>
 <td><code>ddtrace</code> in projector, storefront, inventory-api, offer-worker</td>
-<td>1, 7</td>
+<td>1.1, 6.1</td>
 </tr>
 <tr>
 <td>Which release is slow, and where?</td>
 <td>APM latency by <code>version</code>, the <code>catalogue.prepare</code> span</td>
 <td><code>ddtrace</code> in inventory-api</td>
-<td>3, 4</td>
+<td>3.1, 4.1</td>
 </tr>
 <tr>
 <td>Are the connectors running?</td>
 <td><code>stock.connect.task_running</code></td>
 <td><code>freshness-probe</code> polling the Connect REST API</td>
-<td>1, 7</td>
+<td>1.1, 6.1</td>
 </tr>
 <tr>
 <td>Is consumer lag growing?</td>
 <td><code>confluent_cloud.kafka.consumer_lag_offsets</code></td>
 <td>Confluent Cloud integration</td>
-<td>7</td>
+<td>6.1</td>
 </tr>
 <tr>
 <td>Are ECS, ElastiCache and the ALB healthy?</td>
 <td>AWS-native online dashboard</td>
 <td>AWS integration</td>
-<td>7</td>
+<td>6.1</td>
 </tr>
 <tr>
 <td>Why did the AI pick that offer?</td>
 <td>LLM span input and output, <code>offer.decision</code></td>
 <td>offer-worker</td>
-<td>6</td>
+<td>5.1</td>
 </tr>
 <tr>
 <td>Can a shopper load the page from outside?</td>
 <td>Synthetics API and browser tests</td>
 <td>Datadog location <code>aws:eu-central-1</code></td>
-<td>7</td>
+<td>6.1</td>
 </tr>
 <tr>
 <td>When did a release change or a feed pause happen?</td>
 <td>Events <code>demo action: &lt;name&gt; started/succeeded/failed</code></td>
 <td><code>demo-control</code></td>
-<td>2, 3, 4, 7</td>
+<td>2.1, 3.1, 4.1, 6.1</td>
 </tr>
 <tr>
 <td>What is this costing?</td>
 <td><code>dd_demo.cost.*</code>, account cost dashboard, Cloud Cost Management</td>
 <td><code>cost-meter</code>, AWS Cost and Usage Report</td>
-<td>7</td>
+<td>6.1</td>
 </tr>
 </tbody>
 </table></div>
@@ -516,7 +533,7 @@
 </tr>
 <tr>
 <td><code>./demo reset</code></td>
-<td>Same as <code>make ... reset</code></td>
+<td>Same as <code>make reset</code></td>
 </tr>
 <tr>
 <td><code>./demo destroy [--yes]</code></td>
@@ -634,8 +651,8 @@
 <td><code>load</code>, <code>verify</code>, <code>canary-check</code></td>
 </tr>
 <tr>
-<td>Background sales</td>
-<td><strong>Sales off</strong>, <strong>Sales on</strong>, <strong>Full reset</strong></td>
+<td>Background sales and reset</td>
+<td><strong>Sales off</strong>, <strong>Sales on</strong>, <strong>Full demo reset</strong></td>
 <td><code>sales-off</code>, <code>sales-on</code>, <code>reset</code></td>
 </tr>
 </tbody>
@@ -664,10 +681,10 @@
 </tbody>
 </table></div>
 <p>Both buttons ask you to confirm, and only one action runs at a time. The card shows a progress line such as <code>running: Sold out S01 (1/5); source verified</code> and ends with <code>succeeded: Source and Redis verification completed</code>: before it reports success, the panel reads the Sources back and checks that Redis has the same values.</p>
-<p>The actions change only PostgreSQL; the change travels through Debezium and Confluent Cloud as in Lab 1.1. <strong>Reset demo data</strong> refuses to run while background sales are on: press <strong>Sales off</strong> first, or use <strong>Full reset</strong> on the <strong>Background sales</strong> card.</p>
+<p>The actions change only PostgreSQL; the change travels through Debezium and Confluent Cloud as in Lab 1.1. <strong>Reset demo data</strong> refuses to run while background sales are on: press <strong>Sales off</strong> first, or use <strong>Full demo reset</strong> on the <strong>Background sales and reset</strong> card.</p>
 <details>
 <summary>Why Reset demo data refuses while sales are on</summary>
-<p>Background sales keep changing the stock, so a reset could never match the baseline. <strong>Reset demo data</strong> does not stop background sales, does not change the load balancer routing and does not cancel restock purchase orders. <strong>Full reset</strong> does all of that: it turns sales off, sets routing to 100 / 0 / 0, cancels open purchase orders and then resets the data. <code>make reset</code> does the same from the terminal.</p>
+<p>Background sales keep changing the stock, so a reset could never match the baseline. <strong>Reset demo data</strong> does not stop background sales, does not change the load balancer routing and does not cancel restock purchase orders. <strong>Full demo reset</strong> does all of that: it turns sales off, sets routing to 100 / 0 / 0, cancels open purchase orders and then resets the data. <code>make reset</code> does the same from the terminal.</p>
 </details>
 <p>The <strong>Release routing</strong> card moves the inventory API traffic between the three releases, like the <code>canary-110-10</code>, <code>canary-*</code>, <code>incident</code>, <code>route-baseline</code> and <code>rollback</code> make commands:</p>
 <div class="table-wrap" tabindex="0"><table>
@@ -744,9 +761,9 @@
 <p><strong>Check canary</strong> picks the gate from the live routing and shows it below the buttons. At 90 / 10 / 0 (Lab 3.1) it checks 1.1.0 against 1.0.0. At 90 / 0 / 10 and 50 / 0 / 50 (Lab 4.1) it checks 1.2.0 against 1.0.0. At 0 / 0 / 100 it checks 1.2.0 alone. At 100 / 0 / 0 there is nothing to check, so it refuses. It also refuses if the routing changed since the last load you ran in the panel, because that load measured a different split. <strong>Run load</strong> blocks the cards for about 2 minutes.</p>
 <details>
 <summary>How the panel's gate matches the make commands</summary>
-<p>The canary is the newer release that receives traffic, and the baseline is the older one. When the canary has less than 50% of the traffic, the gate lowers the minimum number of samples from 100 to 30. These are the same gates as the <code>canary-check CHECK_ARGS=...</code> commands in Labs 3 and 4.</p>
+<p>The canary is the newer release that receives traffic, and the baseline is the older one. When the canary has less than 50% of the traffic, the gate lowers the minimum number of samples from 100 to 30. These are the same gates as the <code>canary-check CHECK_ARGS=...</code> commands in Labs 3.1 and 4.1.</p>
 </details>
-<p>The <strong>Background sales</strong> card controls the sales generator, so you do not need a terminal. The rate tile shows the sales per minute per store (24 by default), or <code>OFF</code> with <code>rate 0 · Sales on restores 24/min</code> when sales are off.</p>
+<p>The <strong>Background sales and reset</strong> card controls the sales generator, so you do not need a terminal. The rate tile shows the sales per minute per store (24 by default), or <code>OFF</code> with <code>rate 0 · Sales on restores 24/min</code> when sales are off.</p>
 <div class="table-wrap" tabindex="0"><table>
 <thead>
 <tr>
@@ -764,8 +781,8 @@
 <td>Sets the remembered rate again, then waits for a real sale before it reports success</td>
 </tr>
 <tr>
-<td><strong>Full reset</strong></td>
-<td>Like <code>make ... reset</code>: <strong>Sales off</strong>, then <strong>Baseline</strong> (100 / 0 / 0), then <strong>Reset demo data</strong>. When the restock layer runs, it also cancels open purchase orders before the data reset and clears the restock ETA keys after it. Otherwise its progress line says it did not change them. It needs the hybrid stack, which has the load balancer routing</td>
+<td><strong>Full demo reset</strong></td>
+<td>Like <code>make reset</code>: <strong>Sales off</strong>, then <strong>Baseline</strong> (100 / 0 / 0), then <strong>Reset demo data</strong>. When the restock layer runs, it also cancels open purchase orders before the data reset and clears the restock ETA keys after it. Otherwise its progress line says it did not change them. It needs the hybrid stack, which has the load balancer routing</td>
 </tr>
 </tbody>
 </table></div>
@@ -773,7 +790,7 @@
 <p>Every action also sends a Datadog event named <code>demo action: &lt;name&gt; started</code>, then <code>succeeded</code> or <code>failed</code> (see <a href="chapter-6.html#5-monitors">Lab 6.1</a>).</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Actions card with the product field P0042, the Sell out product and Reset demo data buttons, and the status line succeeded: Source and Redis verification completed"><img src="img/build-04-control-actions.png" alt="Actions card with the product field P0042, the Sell out product and Reset demo data buttons, and the status line succeeded: Source and Redis verification completed" width="2328" height="569" loading="lazy" decoding="async"></button><figcaption>Actions card with the product field P0042, the Sell out product and Reset demo data buttons, and the status line succeeded: Source and Redis verification completed</figcaption></figure>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Release routing and Store feed cards"><img src="img/build-05-routing-store-feed.png" alt="Release routing and Store feed cards" width="2328" height="1801" loading="lazy" decoding="async"></button><figcaption>Release routing and Store feed cards</figcaption></figure>
-<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Checks and Background sales cards"><img src="img/build-06-checks-sales.png" alt="Checks and Background sales cards" width="2328" height="1938" loading="lazy" decoding="async"></button><figcaption>Checks and Background sales cards</figcaption></figure>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Checks and Background sales and reset cards"><img src="img/build-06-checks-sales.png" alt="Checks and Background sales and reset cards" width="2328" height="1938" loading="lazy" decoding="async"></button><figcaption>Checks and Background sales and reset cards</figcaption></figure>
 <details>
 <summary>Why one path?</summary>
 <p>The panel stores the demo settings (key <code>demo:config</code>) and its <strong>Rollback</strong> memory (key <code>demo:routing-state</code>) in Redis, in the same ElastiCache instance that holds the serving view, under separate keys. <code>make rollback</code> keeps its memory in a local file on your computer, <code>.state/routing-&lt;stack&gt;</code>. So a <strong>Rollback</strong> in one does not know about a change made in the other: it restores what was live before the last change made by <em>that same</em> path.</p>
@@ -956,7 +973,7 @@
   </div>
 </dialog>
 <div class="sr-only" aria-live="polite" id="live"></div>
-<script src="assets/stack.js?v=ec6a04c228"></script>
+<script src="assets/stack.js?v=d196eb9022"></script>
 <script src="assets/site.js?v=1de1666aca" defer></script>
 </body>
 </html>

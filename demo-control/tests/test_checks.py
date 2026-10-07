@@ -37,8 +37,8 @@ from scenario.presenter_actions import RestockReset  # noqa: E402
 from scenario.runs import write_json  # noqa: E402
 
 TOKEN = "a" * 48
-LABELS = ["Checks", f"Run load ({LOAD_DURATION_S} s, {LOAD_RPS} rps)", "Verify", "Check canary", "Background sales",
-          "Sales off", "Sales on", "Full reset"]
+LABELS = ["Checks", f"Run load ({LOAD_DURATION_S} s, {LOAD_RPS} rps)", "Verify", "Check canary", "Background sales and reset",
+          "Sales off", "Sales on", "Full demo reset"]
 
 
 def load_summary(b_p95=23.0, b_count=60, a_count=540, weights=(0, 90, 10), a_release="1.1.0"):
@@ -367,7 +367,7 @@ def test_verify_failing_with_background_sales_on_says_to_full_reset(parts):
     failed = go(parts, "verify", expect="failed")
     assert failed["error"] == ("Action failed: Verify FAILED: 0 position mismatch(es), 21 sellable mismatch(es). "
                                "Background sales are on (24/min per store) and kept changing the stock while Verify "
-                               "compared it: press Full reset, then Verify again")
+                               "compared it: press Full demo reset, then Verify again")
     parts["sales"].rate = 0.0
     assert "Background sales" not in go(parts, "verify", expect="failed")["error"]
 
@@ -487,7 +487,7 @@ def test_full_reset_runs_sales_off_baseline_and_reset_in_order(parts):
     assert parts["proc"].open == 0 and parts["rtext"].keys("restock:eta:*") == []
     assert done["result"]["routing"]["weights"] == {"1.0.0": 100, "1.1.0": 0, "1.2.0": 0}
     assert done["result"]["restock"] == {"cancelled_orders": 2, "eta_keys_cleared": 1}
-    assert done["progress"].startswith("Full reset done")
+    assert done["progress"].startswith("Full demo reset done")
     assert "2 open purchase order(s) cancelled, 1 restock:eta key(s) cleared" in done["progress"]
     assert "weights:100/0/0" in parts["statsd"].events[-1]["tags"]
 
@@ -519,7 +519,7 @@ def test_reset_demo_data_refuses_while_background_sales_are_on(parts):
     bad = c.post("/control/api/actions/reset", json={}, headers=auth())
     assert bad.status_code == 400 and parts["resets"] == []
     assert bad.get_json()["error"] == ("Background sales are on (24/min per store): press Sales off first, "
-                                       "or use Full reset")
+                                       "or use Full demo reset")
     go(parts, "sales-off")
     done = go(parts, "reset")
     assert len(parts["resets"]) == 1 and done["progress"] == "Source and Redis verification completed"

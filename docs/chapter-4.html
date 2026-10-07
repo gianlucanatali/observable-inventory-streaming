@@ -195,7 +195,10 @@ CANARY GATES PASSED
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Product page during the 10% canary"><img src="img/lab4-01-shop-canary-10.png" alt="Product page during the 10% canary" width="2880" height="2300" loading="lazy" decoding="async"></button><figcaption>Product page during the 10% canary</figcaption></figure>
 </details>
 <h4 id="2-compare-the-versions-in-apm">2. Compare the versions in APM <a class="header-anchor" href="#2-compare-the-versions-in-apm">#</a></h4>
-<p>Open the <code>inventory-api</code> service page (environment <code>dd-demo-hybrid</code>, past 15 minutes). The <strong>Deployments</strong> section now lists three versions: 1.0.0, 1.1.0 (from the Lab 3.1 canary) and 1.2.0. The p95 of 1.2.0 is close to that of 1.0.0 and much lower than that of 1.1.0.</p>
+<p>Open the <a href="setup.html#3-open-the-datadog-stock-dashboard" data-stack-link="apm"><code>inventory-api</code> service page</a> (environment <code>dd-demo-hybrid</code>) within 15 minutes of the load; later, set the time range to when the load ran. In the <strong>Deployments</strong> section, filter on <code>resource_name:get_/api/availability/_product_id</code>. You should see the p95 of 1.2.0 close to that of 1.0.0 and much lower than that of 1.1.0.</p>
+<details><summary>Why the filter and the time range</summary>
+<p>After a canary ends, the only traffic left on that version is the load balancer's health checks (<code>get_/readyz</code>, about 6 per minute per version). A long or late window without the filter averages them in, so 1.1.0 shows a p95 of about 2 ms, or the window holds no lookups at all. The Deployments section lists three versions: 1.0.0, 1.1.0 (from the Lab 3.1 canary) and 1.2.0.</p>
+</details>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Deployments table comparing the versions"><img src="img/lab4-02-deployments-by-version.png" alt="Deployments table comparing the versions" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>Deployments table comparing the versions</figcaption></figure>
 <h4 id="3-go-to-50-then-practise-backing-out">3. Go to 50%, then practise backing out <a class="header-anchor" href="#3-go-to-50-then-practise-backing-out">#</a></h4>
 <p>Do this step only if the 10% gate passed.</p>
@@ -310,7 +313,7 @@ make<span class="w"> </span>canary-check<span class="w"> </span><span class="nv"
   </div>
 </dialog>
 <div class="sr-only" aria-live="polite" id="live"></div>
-<script src="assets/stack.js?v=ec6a04c228"></script>
+<script src="assets/stack.js?v=d196eb9022"></script>
 <script src="assets/site.js?v=1de1666aca" defer></script>
 </body>
 </html>

@@ -74,6 +74,7 @@ class Config:
     jev_model: str = "jev-latest"
     jev_timeout_ms: int = 800
     jev_min_confidence: float = 0.8
+    notify_me_near_days: float = 7.0  # business days; contracts/demo-params.json notify_me_near_days
     kill_switch: bool = False
     kill_switch_key: str = "offers:kill_switch"
     bedrock_enabled: bool = False
@@ -113,6 +114,7 @@ class Config:
             jev_model=env.get("JEV_MODEL") or "jev-latest",
             jev_timeout_ms=_num(env, "JEV_TIMEOUT_MS", "800", int, 50, 10_000),
             jev_min_confidence=_num(env, "JEV_MIN_CONFIDENCE", "0.8", float, 0.0, 1.0),
+            notify_me_near_days=_num(env, "NOTIFY_ME_NEAR_DAYS", "7", float, 0.0, 60.0),
             kill_switch=_bool(env, "OFFERS_KILL_SWITCH"),
             kill_switch_key=env.get("OFFERS_KILL_SWITCH_KEY", "offers:kill_switch"),
             bedrock_enabled=bedrock,

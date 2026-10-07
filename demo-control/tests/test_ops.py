@@ -408,6 +408,6 @@ def test_presenter_operations_get_a_decoding_redis_client():
     wsgi = (Path(__file__).parents[1] / "demo_control/wsgi.py").read_text()
     assert "decode_responses=True" in wsgi
     assert "make_presenter_operations(store_conn, cfg.stores, r_text)" in wsgi
-    # Full reset's restock part scans restock:eta:* with the same decoding client and reaches make_operations.
+    # Full demo reset's restock part scans restock:eta:* with the same decoding client and reaches make_operations.
     assert "RestockReset(procurement_conn if cfg.procurement_host else None, r_text," in wsgi
     assert "make_operations(alb, feeds, checks, sales, reset_data, restock)" in wsgi

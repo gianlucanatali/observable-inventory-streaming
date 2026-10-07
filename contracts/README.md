@@ -65,6 +65,7 @@ Redis sink connector `sellable-redis` (redis-kafka-connect 1.1.0): `topics=stock
 | `feed:status:{store_id}` | hash | written by the freshness probe per source: `state` (`ok/stale/unknown`), `probe_age_ms`, `checked_at_ms` |
 | `feed:status` | hash | written by the freshness probe: worst state over all stores (`ok` only if all ok), `probe_age_ms` (max), `checked_at_ms` |
 | `sellable:{product_id}` | hash | written by the Redis sink (section 3b); outside the namespace, not rebuilt by `rebuild-read-model` |
+| `cart:{scenario_id}:{cart_id}` | hash | written by the storefront in the same `POST /api/cart` handler that publishes the cart event: `{product_id: quantity}` (ADD adds 1, ABANDON removes the line), TTL 2 h from the last change. Read by `GET /api/cart/<cart_id>` so a reload keeps the cart; a reset starts a new `scenario_id`, so older carts are not found |
 
 Apply script contract (`KEYS[1]` = position key, `KEYS[2]` = meta key; `ARGV` = quantity, revision, deleted, changed_at_ms, applied_at_ms): if stored revision exists and `>= ARGV.revision` return `{0, stored...}` (stale/duplicate); otherwise `HSET` all fields, update `last_revision`/`last_applied_at_ms` in meta, return `{1, new...}`. Revisions are compared as integers below 2^53 (exact in Lua numbers).
 
@@ -138,7 +139,7 @@ Unified tags on every service: `env:dd-demo`, `service:<name>`, `version:<releas
 | `stock.connect.task_running` | gauge 0/1 | `connector` | freshness-probe (Connect REST; the five Debezium connectors and `sellable-redis`) |
 | `stock.lookup.result` | count | `status`, `unknown_reason`, `at_least` | inventory-api |
 | `stock.display.delay` | distribution, seconds (`last_changed_at` of the rendered sellable answer → backend receive time of the beacon) | — | storefront backend (beacon from UI) |
-| `offer.decision` | count | `route`, `reason` (adds `disabled` when no Jev key, `no_choice` when only notify-me is possible) | offer-worker |
+| `offer.decision` | count | `route`, `reason` (adds `disabled` when no Jev key, `no_choice` when fewer than two options are left for Jev; notify-me is a Jev option only with a restock date) | offer-worker |
 | `offer.text` | count | `route`, `reason` | offer-worker |
 | `offer.completed` | count | `offer_type` | offer-worker |
 | `offer.stock.unconfirmed` | count | `reason` (`not_ready`, `not_found`, `redis_error`, `malformed`, `stores_unknown`): an alternative's confirmed minimum was not computable, or 0 only because a store is not live; the alternative is not eligible | offer-worker |

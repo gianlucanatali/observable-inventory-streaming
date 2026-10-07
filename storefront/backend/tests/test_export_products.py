@@ -30,7 +30,8 @@ def test_models_have_colour_and_size_variants():
         models[p["model_id"]].append(p)
     assert 20 <= len(models) <= 40
     for skus in models.values():
-        assert len({(p["name"], p["brand"], p["category"], p["price_eur"], p["description"]) for p in skus}) == 1
+        assert len({(p["name"], p["brand"], p["category"], p["price_eur"], p["description"], p["kind"], p["waterproof"])
+                    for p in skus}) == 1
         assert 2 <= len({p["colour"]["name"] for p in skus}) <= 4
         assert len({(p["colour"]["name"], p["size"]) for p in skus}) == len(skus)
         assert sorted(p["variant_rank"] for p in skus) == list(range(len(skus)))
@@ -66,3 +67,25 @@ def test_offer_pool_for_the_sell_out_sku_is_unchanged():
         "P0061": ("Pathfinder Air", "Alpenpace", "EU 42", "Ember red", 204.9),
         "P0146": ("Sentinel Storm", "Pietra Grigia", "EU 42", "Forest green", 180.9),
     }
+
+
+def test_kind_and_waterproof_come_from_the_photo_prompts_and_the_name():
+    mod = load_script()
+    gen_keys = (Path(__file__).parents[2] / "assets-src" / "gen_keys.py").read_text(encoding="utf-8")
+    types = {mod.product_type(name) for _, name, *_ in mod.MODELS}
+    assert types <= set(mod.KIND)
+    for t in types:  # the photo prompt of a waterproof type says so; no other type is waterproof unless GTX
+        line = next(l for l in gen_keys.splitlines() if l.strip().startswith(f'"{t}":'))
+        assert ("waterproof" in line) == (t in mod.WATERPROOF_TYPES), t
+    models = {p["name"]: p for p in mod.build()}
+    assert {n for n, p in models.items() if p["waterproof"]} == {"Trailrunner GTX", "Dolomia Evo", "Rain Jacket Storm", "Rain Jacket Lite"}
+    assert (models["Trailrunner GTX"]["kind"], models["Brenta Storm"]["kind"], models["Pathfinder Air"]["kind"]) == \
+        ("trail running shoe", "approach shoe", "hiking shoe")
+    assert models["Trailrunner GTX"]["description"] == "Balanced and responsive, built for early morning trail laps."
+
+
+def test_use_belongs_to_the_family_of_the_kind():
+    mod = load_script()
+    for p in mod.build():
+        use = p["description"].split(", built for ", 1)[1].rstrip(".")
+        assert use in mod.USE[p["kind"]], (p["name"], use)

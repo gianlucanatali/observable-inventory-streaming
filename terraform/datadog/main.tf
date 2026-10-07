@@ -8,6 +8,9 @@ locals {
   svc    = "service:${var.service},${local.scope}"
   dscope = "$env"
   dsvc   = "service:${var.service},$env"
+  # The ALB health-checks every release (get_/readyz, ~6/min, even at 0% traffic). Latency, error and hit queries filter to the lookup
+  # resource, or an idle release shows readyz at ~2 ms and dilutes the p95 of one with traffic.
+  lookup = "resource_name:get_/api/availability/_product_id"
   # Live check (2026-10-06): the integration tags the cluster as resource_id:<lkc-...>; kafka_id is N/A.
   confluent_scope = var.confluent_cluster_id != null ? "resource_id:${var.confluent_cluster_id}" : "*"
 
@@ -18,21 +21,21 @@ locals {
   ts = {
     for k, v in {
       latency = {
-        title   = "inventory-api p95 latency by version (s)"
-        queries = [["q1", "p95:trace.flask.request{${local.dsvc}} by {version}"]]
+        title   = "inventory-api lookup p95 by version (s)"
+        queries = [["q1", "p95:trace.flask.request{${local.dsvc},${local.lookup}} by {version}"]]
         formula = "q1"
       }
       error_rate = {
-        title = "inventory-api error rate by version"
+        title = "inventory-api lookup error rate by version"
         queries = [
-          ["q1", "sum:trace.flask.request.errors{${local.dsvc}} by {version}.as_count()"],
-          ["q2", "sum:trace.flask.request.hits{${local.dsvc}} by {version}.as_count()"],
+          ["q1", "sum:trace.flask.request.errors{${local.dsvc},${local.lookup}} by {version}.as_count()"],
+          ["q2", "sum:trace.flask.request.hits{${local.dsvc},${local.lookup}} by {version}.as_count()"],
         ]
         formula = "q1 / q2"
       }
       hits = {
-        title   = "inventory-api requests by version"
-        queries = [["q1", "sum:trace.flask.request.hits{${local.dsvc}} by {version}.as_count()"]]
+        title   = "inventory-api lookups by version"
+        queries = [["q1", "sum:trace.flask.request.hits{${local.dsvc},${local.lookup}} by {version}.as_count()"]]
         formula = "q1"
       }
       apply_delay = {
@@ -305,12 +308,14 @@ resource "datadog_monitor" "p95_latency" {
   name    = "[${local.env}] inventory-api p95 latency above ${var.p95_threshold_seconds}s on {{version.name}}"
   type    = "query alert"
   message = "inventory-api p95 latency is above the objective for version {{version.name}}.${local.notify}"
-  query   = "percentile(last_5m):p95:trace.flask.request{${local.svc}} by {version} > ${var.p95_threshold_seconds}"
+  query   = "percentile(last_5m):p95:trace.flask.request{${local.svc},${local.lookup}} by {version} > ${var.p95_threshold_seconds}"
 
   monitor_thresholds {
     critical = var.p95_threshold_seconds
   }
 
+  # An idle release (0% traffic) has no lookup data: that is not an incident, so no-data must not page. A slow release at canary
+  # traffic still reports and fires. The ALB readyz check is excluded by the lookup filter.
   notify_no_data      = false
   include_tags        = true
   require_full_window = false

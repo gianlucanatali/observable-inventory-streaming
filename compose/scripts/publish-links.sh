@@ -60,6 +60,12 @@ missing = [k for k in need if k not in dd]
 if missing:
     sys.exit(f"publish-links: make links did not print {missing}")
 alb, region, stack = os.environ["ALB"].rstrip("/"), os.environ["REGION"], os.environ["STACK"]
+# LLM Observability root spans of the offer worker's ml_app, on the DSM link's Datadog site (same path as
+# overview.tf home_link.llmobs and scripts/demo-windows.sh dd:llm-traces; the ml_app is shared by all stacks).
+from urllib.parse import urlsplit
+_dd = urlsplit(dd["DSM map"])
+llm_obs = (f"{_dd.scheme}://{_dd.netloc}/llm/traces"
+           "?query=%40ml_app%3Aurbanstreet-offers%20%40event_type%3Aspan%20%40is_root_span%3Atrue")
 if local:  # local mode: no AWS, no Confluent Cloud; dashboards only when terraform/datadog was applied for the stack
     links = [
         ("overview-dashboard", "Datadog", "Demo home", "Start here: the six Chapters, each with its key charts and links to the deeper views", dd.get("overview dashboard")),
@@ -79,6 +85,7 @@ links = [
     ("online-dashboard", "Datadog", "AWS online dashboard", "ECS services, load balancer and ElastiCache", dd["online dashboard"]),
     ("apm", "Datadog", "APM: inventory-api", "Latency by release (Deployments)", dd["APM inventory-api 1.1.0"]),
     ("dsm", "Datadog", "Data Streams Monitoring", "Which services read and write which Kafka topics", dd["DSM map"]),
+    ("llm-obs", "Datadog", "LLM Observability", "The offer worker's Jev calls: what was sent and what came back", llm_obs),
     ("cost-dashboard", "Datadog", "Cost dashboard", "AWS and Confluent Cloud cost for every stack", dd["account-cost dashboard"]),
     ("confluent", "Confluent", "Confluent Cloud cluster", "Topics, messages and Stream Lineage",
      f"https://confluent.cloud/environments/{os.environ['ENV_ID']}/clusters/{os.environ['CLUSTER_ID']}/overview"),

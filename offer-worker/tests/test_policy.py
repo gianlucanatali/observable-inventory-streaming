@@ -1,7 +1,7 @@
 from offer_worker.policy import build_candidates, rule_default
 
 
-def product(product_id, *, category="footwear", size="EU 42", price_eur=100.0):
+def product(product_id, *, category="footwear", size="EU 42", price_eur=100.0, kind="trail running shoe", waterproof=False):
     return {
         "product_id": product_id,
         "name": product_id,
@@ -10,6 +10,8 @@ def product(product_id, *, category="footwear", size="EU 42", price_eur=100.0):
         "size": size,
         "price_eur": price_eur,
         "colour": {"name": "Blue"},
+        "kind": kind,
+        "waterproof": waterproof,
     }
 
 
@@ -32,6 +34,31 @@ def test_candidates_accept_price_band_boundaries_and_reject_ineligible_products(
 
     assert [candidate.id for candidate in candidates] == ["alt:P0001", "alt:P0002", "notify_me"]
     assert rule_default(candidates).id == "alt:P0001"
+
+
+def test_candidates_rank_same_kind_then_same_waterproofing_before_price():
+    original = product("P0042", waterproof=True)
+    catalogue = {
+        original["product_id"]: original,
+        "P0001": product("P0001", price_eur=100.0, kind="hiking shoe", waterproof=True),   # closest price, other kind
+        "P0002": product("P0002", price_eur=115.0),                                       # same kind, not waterproof
+        "P0003": product("P0003", price_eur=119.0, waterproof=True),                      # same kind, waterproof
+        "P0004": product("P0004", price_eur=101.0, kind="hiking shoe"),
+    }
+    stock = {pid: 5 for pid in catalogue}
+
+    candidates = build_candidates(original, catalogue, stock.get, 10)
+
+    assert [c.id for c in candidates] == ["alt:P0003", "alt:P0002", "notify_me"]
+    assert rule_default(candidates).id == "alt:P0003"
+    stock["P0003"] = 0
+    assert [c.id for c in build_candidates(original, catalogue, stock.get, 10)] == ["alt:P0002", "alt:P0001", "notify_me"]
+
+
+def test_p0042_rule_default_is_still_brenta_storm(catalogue):
+    """None of the P0042 pool is a trail running shoe or waterproof, so the order stays closest price first."""
+    candidates = build_candidates(catalogue["P0042"], catalogue, lambda pid: 5, 10)
+    assert [c.id for c in candidates] == ["alt:P0160", "alt:P0061", "notify_me"]
 
 
 def test_p0042_candidates_reject_wrong_size(catalogue, redis_client):

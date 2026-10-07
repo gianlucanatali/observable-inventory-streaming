@@ -96,14 +96,14 @@ def test_build_candidates_skips_an_alternative_held_only_by_a_stale_store(catalo
     assert rule_default(cands).product_id not in (None, "P0160")
 
 
-def test_every_alternative_only_in_a_stale_store_means_notify_me(catalogue, redis_client):
+def test_every_alternative_only_in_a_stale_store_means_no_offer(catalogue, redis_client):
     for pid in catalogue:
         if pid != "P0042":
             only_in_quiet_store(redis_client, pid)
     w, out, _ = make_worker(catalogue, redis_client)
     assert w.handle(risk()) == "published"
     o = out[0][1]
-    assert o["offer_type"] == "NOTIFY_ME" and o["product_id"] is None
+    assert o["product_id"] is None and o["chosen_choice"] is None and o["decision_reason"] == "no_alternative"
 
 
 def test_store_going_quiet_before_publish_fails_revalidation(catalogue, redis_client):
@@ -118,7 +118,8 @@ def test_store_going_quiet_before_publish_fails_revalidation(catalogue, redis_cl
     w, out, _ = make_worker(catalogue, redis_client, GoesQuiet())
     w.handle(risk())
     o = out[0][1]
-    assert o["offer_type"] == "NOTIFY_ME" and (o["decision_route"], o["decision_reason"]) == ("RULE_DEFAULT", "invalid_choice")
+    assert (o["decision_route"], o["decision_reason"]) == ("RULE_DEFAULT", "invalid_choice")
+    assert o["jev_choice"].startswith("alt:") and o["chosen_choice"] != o["jev_choice"]  # the quiet one is never offered
 
 
 @pytest.mark.parametrize("break_it,reason", [

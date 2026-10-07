@@ -8,6 +8,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import textwrap
 import unittest
 from unittest import mock
 from pathlib import Path
@@ -360,6 +361,117 @@ class DemoCliTest(unittest.TestCase):
         self.assertIn("vendor/jr", modules)
         self.assertIn("https://github.com/gianlucanatali/jr.git", modules)
         self.assertIn("branch = sql-producer", modules)
+
+    def _fake_stack_make(self, outcome: str, code: int) -> None:
+        """A make on PATH that plays stack.sh for stack-up/stack-down: writes .state/stack-<stack>.outcome, then exits."""
+        fake = self.root / "make"
+        fake.write_text(textwrap.dedent(f"""\
+            #!/usr/bin/env python3
+            import os, sys
+            from pathlib import Path
+            args = sys.argv[1:]
+            if not any(a in ("stack-up", "stack-down") for a in args):
+                sys.exit(0)
+            assert os.environ.get("DEMO_BANNER") == "1", "./demo must tell stack.sh it prints the banner itself"
+            stack = next(a.split("=", 1)[1] for a in args if a.startswith("STACK="))
+            outcome = {outcome!r}
+            if outcome:
+                state = Path({str(self.root)!r}) / ".state"
+                state.mkdir(exist_ok=True)
+                (state / f"stack-{{stack}}.outcome").write_text(outcome)
+            print("stack.sh output", flush=True)
+            if {code}:
+                print("make: *** [stack-down] Error 1", file=sys.stderr)
+            sys.exit({code})
+            """))
+        fake.chmod(0o755)
+
+    def _run_with_fake_make(self, *args: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run([str(self.root / "demo"), *args], cwd=self.root, text=True, capture_output=True,
+                              env={**os.environ, "PATH": f"{self.root}:{os.environ['PATH']}"}, check=False, timeout=10)
+
+    RULE = "#" * 60
+
+    def test_failed_destroy_exits_with_stack_sh_code_and_prints_the_banner_last(self) -> None:
+        banner = [self.RULE, "DESTROY INCOMPLETE: stack hybrid is STILL BILLING (estimate: AWS about $0.50/h)",
+                  "Left: AWS ec2 instance/i-0abc", "Cause: aws layer failed: Error: no such host",
+                  "Fix: ./demo destroy --yes   (it resumes)", self.RULE]
+        self._fake_stack_make("exit=1\n" + "\n".join(banner) + "\n", 2)
+        result = self._run_with_fake_make("destroy", "--yes")
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertEqual(result.stderr.strip().splitlines()[-len(banner):], banner)  # nothing after the banner
+        self.assertLess(result.stderr.index("make: ***"), result.stderr.index("DESTROY INCOMPLETE"))
+        self.assertNotIn("returned non-zero exit status", result.stderr)
+
+    def test_destroy_that_fails_before_stack_sh_reports_still_ends_with_a_banner(self) -> None:
+        stale = self.root / ".state" / "stack-hybrid.outcome"
+        stale.parent.mkdir(exist_ok=True)
+        stale.write_text("exit=0\n#\nDESTROY COMPLETE: nothing left billing for stack hybrid\n#\n")  # an older run's result
+        self._fake_stack_make("", 2)
+        result = self._run_with_fake_make("destroy", "--yes")
+        self.assertEqual(result.returncode, 2)
+        lines = result.stderr.strip().splitlines()
+        self.assertEqual(lines[-1], self.RULE)
+        self.assertIn("DESTROY INCOMPLETE: stack hybrid may be STILL BILLING", result.stderr)
+        self.assertIn("make stack-down exited 2", result.stderr)
+        self.assertNotIn("DESTROY COMPLETE", result.stderr)
+
+    def test_clean_destroy_prints_destroy_complete_and_exits_zero(self) -> None:
+        self._fake_stack_make(f"exit=0\n{self.RULE}\nDESTROY COMPLETE: nothing left billing for stack hybrid\n{self.RULE}\n", 0)
+        result = self._run_with_fake_make("destroy", "--yes")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stderr.strip().splitlines()[-2], "DESTROY COMPLETE: nothing left billing for stack hybrid")
+
+    def test_failed_create_exits_non_zero_with_the_create_failed_banner_last(self) -> None:
+        banner = [self.RULE, "CREATE FAILED: stack hybrid is half-built and STILL BILLING (estimate: AWS about $0.50/h)",
+                  "Half-built (Terraform state): cloud(12 resources) aws(40 resources)", "Cause: terraform apply failed in terraform/aws",
+                  "Fix: fix the cause, then ./demo create --yes (it resumes), or ./demo destroy --yes to stop the billing", self.RULE]
+        self._fake_stack_make("exit=1\n" + "\n".join(banner) + "\n", 2)
+        result = self._run_with_fake_make("create", "--yes")
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertEqual(result.stderr.strip().splitlines()[-len(banner):], banner)
+
+    def _stderr_on_a_terminal(self, *args: str, no_color: bool = False) -> tuple[int, str]:
+        """Run ./demo with stderr on a pseudo-terminal (colour applies) and return (exit code, what the terminal got)."""
+        import pty
+        master, slave = pty.openpty()
+        env = {**os.environ, "PATH": f"{self.root}:{os.environ['PATH']}"}
+        env.pop("NO_COLOR", None)
+        if no_color:
+            env["NO_COLOR"] = "1"
+        process = subprocess.Popen([str(self.root / "demo"), *args], cwd=self.root, stdout=subprocess.DEVNULL,
+                                   stderr=slave, env=env)
+        os.close(slave)
+        chunks = []
+        while True:
+            try:
+                chunk = os.read(master, 4096)
+            except OSError:  # the terminal is closed once ./demo has exited
+                break
+            if not chunk:
+                break
+            chunks.append(chunk)
+        os.close(master)
+        return process.wait(timeout=10), b"".join(chunks).decode()
+
+    def test_banner_is_bold_red_or_green_on_a_terminal_and_plain_with_no_color(self) -> None:
+        red, green, reset = "\033[1;31m", "\033[1;32m", "\033[0m"
+        self._fake_stack_make(f"exit=1\n{self.RULE}\nDESTROY INCOMPLETE: stack hybrid is STILL BILLING\n{self.RULE}\n", 2)
+        code, screen = self._stderr_on_a_terminal("destroy", "--yes")
+        self.assertEqual(code, 1, screen)
+        self.assertIn(f"{red}DESTROY INCOMPLETE: stack hybrid is STILL BILLING{reset}", screen)
+        self.assertIn(f"{red}{self.RULE}{reset}", screen)
+        code, screen = self._stderr_on_a_terminal("destroy", "--yes", no_color=True)
+        self.assertEqual(code, 1, screen)
+        self.assertNotIn("\033[", screen)
+        self.assertIn(f"{self.RULE}\r\nDESTROY INCOMPLETE: stack hybrid is STILL BILLING\r\n{self.RULE}", screen)
+        self._fake_stack_make(f"exit=0\n{self.RULE}\nDESTROY COMPLETE: nothing left billing for stack hybrid\n{self.RULE}\n", 0)
+        code, screen = self._stderr_on_a_terminal("destroy", "--yes")
+        self.assertEqual(code, 0, screen)
+        self.assertIn(f"{green}DESTROY COMPLETE: nothing left billing for stack hybrid{reset}", screen)
+        result = self._run_with_fake_make("destroy", "--yes")  # a pipe, not a terminal: plain text
+        self.assertNotIn("\033[", result.stderr)
+        self.assertIn("DESTROY COMPLETE: nothing left billing for stack hybrid", result.stderr)
 
     def test_jr_dockerfile_is_resolved_from_the_jr_build_context(self) -> None:
         compose = (self.root / "compose" / "compose.yaml").read_text()

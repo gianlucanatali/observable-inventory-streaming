@@ -35,5 +35,7 @@ export const getAvailability = (product) => request('GET', `/api/availability/${
 export const getProducts = () => request('GET', '/api/products');
 export const getProduct = (id) => request('GET', `/api/products/${encodeURIComponent(id)}`);
 export const postCart = (body) => request('POST', '/api/cart', body);
+export const getAlternatives = (id) => request('GET', `/api/products/${encodeURIComponent(id)}/alternatives`);
+export const getCart = (cartId) => request('GET', `/api/cart/${encodeURIComponent(cartId)}`);
 export const getOffer = (cartId) => request('GET', `/api/offers?cart_id=${encodeURIComponent(cartId)}`);
 export const postDisplayBeacon = (body) => request('POST', '/api/beacon/display', body);

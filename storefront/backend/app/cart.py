@@ -1,4 +1,5 @@
-"""Cart event construction and validation (contracts §2 carts.events, avro/cart_event.avsc)."""
+"""Cart event construction and validation (contracts §2 carts.events, avro/cart_event.avsc), and the
+cart contents read model in Redis (contracts §4 `cart:{scenario_id}:{cart_id}`)."""
 from __future__ import annotations
 
 import hashlib
@@ -9,6 +10,9 @@ import uuid
 ONLINE = "ONLINE"  # the shop is online; every cart event carries this store_id
 PRODUCT_RE = re.compile(r"^P\d{4}$")
 EVENT_TYPES = ("ADD", "ABANDON")
+CART_ID_RE = re.compile(r"^cart-[0-9a-f]{12}$")
+# Cart contents live this long after the last change; a scenario reset changes scenario_id, which also starts new carts.
+CART_TTL_S = 2 * 3600
 
 
 class ValidationError(ValueError):
@@ -40,7 +44,7 @@ def build_cart_event(body: object, scenario_id: str, now_ms: int | None = None) 
     if event_type not in EVENT_TYPES:
         raise ValidationError("event_type must be ADD or ABANDON")
     if cart_id is not None:
-        if not isinstance(cart_id, str) or not re.match(r"^cart-[0-9a-f]{12}$", cart_id):
+        if not isinstance(cart_id, str) or not CART_ID_RE.match(cart_id):
             raise ValidationError("cart_id must be a value previously returned by this API")
     elif event_type == "ABANDON":
         raise ValidationError("ABANDON requires cart_id")
@@ -60,3 +64,33 @@ def build_cart_event(body: object, scenario_id: str, now_ms: int | None = None) 
         **_shopper_signals(cart_id),
     }
     return {"cart_id": cart_id}, value
+
+
+def cart_key(scenario_id: str, cart_id: str) -> str:
+    return f"cart:{scenario_id}:{cart_id}"
+
+
+def apply_cart_event(redis, value: dict, ttl_s: int = CART_TTL_S) -> dict[str, int]:
+    """Update the cart contents with a published cart event and return them ({product_id: quantity}).
+
+    ADD adds one of the product; ABANDON removes the product's line, as Flink's latest event per cart item does.
+    Same handler as the Kafka publish, so Kafka is never read back in the request path.
+    """
+    key = cart_key(value["scenario_id"], value["cart_id"])
+    pipe = redis.pipeline()
+    if value["event_type"] == "ADD":
+        pipe.hincrby(key, value["product_id"], 1)
+    else:
+        pipe.hdel(key, value["product_id"])
+    pipe.expire(key, ttl_s)
+    pipe.hgetall(key)
+    return _quantities(pipe.execute()[-1])
+
+
+def read_cart(redis, scenario_id: str, cart_id: str) -> dict[str, int]:
+    """Cart contents ({product_id: quantity}); empty when the cart expired, was emptied or belongs to another scenario."""
+    return _quantities(redis.hgetall(cart_key(scenario_id, cart_id)))
+
+
+def _quantities(raw: dict) -> dict[str, int]:
+    return {str(product_id): int(qty) for product_id, qty in sorted(raw.items())}

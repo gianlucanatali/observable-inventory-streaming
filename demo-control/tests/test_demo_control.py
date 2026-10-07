@@ -69,6 +69,7 @@ def test_page_has_storefront_aligned_visual_contract_and_actions_before_paramete
     assert '<main class="control-page">' in html
     assert 'class="control-card actions-card"' in html
     assert '<label for="product-id">Product ID</label>' in html
+    assert all(f'data-product="{p}"' in html for p in ("P0042", "P0048", "P0092"))  # Lab 5.1 quick picks
     assert 'id="sell-out">Sell out product</button>' in html
     assert 'id="reset-data" class="secondary">Reset demo data</button>' in html
     assert 'class="action-progress"' in html

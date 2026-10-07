@@ -210,12 +210,12 @@
 <tr>
 <td><code>failed: Action failed: source verification failed for S0n/P0042: ...</code></td>
 <td>A store's Source did not end with a live position of zero</td>
-<td>Check <code>status</code> and <code>verify</code>, then retry. If in doubt, use <code>make ... reset</code></td>
+<td>Check <code>status</code> and <code>verify</code>, then retry. If in doubt, use <code>make reset</code></td>
 </tr>
 <tr>
-<td><strong>Reset demo data</strong> does not start: <code>Background sales are on (&lt;rate&gt;/min per store): press Sales off first, or use Full reset</code></td>
+<td><strong>Reset demo data</strong> does not start: <code>Background sales are on (&lt;rate&gt;/min per store): press Sales off first, or use Full demo reset</code></td>
 <td>Background sales are on. <strong>Reset demo data</strong> does not stop them, and while sales keep changing the stock the reset can never match the baseline, so the panel refuses to run it</td>
-<td>Press <strong>Full reset</strong> on the <strong>Background sales</strong> card (sales off, routing 100 / 0 / 0, data reset), or press <strong>Sales off</strong> and then <strong>Reset demo data</strong>, or run <code>make reset</code></td>
+<td>Press <strong>Full demo reset</strong> on the <strong>Background sales and reset</strong> card (sales off, routing 100 / 0 / 0, data reset), or press <strong>Sales off</strong> and then <strong>Reset demo data</strong>, or run <code>make reset</code></td>
 </tr>
 <tr>
 <td><code>failed: Action failed: sell-out P0042 did not converge in 30s ...</code>, or <code>reset did not converge</code> with sales already off</td>
@@ -250,7 +250,7 @@
 <tr>
 <td><code>no previous routing recorded; make a routing change first</code></td>
 <td><strong>Rollback</strong> has nothing to restore because no routing change was made through the panel yet. The panel keeps its own record, separate from the make commands</td>
-<td>Press a preset first, then <strong>Rollback</strong>, or use <code>make ... rollback</code></td>
+<td>Press a preset first, then <strong>Rollback</strong>, or use <code>make rollback</code></td>
 </tr>
 <tr>
 <td><code>Release routing is not configured in this deployment (ALB_INVENTORY_* variables absent)</code></td>
@@ -308,9 +308,9 @@
 <td>Run <code>make sales-on</code> to start them, then press <strong>Sales on</strong></td>
 </tr>
 <tr>
-<td><strong>Full reset</strong> is disabled, or fails with <code>Full reset needs ALB release routing (hybrid stack)</code></td>
+<td><strong>Full demo reset</strong> is disabled, or fails with <code>Full demo reset needs ALB release routing (hybrid stack)</code></td>
 <td>The control panel runs without the routing settings</td>
-<td>Use <code>make ... reset</code>, or use the hybrid stack</td>
+<td>Use <code>make reset</code>, or use the hybrid stack</td>
 </tr>
 <tr>
 <td>No data in Datadog charts</td>
@@ -380,8 +380,8 @@
 <td>Read the error above <code>destroy of layer '&lt;layer&gt;' FAILED</code>, fix it, then run <code>./demo destroy</code> again. It continues with the pieces that still exist</td>
 </tr>
 <tr>
-<td><code>[destroy vm] SKIPPED: terraform/aws failed ...</code></td>
-<td>The AWS online side still uses the VM's security group, so AWS cannot delete the VM's network rules yet. The VM keeps billing</td>
+<td><code>[destroy vm] EC2 instance only: terraform/aws failed ...</code></td>
+<td>The AWS online side still uses the VM's security group, so the script stops the VM but keeps its security group, key pair and role (no hourly cost)</td>
 <td>Fix the AWS error above, then run <code>./demo destroy</code> again</td>
 </tr>
 <tr>
@@ -425,7 +425,7 @@
   </div>
 </dialog>
 <div class="sr-only" aria-live="polite" id="live"></div>
-<script src="assets/stack.js?v=ec6a04c228"></script>
+<script src="assets/stack.js?v=d196eb9022"></script>
 <script src="assets/site.js?v=1de1666aca" defer></script>
 </body>
 </html>

@@ -79,3 +79,12 @@ export function recordStockAnswer(answer, lookupMs) {
 export function recordStockError(productId, lookupMs) {
   recordStockAnswer({ product_id: productId, status: 'error', at_least: false, feed: 'unknown' }, lookupMs);
 }
+
+// "Offer accepted": the shopper swapped a sold-out item for the Offer's alternative (not for another option).
+export function recordOfferAccepted(offer) {
+  if (!enabled || !offer) return;
+  datadogRum.addAction('offer_accepted', {
+    product_id: offer.original_product_id, alternative_id: offer.product_id,
+    decided_by: offer.decision_route === 'JEV' ? 'ai' : 'rule', discount_pct: offer.discount_pct,
+  });
+}

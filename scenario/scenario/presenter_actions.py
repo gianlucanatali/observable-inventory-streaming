@@ -51,7 +51,7 @@ def reset_sources(conns: dict, redis_client, progress: Callable[[str], None], ti
 
 
 class RestockReset:
-    """The restock half of `make reset` for the panel's Full reset: cancel open purchase orders before the data reset
+    """The restock half of `make reset` for the panel's Full demo reset: cancel open purchase orders before the data reset
     (so supplier-sim delivers nothing onto the baseline), clear `restock:eta:*` after it. Both steps verify.
 
     `connect` opens the procurement database (None: not configured in this deployment); `layers` returns the running

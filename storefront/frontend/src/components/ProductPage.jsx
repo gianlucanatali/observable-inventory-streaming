@@ -112,6 +112,11 @@ export default function ProductPage({ productId, config, cart, onCart, children 
             <>
               <div className="price">{formatPrice(product.price_eur)}</div>
               <div className="product-meta" data-testid="product-sku">Item {product.product_id}</div>
+              {product.kind && (
+                <div className="product-meta" data-testid="product-attributes">
+                  {product.kind.charAt(0).toUpperCase() + product.kind.slice(1)}{product.waterproof ? ' · Waterproof' : ''}
+                </div>
+              )}
               <p className="product-desc">{product.description}</p>
               <VariantPicker product={product} siblingStock={siblingStock}
                 selectedState={sizeState(stock && stock.product_id === productId ? stock : null, stockError)} />

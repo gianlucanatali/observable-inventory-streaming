@@ -1,7 +1,7 @@
 """Checks and Background sales cards: operations, read-only endpoints and the self-contained UI block.
 
 Checks: load / verify / canary-check through the scenario API on the VM (checks.py).
-Background sales: rate-based off / on (sales.py) and Full reset = sales off + baseline routing + reset demo data, plus
+Background sales: rate-based off / on (sales.py) and Full demo reset = sales off + baseline routing + reset demo data, plus
 the restock part of `make reset` (cancel open purchase orders, clear restock:eta keys) when that layer runs.
 The Actions card's "Reset demo data" is guarded here too: it refuses while background sales are on, because the jr
 sales keep changing the stock and the reset would never converge.
@@ -20,18 +20,18 @@ from .sales import BackgroundSales, SalesError
 CHECKS_OFF = ("Checks are not configured in this deployment (SCENARIO_API_URL / SCENARIO_API_TOKEN absent). "
               "Use make load, make verify and make canary-check.")
 SALES_OFF = "Background sales control needs the store sources (STORE_HOSTS) in this deployment."
-FULL_RESET_OFF = ("Full reset needs release routing (the ALB rule on the hybrid stack, nginx in local mode); in this "
+FULL_RESET_OFF = ("Full demo reset needs release routing (the ALB rule on the hybrid stack, nginx in local mode); in this "
                   "deployment use make reset (or Sales off, make route-baseline, Reset demo data).")
 BASELINE = "route-baseline"
-SALES_ON_RESET = "Background sales are on ({rate:g}/min per store): press Sales off first, or use Full reset"
+SALES_ON_RESET = "Background sales are on ({rate:g}/min per store): press Sales off first, or use Full demo reset"
 SALES_ON_VERIFY = ("Background sales are on ({rate:g}/min per store) and kept changing the stock while Verify "
-                   "compared it: press Full reset, then Verify again")
+                   "compared it: press Full demo reset, then Verify again")
 
 
 def make_check_operations(checks: Checks | None, sales: BackgroundSales | None, alb,
                           reset: Callable[[Callable[[str], None]], None] | None,
                           restock=None) -> dict[str, Operation]:
-    """`restock` is a scenario.presenter_actions.RestockReset (None: Full reset never touches procurement)."""
+    """`restock` is a scenario.presenter_actions.RestockReset (None: Full demo reset never touches procurement)."""
     def need_checks() -> Checks:
         if checks is None:
             raise ActionError(CHECKS_OFF)
@@ -74,7 +74,7 @@ def make_check_operations(checks: Checks | None, sales: BackgroundSales | None, 
         else:
             out["restock"] = {"skipped": skip}
             restock_note = f"purchase orders not touched: {skip}"
-        progress("Full reset done: background sales off (rate 0), routing 100/0/0 verified, demo data at the "
+        progress("Full demo reset done: background sales off (rate 0), routing 100/0/0 verified, demo data at the "
                  f"seeded baseline and Redis converged; {restock_note}. Sales on restarts background sales.")
         return out
 
@@ -83,7 +83,7 @@ def make_check_operations(checks: Checks | None, sales: BackgroundSales | None, 
             rate = need_sales().rate()
         except SalesError as exc:
             raise ActionError(f"Reset refused: cannot read the background sales rate ({exc}). Press Sales off "
-                              "first, or use Full reset") from exc
+                              "first, or use Full demo reset") from exc
         if rate > 0:
             raise ActionError(SALES_ON_RESET.format(rate=rate))
         return {}
@@ -177,9 +177,9 @@ CARDS = """<!-- checks + background sales cards (demo_control/checks_card.py) --
 <div><div class="ops-buttons"><button class="chk-btn" data-action="load"{{CHECKS_DIS}}>{{LOAD_LABEL}}</button><button class="chk-btn secondary" data-action="verify"{{CHECKS_DIS}}>Verify</button><button class="chk-btn" data-action="canary-check"{{CHECKS_DIS}}>Check canary</button><button class="secondary ops-refresh" id="chk-refresh"{{CHECKS_DIS}}>Refresh</button></div>
 <p class="meta chk-gate-for" id="chk-gate-for">Gate for live routing: loading…</p></div></div>
 <div class="action-progress"><div class="msg" id="chk-msg"></div><div class="chk-result" id="chk-result"></div></div></section>
-<section class="control-card actions-card ops-card" id="sales-card"><div class="actions-layout"><div><h2>Background sales</h2><div class="label">jr sales rate and full reset</div><p class="meta">Sales off sets <code>sales_per_min_per_store</code> to 0 in every store (remembering the rate); Sales on restores it, then waits for a real sale. The jr containers must be running: <code>make sales-on</code> starts them, <code>make sales-off</code> and <code>make reset</code> stop them. Full reset = Sales off, Baseline (all to 1.0.0), Reset demo data; with the restock layer it also cancels open purchase orders and clears the <code>restock:eta</code> keys, like <code>make reset</code>.</p></div>
+<section class="control-card actions-card ops-card" id="sales-card"><div class="actions-layout"><div><h2>Background sales and reset</h2><div class="label">jr sales rate and full demo reset</div><p class="meta">Sales off sets <code>sales_per_min_per_store</code> to 0 in every store (remembering the rate); Sales on restores it, then waits for a real sale. The jr containers must be running: <code>make sales-on</code> starts them, <code>make sales-off</code> and <code>make reset</code> stop them. Full demo reset: sales off, all traffic to 1.0.0, stock back to the seed (new scenario, so old carts and offers drop out), and with the restock layer, open purchase orders cancelled. Offer settings (AI threshold, kill switch) are not reset.</p></div>
 <div><div class="chk-rate"><b id="sales-rate">&mdash;</b><span class="meta" id="sales-meta">sales/min per store</span></div>
-<div class="ops-buttons"><button class="sales-btn secondary" data-action="sales-off"{{SALES_DIS}}>Sales off</button><button class="sales-btn" data-action="sales-on"{{SALES_DIS}}>Sales on</button><button class="sales-btn secondary" data-action="full-reset"{{FULL_DIS}}>Full reset</button></div></div></div>
+<div class="ops-buttons"><button class="sales-btn secondary" data-action="sales-off"{{SALES_DIS}}>Sales off</button><button class="sales-btn" data-action="sales-on"{{SALES_DIS}}>Sales on</button><button class="sales-btn secondary" data-action="full-reset"{{FULL_DIS}}>Full demo reset</button></div></div></div>
 <div class="action-progress"><div class="msg" id="sales-msg"></div></div></section>
 <script>
 (() => {
@@ -273,7 +273,7 @@ CARDS = """<!-- checks + background sales cards (demo_control/checks_card.py) --
     'verify': 'Compare every store source with Redis and write /out/verify.json (make verify)?',
     'sales-off': 'Set background sales to 0 per minute in every store (the current rate is remembered)?',
     'sales-on': 'Restore the background sales rate and wait for a sale?',
-    'full-reset': 'Full reset: background sales off, ALL traffic to 1.0.0, open purchase orders cancelled (restock layer), demo data back to the seeded baseline?'};
+    'full-reset': 'Full demo reset: background sales off, ALL traffic to 1.0.0, open purchase orders cancelled (restock layer), demo data back to the seeded baseline?'};
   document.querySelectorAll('.chk-btn').forEach(b => b.onclick = () => {
     const a = b.dataset.action;
     const question = a === 'canary-check' ? (gate ? 'Gate the last load: canary ' + gate.release_b + (gate.release_a ? ' vs baseline ' + gate.release_a : '') + ' at ' + gate.label + ' (' + gate.weights + '): CHECK_ARGS="' + gate.check_args + '"?' : 'Live routing is not a canary split; try anyway?') : questions[a];

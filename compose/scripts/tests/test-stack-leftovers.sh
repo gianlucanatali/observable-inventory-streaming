@@ -88,8 +88,10 @@ out="$(KEEP_IMAGES=yes run)" && fail "KEEP_IMAGES=yes passed: $out"
 case "$out" in *"KEEP_IMAGES must be true or false"*) ;; *) fail "invalid KEEP_IMAGES message: $out";; esac
 rm "$LIVE/smoke"
 
-# 5. stack-down calls the check and fails when it fails.
-grep -Fq 'leftover_check || die "stack $STACK: resources still exist after the destroy' "$ROOT/compose/scripts/stack.sh" \
+# 5. stack-down calls the check on every outcome (also after a failed layer) and fails when it fails.
+[ "$(grep -c 'leftover_report || left=\$?' "$ROOT/compose/scripts/stack.sh")" -ge 3 ] \
+  || fail "the leftover check does not run after a failed destroy, a clean destroy and a failed create"
+grep -Fq '[ "$left" = 0 ] || { echo "stack.sh: stack $STACK: the leftover check did not pass' "$ROOT/compose/scripts/stack.sh" \
   || fail "down() does not fail on leftovers"
 grep -Fq '    leftovers) leftover_check;;' "$ROOT/compose/scripts/stack.sh" || fail "no standalone leftovers command"
 printf 'test-stack-leftovers: PASS (task defs skipped, lagging ARNs confirmed, API errors fatal)\n'
