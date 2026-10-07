@@ -6,28 +6,29 @@ import StockPanel from './StockPanel.jsx';
 describe('StockPanel', () => {
   it('keeps an at-least answer in the available state but marks stale stock as amber', () => {
     render(<StockPanel stock={{
-      status: 'available', sellable: 3, at_least: true,
+      status: 'available', sellable: 3, confirmed_min: 2, at_least: true,
       stores: [
-        { store_id: 'S01', status: 'available', quantity: 2, feed: 'ok' },
-        { store_id: 'S02', status: 'available', quantity: 1, feed: 'stale' },
+        { store_id: 'S01', status: 'available', quantity: 2, feed: 'ok', live: true },
+        { store_id: 'S02', status: 'available', quantity: 1, feed: 'stale', live: false },
       ],
     }} fetchError={null} compression={null} />);
 
     expect(screen.getByTestId('stock-panel')).toHaveClass('stock-available', 'stock-warning');
-    expect(screen.getByTestId('stock-panel')).toHaveTextContent('At least 3 available online');
+    expect(screen.getByTestId('stock-panel')).toHaveTextContent('At least 2 available online');
+    expect(screen.getByTestId('stock-stores')).toHaveTextContent('By store: Milano 2 Torino 1 (last seen, not live)');
   });
 
   it('keeps each per-store availability value as a readable pill', () => {
     render(<StockPanel stock={{
-      status: 'available', sellable: 3, at_least: false,
+      status: 'available', sellable: 3, confirmed_min: 2, at_least: true,
       stores: [
-        { store_id: 'S01', status: 'available', quantity: 2, feed: 'ok' },
-        { store_id: 'S02', status: 'available', quantity: 1, feed: 'stale' },
+        { store_id: 'S01', status: 'available', quantity: 2, feed: 'ok', live: true },
+        { store_id: 'S02', status: 'available', quantity: 1, feed: 'stale', live: false },
       ],
     }} fetchError={null} compression={null} />);
 
     const stores = screen.getByTestId('stock-stores');
-    expect(stores).toHaveTextContent('By store: Milano 2 Torino 1 (not live)');
+    expect(stores).toHaveTextContent('By store: Milano 2 Torino 1 (last seen, not live)');
     expect(stores.querySelectorAll('.store-pill')).toHaveLength(2);
   });
 });

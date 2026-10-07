@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chapter 4 of 6: Canary the fix | Observable inventory streaming</title>
+<meta name="description" content="Hands-on workshop: stream stock changes from five PostgreSQL store databases through Debezium and Confluent Cloud into Redis on AWS, then find and fix a slow release with Datadog.">
+<meta name="color-scheme" content="light dark">
+<!-- Generated from workshop/README.md by workshop/site/build.py. Do not edit by hand. -->
+<script>
+// Set the lab path before the first paint, so the page never shows both paths and then hides one.
+(function () {
+  var d = document.documentElement, p = null;
+  d.classList.add("js");
+  var m = /[?&]path=(panel|terminal)(?:&|$)/.exec(location.search);
+  try {
+    if (m) { p = m[1]; localStorage.setItem("workshop-path", p); }
+    else { p = localStorage.getItem("workshop-path"); }
+  } catch (e) {
+    console.warn("workshop: localStorage unavailable, the path choice is not remembered:", e);
+    if (m) p = m[1];
+  }
+  if (p !== "panel" && p !== "terminal") p = null;
+  d.setAttribute("data-path-mode", p || "panel");
+  if (p) d.setAttribute("data-path-chosen", "");
+})();
+</script>
+<link rel="stylesheet" href="assets/fonts.css?v=471d416a0c">
+<link rel="stylesheet" href="assets/site.css?v=84305200bf">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23632CA6'/%3E%3Cpath d='M8 21h4v-6H8zm6 0h4V10h-4zm6 0h4v-9h-4z' fill='white'/%3E%3C/svg%3E">
+</head>
+<body data-connect-href="setup.html#connect-box">
+<a class="skip" href="#content">Skip to content</a>
+<header class="topbar">
+  <button type="button" class="toc-toggle" aria-controls="toc" aria-expanded="false">
+    <span class="burger" aria-hidden="true"></span><span class="sr-only">Table of contents</span>
+  </button>
+  <a class="brand" href="intro.html" title="Start of the workshop"><span class="brand-mark" aria-hidden="true"></span><span>Observable inventory streaming</span></a>
+  <div class="path-switch" role="group" aria-label="Lab path">
+    <span class="path-switch-label" aria-hidden="true">Path</span>
+    <button type="button" data-set-path="panel" aria-pressed="true" title="Show the control panel steps">Panel</button>
+    <button type="button" data-set-path="terminal" aria-pressed="false" title="Show the terminal (make) steps">Terminal</button>
+  </div>
+  <a class="stack-badge" id="stack-badge" href="setup.html#connect-box" hidden title="Your stack is connected to this guide. Open the Connect box."><span class="stack-dot" aria-hidden="true"></span><span class="stack-badge-text">Connected<span class="stack-badge-name"></span></span></a>
+  <nav class="topbar-links" aria-label="Site">
+    <a class="topbar-home" href="index.html">Home</a>
+    <a class="topbar-current" href="intro.html" aria-current="page">Workshop</a><a class="topbar-extra" href="workshop.html">One-page guide</a>
+    <a class="topbar-extra topbar-md" href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/workshop/README.md" target="_blank" rel="noopener">Markdown source</a>
+    <a class="topbar-extra" href="https://github.com/gianlucanatali/observable-inventory-streaming" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+</header>
+<div class="layout">
+  <nav id="toc" class="toc" aria-label="Table of contents">
+    <p class="toc-title">Workshop</p><ol class="chapter-list"><li><a href="intro.html">Intro</a></li><li><a href="setup.html"><span class="cl-n">0</span>Setup</a></li><li><a href="chapter-1.html"><span class="cl-n">1</span>One honest number</a></li><li><a href="chapter-2.html"><span class="cl-n">2</span>Unknown is not zero</a></li><li><a href="chapter-3.html"><span class="cl-n">3</span>The incident</a></li><li><a href="chapter-4.html" aria-current="page"><span class="cl-n">4</span>Canary the fix</a></li><li><a href="chapter-5.html"><span class="cl-n">5</span>The AI offer</a></li><li><a href="chapter-6.html"><span class="cl-n">6</span>Datadog on top</a></li></ol><p class="toc-title">Help and reference</p><ol class="chapter-list chapter-list-help"><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="teardown.html">Teardown</a></li><li><a href="recap.html">Recap</a></li><li><a href="reference.html">Reference</a></li><li><a class="guide-link" href="workshop.html">One-page guide</a></li></ol><p class="toc-title toc-title-page">On this page</p><ol class="toc-list">
+<li class="toc-h2"><a href="#lab-41-canary-the-fix">Lab 4.1: Canary the fix</a>
+<ol class="toc-sub">
+<li class="toc-h3"><a href="#1-send-10-to-the-fix">1. Send 10% to the fix</a></li>
+<li class="toc-h3"><a href="#2-compare-the-versions-in-apm">2. Compare the versions in APM</a></li>
+<li class="toc-h3"><a href="#3-go-to-50-then-practise-backing-out">3. Go to 50%, then practise backing out</a></li>
+<li class="toc-h3"><a href="#4-finish-the-rollout">4. Finish the rollout</a></li>
+<li class="toc-h3"><a href="#5-prove-it-latency-cpu-and-cost">5. Prove it: latency, CPU and cost</a></li>
+<li class="toc-h3"><a href="#checkpoint-4">Checkpoint</a></li>
+</ol></li>
+</ol>
+  </nav>
+  <div class="scrim" hidden></div>
+  <main id="content" class="content" tabindex="-1">
+    <article id="top" class="doc">
+<nav class="chapter-progress" aria-label="Chapters"><ol><li class="cp-step cp-extra"><a href="intro.html"><span class="cp-dot" aria-hidden="true">&middot;</span><span class="cp-label">Intro</span></a></li><li class="cp-step cp-extra"><a href="setup.html"><span class="cp-dot" aria-hidden="true">0</span><span class="cp-label">Setup</span></a></li><li class="cp-step"><a href="chapter-1.html"><span class="cp-dot" aria-hidden="true">1</span><span class="cp-label">One honest number</span></a></li><li class="cp-step"><a href="chapter-2.html"><span class="cp-dot" aria-hidden="true">2</span><span class="cp-label">Unknown is not zero</span></a></li><li class="cp-step"><a href="chapter-3.html"><span class="cp-dot" aria-hidden="true">3</span><span class="cp-label">The incident</span></a></li><li class="cp-step cp-current"><a href="chapter-4.html" aria-current="page"><span class="cp-dot" aria-hidden="true">4</span><span class="cp-label">Canary the fix</span></a></li><li class="cp-step"><a href="chapter-5.html"><span class="cp-dot" aria-hidden="true">5</span><span class="cp-label">The AI offer</span></a></li><li class="cp-step"><a href="chapter-6.html"><span class="cp-dot" aria-hidden="true">6</span><span class="cp-label">Datadog on top</span></a></li></ol></nav>
+<p class="chapter-kicker">Chapter 4 of 6</p>
+<h1 class="chapter-title">Canary the fix</h1>
+<aside class="see-box"><p class="see-title">What you will see</p><p><em>About 25 minutes.</em> Release 1.2.0 fixes the slowdown from Lab 3.1: it prepares the product catalogue once, when the service starts. A fix is still a change, and if it is wrong, sending everyone to it at once gives everyone the problem. So you ship 1.2.0 the way you shipped 1.1.0: 10% of traffic next to 1.0.0, then wider steps. Before each step you run the <abbr title="canary-check, or Check canary in the panel: a pass or fail check of samples, errors, p95 and correctness. You run it yourself.">gate</abbr> and go on only if it passes. You also practise the way back. This time the gates pass.</p>
+<p><strong>Needs:</strong> <code>releases</code>, already on from Chapter 3.</p>
+</aside>
+<h3 id="lab-41-canary-the-fix" class="lab lab">Lab 4.1: Canary the fix <a class="header-anchor" href="#lab-41-canary-the-fix">#</a></h3>
+<figure class="diagram"><svg aria-roledescription="flowchart-v2" role="graphics-document document" viewBox="0 -0.000003814697265625 546.34375 697.1619262695312" style="max-width: 546.34375px;" class="flowchart" xmlns="http://www.w3.org/2000/svg" width="100%" id="mmd-b48dc4da80bce210"><style>#mmd-b48dc4da80bce210{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;fill:#1d1a24;}#mmd-b48dc4da80bce210 .error-icon{fill:#FAF8FD;}#mmd-b48dc4da80bce210 .error-text{fill:#050702;stroke:#050702;}#mmd-b48dc4da80bce210 .edge-thickness-normal{stroke-width:1px;}#mmd-b48dc4da80bce210 .edge-thickness-thick{stroke-width:3.5px;}#mmd-b48dc4da80bce210 .edge-pattern-solid{stroke-dasharray:0;}#mmd-b48dc4da80bce210 .edge-thickness-invisible{stroke-width:0;fill:none;}#mmd-b48dc4da80bce210 .edge-pattern-dashed{stroke-dasharray:3;}#mmd-b48dc4da80bce210 .edge-pattern-dotted{stroke-dasharray:2;}#mmd-b48dc4da80bce210 .marker{fill:#7B4FB8;stroke:#7B4FB8;}#mmd-b48dc4da80bce210 .marker.cross{stroke:#7B4FB8;}#mmd-b48dc4da80bce210 svg{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;}#mmd-b48dc4da80bce210 p{margin:0;}#mmd-b48dc4da80bce210 .label{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1d1a24;}#mmd-b48dc4da80bce210 .cluster-label text{fill:#050702;}#mmd-b48dc4da80bce210 .cluster-label span{color:#050702;}#mmd-b48dc4da80bce210 .cluster-label span p{background-color:transparent;}#mmd-b48dc4da80bce210 .label text,#mmd-b48dc4da80bce210 span{fill:#1d1a24;color:#1d1a24;}#mmd-b48dc4da80bce210 .node rect,#mmd-b48dc4da80bce210 .node circle,#mmd-b48dc4da80bce210 .node ellipse,#mmd-b48dc4da80bce210 .node polygon,#mmd-b48dc4da80bce210 .node path{fill:#F3EDFB;stroke:#632CA6;stroke-width:1px;}#mmd-b48dc4da80bce210 .rough-node .label text,#mmd-b48dc4da80bce210 .node .label text,#mmd-b48dc4da80bce210 .image-shape .label,#mmd-b48dc4da80bce210 .icon-shape .label{text-anchor:middle;}#mmd-b48dc4da80bce210 .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#mmd-b48dc4da80bce210 .rough-node .label,#mmd-b48dc4da80bce210 .node .label,#mmd-b48dc4da80bce210 .image-shape .label,#mmd-b48dc4da80bce210 .icon-shape .label{text-align:center;}#mmd-b48dc4da80bce210 .node.clickable{cursor:pointer;}#mmd-b48dc4da80bce210 .root .anchor path{fill:#7B4FB8!important;stroke-width:0;stroke:#7B4FB8;}#mmd-b48dc4da80bce210 .arrowheadPath{fill:#0b0b0b;}#mmd-b48dc4da80bce210 .edgePath .path{stroke:#7B4FB8;stroke-width:2.0px;}#mmd-b48dc4da80bce210 .flowchart-link{stroke:#7B4FB8;fill:none;}#mmd-b48dc4da80bce210 .edgeLabel{background-color:#FFFFFF;text-align:center;}#mmd-b48dc4da80bce210 .edgeLabel p{background-color:#FFFFFF;}#mmd-b48dc4da80bce210 .edgeLabel rect{opacity:0.5;background-color:#FFFFFF;fill:#FFFFFF;}#mmd-b48dc4da80bce210 .labelBkg{background-color:rgba(255, 255, 255, 0.5);}#mmd-b48dc4da80bce210 .cluster rect{fill:#FAF8FD;stroke:#C9B6E4;stroke-width:1px;}#mmd-b48dc4da80bce210 .cluster text{fill:#050702;}#mmd-b48dc4da80bce210 .cluster span{color:#050702;}#mmd-b48dc4da80bce210 div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;background:#FAF8FD;border:1px solid hsl(264, 15.5555555556%, 88.2352941176%);border-radius:2px;pointer-events:none;z-index:100;}#mmd-b48dc4da80bce210 .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#1d1a24;}#mmd-b48dc4da80bce210 rect.text{fill:none;stroke-width:0;}#mmd-b48dc4da80bce210 .icon-shape,#mmd-b48dc4da80bce210 .image-shape{background-color:#FFFFFF;text-align:center;}#mmd-b48dc4da80bce210 .icon-shape p,#mmd-b48dc4da80bce210 .image-shape p{background-color:#FFFFFF;padding:2px;}#mmd-b48dc4da80bce210 .icon-shape rect,#mmd-b48dc4da80bce210 .image-shape rect{opacity:0.5;background-color:#FFFFFF;fill:#FFFFFF;}#mmd-b48dc4da80bce210 :root{--mermaid-font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;}</style><g><marker orient="auto" markerHeight="8" markerWidth="8" markerUnits="userSpaceOnUse" refY="5" refX="5" viewBox="0 0 10 10" class="marker flowchart-v2" id="mmd-b48dc4da80bce210_flowchart-v2-pointEnd"><path style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 0 0 L 10 5 L 0 10 z"></path></marker><marker orient="auto" markerHeight="8" markerWidth="8" markerUnits="userSpaceOnUse" refY="5" refX="4.5" viewBox="0 0 10 10" class="marker flowchart-v2" id="mmd-b48dc4da80bce210_flowchart-v2-pointStart"><path style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 0 5 L 10 10 L 10 0 z"></path></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5" refX="11" viewBox="0 0 10 10" class="marker flowchart-v2" id="mmd-b48dc4da80bce210_flowchart-v2-circleEnd"><circle style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" r="5" cy="5" cx="5"></circle></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5" refX="-1" viewBox="0 0 10 10" class="marker flowchart-v2" id="mmd-b48dc4da80bce210_flowchart-v2-circleStart"><circle style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" r="5" cy="5" cx="5"></circle></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5.2" refX="12" viewBox="0 0 11 11" class="marker cross flowchart-v2" id="mmd-b48dc4da80bce210_flowchart-v2-crossEnd"><path style="stroke-width: 2; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9"></path></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5.2" refX="-1" viewBox="0 0 11 11" class="marker cross flowchart-v2" id="mmd-b48dc4da80bce210_flowchart-v2-crossStart"><path style="stroke-width: 2; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9"></path></marker><g class="root"><g class="clusters"><g data-look="classic" id="REL" class="cluster"><rect height="91.5" width="529.90625" y="143.16190338134766" x="8.4375" style=""></rect><g transform="translate(240.359375, 143.16190338134766)" class="cluster-label"><foreignObject height="22.5" width="66.0625"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Stock API</p></span></div></foreignObject></g></g></g><g class="edgePaths"><path marker-end="url(#mmd-b48dc4da80bce210_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_view_r100_0" d="M286.68,70.023L262.002,78.463C237.324,86.903,187.969,103.782,163.291,115.972C138.613,128.162,138.613,135.662,138.613,142.495C138.613,149.329,138.613,155.495,138.613,158.579L138.613,161.662"></path><path marker-end="url(#mmd-b48dc4da80bce210_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_view_r110_1" d="M336.219,98.162L336.219,101.912C336.219,105.662,336.219,113.162,336.219,120.662C336.219,128.162,336.219,135.662,336.219,142.495C336.219,149.329,336.219,155.495,336.219,158.579L336.219,161.662"></path><path marker-end="url(#mmd-b48dc4da80bce210_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_view_r120_2" d="M385.758,78.811L399.188,85.786C412.617,92.761,439.477,106.712,452.906,117.437C466.336,128.162,466.336,135.662,466.336,142.495C466.336,149.329,466.336,155.495,466.336,158.579L466.336,161.662"></path><path marker-end="url(#mmd-b48dc4da80bce210_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_r100_alb_3" d="M105.162,212.162L99.766,215.912C94.371,219.662,83.58,227.162,78.184,236.537C72.789,245.912,72.789,257.162,72.789,272.287C72.789,287.412,72.789,306.412,72.789,325.412C72.789,344.412,72.789,363.412,72.789,385.162C72.789,406.912,72.789,431.412,72.789,455.912C72.789,480.412,72.789,504.912,94.842,522.708C116.895,540.503,161.002,551.595,183.055,557.141L205.108,562.686"></path><path marker-end="url(#mmd-b48dc4da80bce210_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_r110_alb_4" d="M336.219,212.162L336.219,215.912C336.219,219.662,336.219,227.162,336.219,236.537C336.219,245.912,336.219,257.162,336.219,272.287C336.219,287.412,336.219,306.412,336.219,325.412C336.219,344.412,336.219,363.412,336.219,385.162C336.219,406.912,336.219,431.412,336.219,455.912C336.219,480.412,336.219,504.912,330.36,522.425C324.501,539.938,312.782,550.463,306.923,555.726L301.064,560.989"></path><path marker-end="url(#mmd-b48dc4da80bce210_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_r120_alb_5" d="M466.336,212.162L466.336,215.912C466.336,219.662,466.336,227.162,466.336,236.537C466.336,245.912,466.336,257.162,466.336,272.287C466.336,287.412,466.336,306.412,466.336,325.412C466.336,344.412,466.336,363.412,466.336,385.162C466.336,406.912,466.336,431.412,466.336,455.912C466.336,480.412,466.336,504.912,446.272,522.693C426.209,540.474,386.082,551.537,366.018,557.068L345.955,562.599"></path><path marker-end="url(#mmd-b48dc4da80bce210_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_alb_web_6" d="M278.344,598.162L278.26,601.829C278.177,605.495,278.01,612.829,277.927,619.579C277.844,626.329,277.844,632.495,277.844,635.579L277.844,638.662"></path><path marker-end="url(#mmd-b48dc4da80bce210_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-dotted edge-thickness-normal edge-pattern-solid flowchart-link" id="L_apm_btn_8" d="M204.438,348.662L204.438,354.287C204.438,359.912,204.438,371.162,204.438,381.745C204.438,392.329,204.438,402.245,204.438,407.204L204.438,412.162"></path><path marker-end="url(#mmd-b48dc4da80bce210_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-dotted edge-thickness-normal edge-pattern-solid flowchart-link" id="L_btn_alb_9" d="M204.438,495.662L204.438,501.287C204.438,506.912,204.438,518.162,212.07,529.114C219.703,540.066,234.969,550.719,242.602,556.046L250.235,561.373"></path><path marker-end="url(#mmd-b48dc4da80bce210_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-dotted edge-thickness-normal edge-pattern-solid flowchart-link" id="L_REL_apm_7" d="M204.438,234.662L204.438,240.287C204.438,245.912,204.438,257.162,204.438,267.745C204.438,278.329,204.438,288.245,204.438,293.204L204.438,298.162"></path></g><g class="edgeLabels"><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignObject height="0" width="0"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignObject height="0" width="0"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignObject height="0" width="0"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"></span></div></foreignObject></g></g><g transform="translate(72.7890625, 382.41190338134766)" class="edgeLabel"><g transform="translate(-64.7890625, -11.25)" class="label"><foreignObject height="22.5" width="129.578125"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"><p>90% → 50% → 0%</p></span></div></foreignObject></g></g><g transform="translate(336.21875, 382.41190338134766)" class="edgeLabel"><g transform="translate(-11.4296875, -11.25)" class="label"><foreignObject height="22.5" width="22.859375"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"><p>0%</p></span></div></foreignObject></g></g><g transform="translate(466.3359375, 382.41190338134766)" class="edgeLabel"><g transform="translate(-71.4609375, -11.25)" class="label"><foreignObject height="22.5" width="142.921875"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"><p>10% → 50% → 100%</p></span></div></foreignObject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignObject height="0" width="0"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"></span></div></foreignObject></g></g><g transform="translate(204.4375, 382.41190338134766)" class="edgeLabel"><g transform="translate(-46.859375, -11.25)" class="label"><foreignObject height="22.5" width="93.71875"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"><p>Check canary</p></span></div></foreignObject></g></g><g transform="translate(204.4375, 529.4119033813477)" class="edgeLabel"><g transform="translate(-39.1171875, -11.25)" class="label"><foreignObject height="22.5" width="78.234375"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"><p>set weights</p></span></div></foreignObject></g></g><g transform="translate(204.4375, 268.41190338134766)" class="edgeLabel"><g transform="translate(-58.4609375, -11.25)" class="label"><foreignObject height="22.5" width="116.921875"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"><p>traces by version</p></span></div></foreignObject></g></g></g><g class="nodes"><g transform="translate(336.21875, 53.08095169067383)" id="flowchart-view-53" class="node default"><path transform="translate(-49.5390625, -45.08095669758036)" style="" class="basic label-container" d="M0,11.053971131720242 a49.5390625,11.053971131720242 0,0,0 99.078125,0 a49.5390625,11.053971131720242 0,0,0 -99.078125,0 l0,68.05397113172025 a49.5390625,11.053971131720242 0,0,0 99.078125,0 l0,-68.05397113172025"></path><g transform="translate(-43.5390625, -14.5)" style="" class="label"><rect></rect><foreignObject height="45" width="87.078125"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Serving view<br>in Redis</p></span></div></foreignObject></g></g><g transform="translate(138.61328125, 188.91190338134766)" id="flowchart-r100-54" class="node default"><rect height="46.5" width="133.40625" y="-23.25" x="-66.703125" style="" class="basic label-container"></rect><g transform="translate(-42.703125, -11.25)" style="" class="label"><rect></rect><foreignObject height="22.5" width="85.40625"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>1.0.0 healthy</p></span></div></foreignObject></g></g><g transform="translate(336.21875, 188.91190338134766)" id="flowchart-r110-55" class="node default"><rect height="46.5" width="112.21875" y="-23.25" x="-56.109375" style="" class="basic label-container"></rect><g transform="translate(-32.109375, -11.25)" style="" class="label"><rect></rect><foreignObject height="22.5" width="64.21875"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>1.1.0 slow</p></span></div></foreignObject></g></g><g transform="translate(466.3359375, 188.91190338134766)" id="flowchart-r120-56" class="node default"><rect height="46.5" width="100.015625" y="-23.25" x="-50.0078125" style="" class="basic label-container"></rect><g transform="translate(-26.0078125, -11.25)" style="" class="label"><rect></rect><foreignObject height="22.5" width="52.015625"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>1.2.0 fix</p></span></div></foreignObject></g></g><g transform="translate(277.84375, 580.4119033813477)" id="flowchart-alb-62" class="node default"><polygon transform="translate(-84.3359375,17.25)" class="label-container" points="8.625,0 160.046875,0 168.671875,-17.25 160.046875,-34.5 8.625,-34.5 0,-17.25"></polygon><g transform="translate(-69.7109375, -11.25)" style="" class="label"><rect></rect><foreignObject height="22.5" width="139.421875"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Load balancer (ALB)</p></span></div></foreignObject></g></g><g transform="translate(277.84375, 665.9119033813477)" id="flowchart-web-68" class="node default"><rect height="46.5" width="129.484375" y="-23.25" x="-64.7421875" style="" class="basic label-container"></rect><g transform="translate(-40.7421875, -11.25)" style="" class="label"><rect></rect><foreignObject height="22.5" width="81.484375"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Online shop</p></span></div></foreignObject></g></g><g transform="translate(204.4375, 325.41190338134766)" id="flowchart-apm-70" class="node default"><rect height="46.5" width="142.515625" y="-23.25" x="-71.2578125" style="" class="basic label-container"></rect><g transform="translate(-47.2578125, -11.25)" style="" class="label"><rect></rect><foreignObject height="22.5" width="94.515625"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Datadog APM</p></span></div></foreignObject></g></g><g transform="translate(204.4375, 455.91190338134766)" id="flowchart-btn-72" class="node default"><rect height="79.5" width="189.5" y="-39.75" x="-94.75" ry="39.75" rx="39.75" style="" class="basic label-container"></rect><g transform="translate(-78.8125, -33.75)" style="" class="label"><rect></rect><foreignObject height="67.5" width="157.625"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Canary 1.2.0<br>(10%) · (50%) · (100%)<br>or Rollback</p></span></div></foreignObject></g></g></g></g></g></svg></figure>
+<p>Every step uses the same loop as Lab 3.1: set the weight, read it back, generate load, verify the data, then run the gate.</p>
+<details><summary>The three steps at a glance</summary>
+<div data-path="panel" markdown="1">
+<p><strong>With the control panel</strong></p>
+<p>In the <a href="setup.html#2-open-the-control-panel" data-stack-link="control">control panel</a>, the <strong>Release routing</strong> card has one button per step, and the <strong>Checks</strong> card runs the load, the verify and the gate:</p>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Button on <strong>Release routing</strong></th>
+<th>Tiles 1.0.0 / 1.1.0 / 1.2.0</th>
+<th>Gate that <strong>Check canary</strong> picks</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>10%</td>
+<td><strong>Canary 1.2.0 (10%)</strong></td>
+<td>90 / 0 / 10</td>
+<td>1.2.0 against 1.0.0, at least 30 samples of each (step 1)</td>
+</tr>
+<tr>
+<td>50%</td>
+<td><strong>Canary 1.2.0 (50%)</strong></td>
+<td>50 / 0 / 50</td>
+<td>1.2.0 against 1.0.0, at least 100 samples of each (step 3)</td>
+</tr>
+<tr>
+<td>100%</td>
+<td><strong>Canary 1.2.0 (100%)</strong></td>
+<td>0 / 0 / 100</td>
+<td>1.2.0 alone (step 4)</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<div data-path="terminal" markdown="1">
+<p><strong>With the terminal</strong></p>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Command</th>
+<th><code>route-show</code> should read</th>
+<th>Gate (<code>canary-check CHECK_ARGS=...</code>)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>10%</td>
+<td><code>make canary-10</code></td>
+<td><code>90 0 10</code></td>
+<td><code>--release-a 1.0.0 --release-b 1.2.0 --min-samples 30</code> (see step 1)</td>
+</tr>
+<tr>
+<td>50%</td>
+<td><code>make canary-50</code></td>
+<td><code>50 0 50</code></td>
+<td><code>--release-a 1.0.0 --release-b 1.2.0</code> (see step 3)</td>
+</tr>
+<tr>
+<td>100%</td>
+<td><code>make canary-100</code></td>
+<td><code>0 0 100</code></td>
+<td><code>--release-b 1.2.0</code> only (see step 4)</td>
+</tr>
+</tbody>
+</table></div>
+<p>Each gate also takes <code>--verify-file /out/verify.json</code>.</p>
+</div>
+<p>A weight is the share you ask for, not the exact split, so the gate counts what really happened: it reads the <code>X-Release</code> header of every response to see which release answered.</p>
+</details>
+<p>Open this Chapter in the <a href="setup.html#3-open-the-datadog-stock-dashboard" data-stack-link="overview-dashboard">demo home</a>, group &quot;4. Canary the fix&quot;: requests and error rate per release as traffic moves to 1.2.0.</p>
+<h4 id="1-send-10-to-the-fix">1. Send 10% to the fix <a class="header-anchor" href="#1-send-10-to-the-fix">#</a></h4>
+<div data-path="panel" markdown="1">
+<p><strong>With the control panel</strong></p>
+<ol>
+<li>In the <a href="setup.html#2-open-the-control-panel" data-stack-link="control">control panel</a>, press <strong>Canary 1.2.0 (10%)</strong> on the <strong>Release routing</strong> card and confirm. The tiles read 90 / 0 / 10, and the line under them <code>Live 90/0/10 · previous (for Rollback): 100/0/0</code>.</li>
+<li>On the <strong>Checks</strong> card, press <strong>Run load (120 s, 5 rps)</strong> and wait about 2 minutes for the run to end.</li>
+<li>Press <strong>Verify</strong> and wait for <code>VERIFY PASSED</code>.</li>
+<li>Press <strong>Check canary</strong>.</li>
+</ol>
+<p>The result box shows <code>CANARY GATES PASSED</code>, a <code>PASS</code> line for each gate, and the samples, errors and p95 per release.</p>
+</div>
+<div data-path="terminal" markdown="1">
+<p><strong>With the terminal</strong></p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>canary-10
+make<span class="w"> </span>route-show
+</code></pre></div>
+<p>The last line should read <code>current=90 0 10 previous=100 0 0</code>. Then send load for about 2 minutes:</p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>load<span class="w"> </span><span class="nv">LOAD_DURATION</span><span class="o">=</span><span class="m">120</span><span class="w"> </span><span class="nv">LOAD_RPS</span><span class="o">=</span><span class="m">5</span>
+</code></pre></div>
+<p>When the summary line appears, verify the data and run the gate:</p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>verify
+make<span class="w"> </span>canary-check<span class="w"> </span><span class="nv">CHECK_ARGS</span><span class="o">=</span><span class="s2">"--release-a 1.0.0 --release-b 1.2.0 --min-samples 30 --verify-file /out/verify.json"</span>
+</code></pre></div>
+<p>This is the same gate as in Lab 3.1, with 1.2.0 as the canary. You should see:</p>
+<div class="code code-out" data-lang="text"><div class="code-bar"><span class="code-label">Expected output</span></div><pre tabindex="0"><code>PASS min_samples_a: release 1.0.0: &lt;n&gt; samples, need &gt;= 30
+PASS min_samples_b: release 1.2.0: &lt;n&gt; samples, need &gt;= 30
+PASS error_rate_a: release 1.0.0: 0/&lt;n&gt; errors (0.0000), max 0.0
+PASS error_rate_b: release 1.2.0: 0/&lt;n&gt; errors (0.0000), max 0.0
+PASS p95_b: release 1.2.0: p95 &lt;ms&gt; ms, budget 200 ms
+PASS correctness: verify: 0 mismatch(es)
+CANARY GATES PASSED
+</code></pre></div>
+<p>If a gate fails, the command exits with a non-zero code.</p>
+</div>
+<p>If a gate fails, its <code>FAIL</code> line names it: stop and roll back.</p>
+<details><summary>More about this step</summary>
+<div data-path="panel" markdown="1">
+<p><strong>With the control panel</strong></p>
+<p><strong>Which gate the card picks.</strong> The card picks the gate for this step from the live routing, <code>CHECK_ARGS=&quot;--release-a 1.0.0 --release-b 1.2.0 --min-samples 30 --verify-file /out/verify.json&quot;</code>, the same gate as in Lab 3.1 with 1.2.0 as the canary.</p>
+</div>
+<div data-path="panel" markdown="1">
+<p><strong>With the control panel</strong></p>
+<p><strong>The status line.</strong> The status line reads <code>canary-check succeeded: CANARY GATES PASSED at 10% (...)</code>.</p>
+</div>
+<p><strong>Our numbers, and the shop during the 10% canary.</strong> In an earlier run, the 10% step had 75 samples of 1.2.0, and the p95 of 1.2.0 was about 23 ms.</p>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Product page during the 10% canary"><img src="img/lab4-01-shop-canary-10.png" alt="Product page during the 10% canary" width="2880" height="2300" loading="lazy" decoding="async"></button><figcaption>Product page during the 10% canary</figcaption></figure>
+</details>
+<h4 id="2-compare-the-versions-in-apm">2. Compare the versions in APM <a class="header-anchor" href="#2-compare-the-versions-in-apm">#</a></h4>
+<p>Open the <code>inventory-api</code> service page (environment <code>dd-demo-hybrid</code>, past 15 minutes). The <strong>Deployments</strong> section now lists three versions: 1.0.0, 1.1.0 (from the Lab 3.1 canary) and 1.2.0. The p95 of 1.2.0 is close to that of 1.0.0 and much lower than that of 1.1.0.</p>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Deployments table comparing the versions"><img src="img/lab4-02-deployments-by-version.png" alt="Deployments table comparing the versions" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>Deployments table comparing the versions</figcaption></figure>
+<h4 id="3-go-to-50-then-practise-backing-out">3. Go to 50%, then practise backing out <a class="header-anchor" href="#3-go-to-50-then-practise-backing-out">#</a></h4>
+<p>Do this step only if the 10% gate passed.</p>
+<div data-path="panel" markdown="1">
+<p><strong>With the control panel</strong></p>
+<ol>
+<li>In the <a href="setup.html#2-open-the-control-panel" data-stack-link="control">control panel</a>, on the <strong>Release routing</strong> card, press <strong>Canary 1.2.0 (50%)</strong> and confirm. The tiles read 50 / 0 / 50.</li>
+<li>Press <strong>Run load (120 s, 5 rps)</strong>, wait for the end of the run, press <strong>Verify</strong>, then <strong>Check canary</strong>. At 50 / 0 / 50 the card picks <code>CHECK_ARGS=&quot;--release-a 1.0.0 --release-b 1.2.0 --verify-file /out/verify.json&quot;</code> and should show <code>CANARY GATES PASSED</code>.</li>
+<li>Roll back once, to practise it: press <strong>Rollback</strong> and confirm. The tiles go back to 90 / 0 / 10, and the line under them reads <code>Live 90/0/10 · previous (for Rollback): 50/0/50</code>.</li>
+</ol>
+<p>Now press <strong>Canary 1.2.0 (50%)</strong> again to go forward.</p>
+</div>
+<div data-path="terminal" markdown="1">
+<p><strong>With the terminal</strong></p>
+<p>Run the loop again with <code>canary-50</code> and <code>CHECK_ARGS=&quot;--release-a 1.0.0 --release-b 1.2.0 --verify-file /out/verify.json&quot;</code>, so without <code>--min-samples</code>. Then roll back once, to practise it:</p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>rollback
+make<span class="w"> </span>route-show
+</code></pre></div>
+<div class="code code-out" data-lang="text"><div class="code-bar"><span class="code-label">Expected output</span></div><pre tabindex="0"><code>...
+current=90 0 10 previous=50 0 50
+</code></pre></div>
+<p>Now go forward again with <code>canary-50</code>.</p>
+</div>
+<details><summary>More about this step</summary>
+<p><strong>Why this gate keeps the default minimum.</strong> With half of the 600 requests, 1.2.0 gets about 300 samples, above the default minimum of 100, so this gate does not lower the minimum.</p>
+<div data-path="panel" markdown="1">
+<p><strong>With the control panel</strong></p>
+<p><strong>Rollback</strong> restores the split that was live before the last change, here 90 / 0 / 10. That is not always the healthy release. In a real emergency, press <strong>Baseline (all to 1.0.0)</strong>, which sends all traffic back to 1.0.0. Both buttons change only the routing.</p>
+</div>
+<div data-path="terminal" markdown="1">
+<p><strong>With the terminal</strong></p>
+<p><strong>Rollback is not always the healthy release.</strong></p>
+<p><code>rollback</code> restores the split that was live before the last change for this stack, here 90 / 0 / 10. That is not always the healthy release. In a real emergency, run <code>make route-baseline</code>, which sends all traffic back to 1.0.0. Both commands change only the routing.</p>
+</div>
+</details>
+<h4 id="4-finish-the-rollout">4. Finish the rollout <a class="header-anchor" href="#4-finish-the-rollout">#</a></h4>
+<div data-path="panel" markdown="1">
+<p><strong>With the control panel</strong></p>
+<ol>
+<li>In the <a href="setup.html#2-open-the-control-panel" data-stack-link="control">control panel</a>, on the <strong>Release routing</strong> card, press <strong>Canary 1.2.0 (100%)</strong> and confirm. The tiles read 0 / 0 / 100.</li>
+<li>Press <strong>Run load (120 s, 5 rps)</strong>, wait for the end of the run, then press <strong>Verify</strong> and <strong>Check canary</strong>. At 0 / 0 / 100 the card picks <code>CHECK_ARGS=&quot;--release-b 1.2.0 --verify-file /out/verify.json&quot;</code>. You should see <code>PASS</code> for <code>min_samples_b</code>, <code>error_rate_b</code>, <code>p95_b</code> and <code>correctness</code>, then <code>CANARY GATES PASSED</code>.</li>
+</ol>
+</div>
+<div data-path="terminal" markdown="1">
+<p><strong>With the terminal</strong></p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>canary-100
+make<span class="w"> </span>route-show
+</code></pre></div>
+<p>The last line should start with <code>current=0 0 100</code>. Then send load for about 2 minutes:</p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>load<span class="w"> </span><span class="nv">LOAD_DURATION</span><span class="o">=</span><span class="m">120</span><span class="w"> </span><span class="nv">LOAD_RPS</span><span class="o">=</span><span class="m">5</span>
+</code></pre></div>
+<p>When the summary line appears, verify the data and run the gate:</p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>verify
+make<span class="w"> </span>canary-check<span class="w"> </span><span class="nv">CHECK_ARGS</span><span class="o">=</span><span class="s2">"--release-b 1.2.0 --verify-file /out/verify.json"</span>
+</code></pre></div>
+<p>You should see <code>PASS</code> for <code>min_samples_b</code>, <code>error_rate_b</code>, <code>p95_b</code> and <code>correctness</code>, then <code>CANARY GATES PASSED</code>.</p>
+</div>
+<details><summary>More about this step</summary>
+<p><strong>Why the last gate checks only 1.2.0.</strong> At 100%, 1.0.0 gets no traffic, so the gate checks only 1.2.0.</p>
+<div data-path="panel" markdown="1">
+<p><strong>With the control panel</strong></p>
+<p><strong>Changed the routing after the load?</strong> If you change the routing after a load, run the load again before you press <strong>Check canary</strong>. The card does not judge a load that ran with a different split.</p>
+</div>
+<p><em>What just happened:</em> each load, from make or from the panel, replaces the summary file that <code>canary-check</code> reads, so the gate always judges the latest step. Do not widen a rollout based on an old summary. Each release is a separate Fargate service, so changing the split did not change any image, any data or any Kafka offset.</p>
+</details>
+<h4 id="5-prove-it-latency-cpu-and-cost">5. Prove it: latency, CPU and cost <a class="header-anchor" href="#5-prove-it-latency-cpu-and-cost">#</a></h4>
+<p>You have now run the same load (120 s at 5 requests per second) with 1.2.0 taking all traffic. Compare it with 1.1.0 in Datadog:</p>
+<ol>
+<li>Latency: use the Metrics Explorer query from <a href="chapter-3.html#6-compare-releases-in-apm">Lab 3.1</a> and compare the versions. 1.2.0 should be much lower than 1.1.0.</li>
+</ol>
+<details><summary>CPU and cost, with the query and our numbers</summary>
+<p>In our run the load script measured a client-side p95 of about 8 ms for 1.2.0 with all traffic (575 requests, no errors), and APM showed about 3 ms. 1.1.0 with all traffic timed out, as in Lab 3.1 step 9.</p>
+<ol start="2">
+<li>
+<p>CPU: open Metrics &gt; Explorer and paste the query below. It is the query of the <strong>Fargate CPU usage by service/version</strong> widget on the stock dashboard (group <em>ElastiCache and VM host</em>, tags <code>service</code> and <code>version</code>). The stack in angle brackets is your stack name; a connected guide fills it in:</p>
+<div class="code code-out" data-lang="text"><div class="code-bar"><span class="code-label">Expected output</span></div><pre tabindex="0"><code>sum:ecs.fargate.cpu.usage{project:dd-demo,stack:&lt;stack&gt;} by {service,version}
+</code></pre></div>
+<p>The values are in nanocores (1 vCPU = 10⁹ nanocores), averaged over the whole task, including the Agent sidecar container. To compare fairly, each version must get the same load. The optional all-traffic step at the end of <a href="chapter-3.html#lab-31-the-incident">Lab 3.1</a> gives you that. In our run, with 5 requests per second sent to each release in turn, 1.1.0 used its whole 0.5 vCPU until ECS replaced it, and 1.2.0 used about 0.02 vCPU (AWS Container Insights, <code>CpuUtilized</code>, 2026-10-06). That is at least 20 times less CPU for the same traffic; the real gap is larger, because 1.1.0 hit its limit.</p>
+</li>
+<li>
+<p>Cost: all three releases run on the same task size (0.5 vCPU / 1 GB in <code>service_sizing</code>, <code>terraform/aws/variables.tf</code>), so each task costs the same per hour on Fargate. The saving comes from capacity: the fix uses much less CPU per request, so the same tasks can serve more traffic before you need more tasks. We did not measure at what traffic level either release needs more tasks.</p>
+</li>
+</ol>
+</details>
+<h4 id="checkpoint-4" class="checkpoint checkpoint">Checkpoint <a class="header-anchor" href="#checkpoint-4">#</a></h4>
+<ul class="contains-task-list">
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"  type="checkbox"> All traffic goes to 1.2.0. <strong>Control panel:</strong> the <strong>Release routing</strong> tiles read 0 / 0 / 100 · <strong>Terminal:</strong> <code>make route-show</code> reads <code>0 0 100</code> (<a href="#4-finish-the-rollout">step 4</a>).</li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"  type="checkbox"> The final gate passed. <strong>Control panel:</strong> the final <strong>Check canary</strong> shows <code>CANARY GATES PASSED</code> · <strong>Terminal:</strong> the final <code>make canary-check</code> prints <code>CANARY GATES PASSED</code> (<a href="#4-finish-the-rollout">step 4</a>).</li>
+</ul>
+<aside class="summary-box"><p class="see-title">Summary</p><p>The fix now gets all traffic. You widened it in steps, each step passed the same gate that stopped 1.1.0, and you tested the way back. Lab 5.1 starts with a reset, which sets the routing back to 100 / 0 / 0.</p></aside>
+
+<nav class="pager" aria-label="Previous and next"><a class="pager-btn pager-prev" href="chapter-3.html"><span class="pager-dir">Previous</span><span class="pager-title">Chapter 3: The incident</span></a><a class="pager-btn pager-next" href="chapter-5.html"><span class="pager-dir">Next</span><span class="pager-title">Chapter 5: The AI offer</span></a></nav>
+    </article>
+    <footer class="doc-footer">
+      <p>Generated from <a href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/workshop/README.md" target="_blank" rel="noopener"><code>workshop/README.md</code></a>. Every product, store, sale and shopper in this workshop is synthetic.</p>
+      <p>Educational demo, not for production workloads. <a href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/LICENSE" target="_blank" rel="noopener">Apache License 2.0</a>, provided as is; trademarks and third-party notices in <a href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/NOTICE" target="_blank" rel="noopener">NOTICE</a>.</p>
+      <p><a href="#top">Back to top</a> &middot; <a href="workshop.html">One-page guide</a></p>
+    </footer>
+  </main>
+</div>
+<dialog class="lightbox" aria-label="Enlarged image">
+  <form method="dialog"><button class="lightbox-close" aria-label="Close">&times;</button></form>
+  <img alt="">
+  <p class="lightbox-caption"></p>
+</dialog>
+<dialog class="path-dialog" aria-labelledby="path-dialog-title" aria-describedby="path-dialog-text">
+  <h2 id="path-dialog-title">Switch to the <span class="path-dialog-other">terminal</span> path?</h2>
+  <p id="path-dialog-text">Pick one path and use it from start to finish. The control panel and the terminal each remember their own last routing for Rollback, so mixing them in one run can roll back to the wrong state. Switch only if you are starting a lab from a reset.</p>
+  <div class="path-dialog-buttons">
+    <button type="button" class="path-keep" autofocus>Keep control panel</button>
+    <button type="button" class="path-switch-confirm">Switch to terminal</button>
+  </div>
+</dialog>
+<div class="sr-only" aria-live="polite" id="live"></div>
+<script src="assets/stack.js?v=ec6a04c228"></script>
+<script src="assets/site.js?v=1de1666aca" defer></script>
+</body>
+</html>

@@ -18,7 +18,7 @@ Five sources, compose services `store-s01`..`store-s05` (host = service name, po
 | Stores | `S01`..`S05` (UrbanStreet Milano Centrale, Torino Porta Nuova, Bologna Centro, Roma Termini, Firenze SMN) |
 | Stocked products | `P0001`..`P0200`, every store, starting quantity 0..40 from seed 42 |
 | Sell-out product | `P0042` ("Trailrunner GTX", Alpenpace, EU 42), seeded per store S01..S05 = 2, 1, 3, 1, 2 (sellable 9); excluded from background sales |
-| Probes | one per source: store `S0n`, product `__probe__`; written only by the watchdog, quantity = epoch seconds mod 1,000,000. Never a shop product |
+| Probes | one per source: store `S0n`, product `__probe__`; written only by the freshness probe, quantity = epoch seconds mod 1,000,000. Never a shop product |
 | Catalogue | `P0001`..`P0200` plus padding products up to the calibrated size; generated from seed 42; SHA-256 recorded in `overlay/inventory-api/catalogue/README.md` |
 
 ## 2. Topics (Confluent Cloud, one partition each, Avro with Schema Registry, TopicNameStrategy)
@@ -62,8 +62,8 @@ Redis sink connector `sellable-redis` (redis-kafka-connect 1.1.0): `topics=stock
 | `stock:active_ns` | string | active namespace, e.g. `n1` |
 | `stock:{ns}:{store_id}:{product_id}` | hash | `quantity`, `revision`, `deleted` (`0/1`), `changed_at_ms`, `applied_at_ms` |
 | `stock:{ns}:meta` | hash | `ready` (`0/1`), `ready_reason`, `last_revision`, `last_applied_at_ms`, `snapshot_done` (`0/1`) |
-| `feed:status:{store_id}` | hash | written by watchdog per source: `state` (`ok/stale/unknown`), `probe_age_ms`, `checked_at_ms` |
-| `feed:status` | hash | written by watchdog: worst state over all stores (`ok` only if all ok), `probe_age_ms` (max), `checked_at_ms` |
+| `feed:status:{store_id}` | hash | written by the freshness probe per source: `state` (`ok/stale/unknown`), `probe_age_ms`, `checked_at_ms` |
+| `feed:status` | hash | written by the freshness probe: worst state over all stores (`ok` only if all ok), `probe_age_ms` (max), `checked_at_ms` |
 | `sellable:{product_id}` | hash | written by the Redis sink (section 3b); outside the namespace, not rebuilt by `rebuild-read-model` |
 
 Apply script contract (`KEYS[1]` = position key, `KEYS[2]` = meta key; `ARGV` = quantity, revision, deleted, changed_at_ms, applied_at_ms): if stored revision exists and `>= ARGV.revision` return `{0, stored...}` (stale/duplicate); otherwise `HSET` all fields, update `last_revision`/`last_applied_at_ms` in meta, return `{1, new...}`. Revisions are compared as integers below 2^53 (exact in Lua numbers).
@@ -76,13 +76,13 @@ Apply script contract (`KEYS[1]` = position key, `KEYS[2]` = meta key; `ARGV` = 
 {
   "product_id": "P0042",
   "status": "available | out_of_stock | unknown",
-  "sellable": 9, "at_least": false,
+  "sellable": 9, "confirmed_min": 9, "at_least": false,
   "last_changed_at": "2026-10-09T11:02:00.123Z",
   "restock_eta": null,
   "unknown_reason": null,
   "feed": "ok | stale | unknown",
   "stores": [
-    {"store_id": "S01", "status": "available | out_of_stock | not_stocked | unknown", "quantity": 2, "revision": 812, "feed": "ok"}
+    {"store_id": "S01", "status": "available | out_of_stock | not_stocked | unknown", "quantity": 2, "revision": 812, "feed": "ok", "live": true}
   ],
   "product": {"name": "Trailrunner GTX", "brand": "Alpenpace", "size": "EU 42", "image_url": "/img/P0042.svg"},
   "release": "1.1.0"
@@ -91,10 +91,13 @@ Apply script contract (`KEYS[1]` = position key, `KEYS[2]` = meta key; `ARGV` = 
 
 Two Redis pipelines per request inside the `stock.read` span (the namespace is needed to name the second batch): (1) `stock:active_ns`, `sellable:{product_id}`, `feed:status:{store}` for every store; (2) the namespace meta and the per-store positions `stock:{ns}:{store}:{product_id}` for every store in `STORE_HOSTS`.
 
-- `sellable` comes from `sellable:{product_id}` (Flink); the `stores` breakdown from the per-store positions (projector). They travel different paths and may briefly disagree; `sellable` is the answer.
-- A store is **unknown** when its position is missing, or the namespace is not ready, or its `feed:status:{store}` is not `ok` or older than 10 s. Its entry keeps quantity/revision when present, with `status: unknown` only if the position is missing.
-- `at_least = true` when any store is unknown or has a non-`ok` feed.
-- `status`: namespace not ready, Redis error, or `sellable:{product_id}` missing → `unknown` (`unknown_reason` ∈ `not_ready, redis_error, not_found`); `sellable > 0` → `available`; `sellable == 0` and not `at_least` → `out_of_stock`; `sellable == 0` and `at_least` → `unknown` (`unknown_reason: stores_unknown`). Never treated as zero or available. Redis errors still answer 200 with `unknown`; a 5xx means the API itself failed.
+- `sellable` comes from `sellable:{product_id}` (Flink): the sum of every store's last known position, including a quiet store's. The `stores` breakdown comes from the per-store positions (projector). They travel different paths and may briefly disagree.
+- `confirmed_min` is the answer: the quantity the shop may promise. With every store live it equals `sellable`. With any store not live it is the sum of the **live** stores' quantities, capped by `sellable` (`min(live sum, sellable)`), so a quiet store's last known quantity is never promised. `null` when `unknown_reason` is `not_ready`, `redis_error` or `not_found`.
+- A store is **live** (`live: true`) when the namespace is ready, its `feed:status:{store}` is `ok` and not older than 10 s, and its position is present (a `not_stocked` position is live and counts 0). Otherwise it is not live: its entry keeps quantity/revision when present (the **last seen** value, shown as detail and not counted), with `status: unknown` only if the position is missing.
+- `at_least = true` when any store is not live.
+- **The rule applies to every reader that decides "can I sell this?"**, not only to this API: the same keys, the same 10 s age limit, `not_stocked` live and 0, capped by `sellable`. Today that is the API and `offer-worker` (an alternative is eligible only if its confirmed minimum is > 0; uncomputable = not eligible), which keeps its own copy in `offer-worker/offer_worker/stock.py`. Both test suites run the shared case table [`stock-trust-cases.json`](stock-trust-cases.json); a new reader must run it too. `carts.at-risk` still fires on the Flink total (a known follow-up).
+- `status`: namespace not ready, Redis error, or `sellable:{product_id}` missing → `unknown` (`unknown_reason` ∈ `not_ready, redis_error, not_found`); `confirmed_min > 0` → `available`; `confirmed_min == 0` and not `at_least` → `out_of_stock`; `confirmed_min == 0` and `at_least` → `unknown` (`unknown_reason: stores_unknown`), even when `sellable > 0` from a quiet store's last seen value. Never treated as zero or available. Redis errors still answer 200 with `unknown`; a 5xx means the API itself failed.
+- Releases 1.0.0, 1.1.0 and 1.2.0 compute these fields with the same code; they differ only in `product` and in where the catalogue is prepared.
 - `product_id` must match `^P\d{4}$` (the probe product is not a shop product) → otherwise 404.
 - `feed` = worst store feed. `product`: `null` in release **1.0.0**; present in **1.1.0** and **1.2.0**. `release` = `DD_VERSION`.
 - `GET /healthz` (liveness) and `GET /readyz` (ready only after any startup preparation).
@@ -128,16 +131,17 @@ Unified tags on every service: `env:dd-demo`, `service:<name>`, `version:<releas
 | `stock.projector.records` | count | `op`, `outcome` (`applied/stale_or_duplicate`) | stock-projector |
 | `stock.projector.errors` | count | `reason` | stock-projector |
 | `stock.serving.ready` | gauge 0/1 | — | stock-projector |
-| `stock.probe.age` | gauge, seconds since the last probe write that is not yet visible in Redis (0 when caught up) | `store` | watchdog |
-| `stock.sellable.age` | gauge, seconds from the newest probe write to `sellable:__probe__.last_changed_at_ms` catching up (Flink + sink path; 0 when caught up) | — | watchdog |
-| `stock.probe.write_errors` | count | `store` | watchdog |
-| `stock.feed.state` | gauge (1 ok, 0 stale, -1 unknown) | `store` | watchdog |
-| `stock.connect.task_running` | gauge 0/1 | `connector` | watchdog (Connect REST; the five Debezium connectors and `sellable-redis`) |
+| `stock.probe.age` | gauge, seconds since the last probe write that is not yet visible in Redis (0 when caught up) | `store` | freshness-probe |
+| `stock.sellable.age` | gauge, seconds from the newest probe write to `sellable:__probe__.last_changed_at_ms` catching up (Flink + sink path; 0 when caught up) | — | freshness-probe |
+| `stock.probe.write_errors` | count | `store` | freshness-probe |
+| `stock.feed.state` | gauge (1 ok, 0 stale, -1 unknown) | `store` | freshness-probe |
+| `stock.connect.task_running` | gauge 0/1 | `connector` | freshness-probe (Connect REST; the five Debezium connectors and `sellable-redis`) |
 | `stock.lookup.result` | count | `status`, `unknown_reason`, `at_least` | inventory-api |
 | `stock.display.delay` | distribution, seconds (`last_changed_at` of the rendered sellable answer → backend receive time of the beacon) | — | storefront backend (beacon from UI) |
 | `offer.decision` | count | `route`, `reason` (adds `disabled` when no Jev key, `no_choice` when only notify-me is possible) | offer-worker |
 | `offer.text` | count | `route`, `reason` | offer-worker |
 | `offer.completed` | count | `offer_type` | offer-worker |
+| `offer.stock.unconfirmed` | count | `reason` (`not_ready`, `not_found`, `redis_error`, `malformed`, `stores_unknown`): an alternative's confirmed minimum was not computable, or 0 only because a store is not live; the alternative is not eligible | offer-worker |
 
 ## 8. Configuration (environment variables, values in untracked `.env`)
 

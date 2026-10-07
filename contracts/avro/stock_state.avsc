@@ -7,7 +7,7 @@
     {"name": "quantity", "type": "int"},
     {"name": "revision", "type": "long", "doc": "Source revision; newer always wins."},
     {"name": "deleted", "type": "boolean"},
-    {"name": "is_probe", "type": "boolean", "doc": "True for the synthetic probe position. Consumers other than the watchdog ignore it."},
+    {"name": "is_probe", "type": "boolean", "doc": "True for the synthetic probe position. Consumers other than the freshness probe ignore it."},
     {"name": "changed_at", "type": {"type": "long", "logicalType": "timestamp-millis"}, "doc": "Source mutation time."},
     {"name": "applied_at", "type": {"type": "long", "logicalType": "timestamp-millis"}, "doc": "Time the projector accepted it into Redis (or re-published it on redelivery)."},
     {"name": "source_op", "type": {"type": "enum", "name": "SourceOp", "symbols": ["SNAPSHOT", "CREATE", "UPDATE"]}}

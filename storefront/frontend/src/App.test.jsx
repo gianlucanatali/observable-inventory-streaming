@@ -90,6 +90,20 @@ describe('App', () => {
     expect(screen.queryByRole('combobox')).toBeNull();
   });
 
+  it('counts only live stores and shows a quiet store as last seen (Lab 2.1)', async () => {
+    window.location.hash = '#/product/P0042';
+    mockFetch({
+      '/api/products/P0042': P42,
+      '/config': { poll_ms: 60000, offers_enabled: false, release: 'x' },
+      '/api/availability/P0042': answer({ sellable: 9, confirmed_min: 6, at_least: true, feed: 'stale',
+        stores: STORES5.map((s) => (s.store_id === 'S03' ? { ...s, feed: 'stale', live: false } : { ...s, live: true })) }),
+    });
+    render(<App />);
+    await waitFor(() => expect(screen.getByTestId('stock-panel')).toHaveTextContent('At least 6 available online'));
+    expect(screen.getByTestId('stock-panel')).not.toHaveTextContent('At least 9');
+    expect(screen.getByTestId('stock-stores')).toHaveTextContent('Bologna 3 (last seen, not live)');
+  });
+
   it('adds to cart as ONLINE', async () => {
     window.location.hash = '#/product/P0042';
     mockFetch({

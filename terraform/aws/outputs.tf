@@ -18,16 +18,6 @@ output "redis_endpoint" {
   value       = aws_elasticache_cluster.redis.cache_nodes[0].address
 }
 
-output "ecr_repository_urls" {
-  description = "ECR repository URLs keyed by image name; retained for compatibility."
-  value       = { for name, repository in aws_ecr_repository.app : name => repository.repository_url }
-}
-
-output "ecr_repositories" {
-  description = "Stable ECR repository URL map for W4 image publishing."
-  value       = { for name, repository in aws_ecr_repository.app : name => repository.repository_url }
-}
-
 output "ecs_cluster_name" {
   description = "ECS cluster name used by stack.sh deployment commands."
   value       = aws_ecs_cluster.main.name

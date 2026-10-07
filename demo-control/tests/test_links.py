@@ -49,7 +49,7 @@ def test_guide_json_joins_stack_and_links_and_the_button_carries_it(client, part
     assert got == {**STACK, "links": {"control": "http://alb.example/control/", "shop": "http://alb.example/#/product/P0042",
                                       "stock-dashboard": "https://app.datadoghq.eu/dashboard/abc", "no-such-thumb": "https://example.org/x"}}
     html = client.get("/control/", headers=auth()).get_data(as_text=True)
-    assert 'id="guide-copy">Copy for the workshop guide</button>' in html and "section 4.4" in html
+    assert 'id="guide-copy">Copy for the workshop guide</button>' in html and "0.2.4" in html
     assert "&#34;kafka_cluster&#34;: &#34;lkc-xyz&#34;" in html and 'id="guide-copy" disabled' not in html
     assert "execCommand" in html and "navigator.clipboard" in html
 
@@ -81,3 +81,31 @@ def test_guide_json_is_escaped_in_the_page(client, parts):
     parts["redis"].set("demo:stack", json.dumps({**STACK, "stack": "</textarea><script>alert(1)</script>"}))
     html = client.get("/control/", headers=auth()).get_data(as_text=True)
     assert "</textarea><script>alert(1)" not in html and "&lt;/textarea&gt;" in html
+
+
+def test_first_published_link_is_the_first_tile(client, parts):
+    first = {"id": "overview-dashboard", "group": "Datadog", "name": "Overview dashboard", "url": "https://app.datadoghq.eu/dashboard/ovw"}
+    parts["redis"].set("demo:links", json.dumps([first, *LINKS]))
+    html = client.get("/control/", headers=auth()).get_data(as_text=True)
+    assert html.index('data-link="overview-dashboard"') < html.index('data-link="shop"')
+    assert '<img src="/control/thumbs/overview-dashboard.jpg"' in html.split('data-link="overview-dashboard"')[1].split("</a>")[0]
+
+
+def _jpeg_size(path) -> tuple[int, int]:
+    """(width, height) from the JPEG start-of-frame marker, stdlib only."""
+    import struct
+    data = path.read_bytes()
+    pos = 2
+    while pos < len(data):
+        marker, length = data[pos + 1], struct.unpack(">H", data[pos + 2:pos + 4])[0]
+        if 0xC0 <= marker <= 0xCF and marker not in (0xC4, 0xC8, 0xCC):
+            height, width = struct.unpack(">HH", data[pos + 5:pos + 9])
+            return width, height
+        pos += 2 + length
+    raise AssertionError(f"{path}: no JPEG frame header")
+
+
+def test_every_published_tile_id_has_a_480x270_thumbnail():
+    from demo_control.links_card import THUMBS
+    for tid in ("overview-dashboard", "stream-lineage", "topic-inventory-cdc", "topic-stock-sellable"):
+        assert _jpeg_size(THUMBS / f"{tid}.jpg") == (480, 270), tid

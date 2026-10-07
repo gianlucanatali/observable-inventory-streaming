@@ -14,6 +14,10 @@ class Metrics:
     def text(self, route: str, reason: str) -> None:
         self._c.increment("offer.text", tags=[f"route:{route}", f"reason:{reason}"])
 
+    def stock_unconfirmed(self, reason: str) -> None:
+        """An alternative's confirmed minimum was not > 0 for a reason other than live stock at 0."""
+        self._c.increment("offer.stock.unconfirmed", tags=[f"reason:{reason}"])
+
     def completed(self, offer_type: str) -> None:
         self._c.increment("offer.completed", tags=[f"offer_type:{offer_type}"])
 

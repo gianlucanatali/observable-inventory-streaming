@@ -62,7 +62,7 @@ def test_product_page():
     assert checks.evaluate_product_page("Out of stock online", foot).ok
     assert not checks.evaluate_product_page("Availability can't be confirmed right now", foot).ok
     assert not checks.evaluate_product_page("Checking availability…", foot).ok
-    assert not checks.evaluate_product_page("At least 3 available online By store: Roma 2 (not live)", foot).ok
+    assert not checks.evaluate_product_page("At least 3 available online By store: Roma 2 (last seen, not live)", foot).ok
     assert not checks.evaluate_product_page("3 available online", "Serving release –").ok
     assert not checks.evaluate_product_page("3 available online", "").ok
 

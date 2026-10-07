@@ -5,5 +5,5 @@ containers except the agent; process collection off; `DD_SITE=datadoghq.eu`, `DD
 `DD_HOSTNAME` default `dd-demo-host` locally, set to the instance name on EC2). Checks are the three files in
 `conf.d/`, injected through compose `configs`.
 
-Not configured on purpose: a Kafka Connect JMX check. The watchdog already reports `stock.connect.task_running`
+Not configured on purpose: a Kafka Connect JMX check. The freshness probe already reports `stock.connect.task_running`
 from the Connect REST API, which is the signal the demo uses.

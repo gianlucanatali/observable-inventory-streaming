@@ -1,6 +1,6 @@
 # AWS-native online side
 
-This directory owns the AWS cloud half of one demo stack: ECR, a single-node `cache.t4g.small` ElastiCache Redis instance, Fargate ARM64 application services with Datadog Agent sidecars, and the public ALB. It uses the default VPC's subnets and has no NAT gateway.
+This directory owns the AWS cloud half of one demo stack: a single-node `cache.t4g.small` ElastiCache Redis instance, Fargate ARM64 application services with Datadog Agent sidecars, and the public ALB. It uses the default VPC's subnets and has no NAT gateway. Task images come from the per-stack ECR repositories of `terraform/images`, tagged by content (`image_tags`).
 
 ## State isolation
 

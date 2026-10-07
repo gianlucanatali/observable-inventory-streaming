@@ -1,0 +1,743 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Setup | Observable inventory streaming</title>
+<meta name="description" content="Hands-on workshop: stream stock changes from five PostgreSQL store databases through Debezium and Confluent Cloud into Redis on AWS, then find and fix a slow release with Datadog.">
+<meta name="color-scheme" content="light dark">
+<!-- Generated from workshop/README.md by workshop/site/build.py. Do not edit by hand. -->
+<script>
+// Set the lab path before the first paint, so the page never shows both paths and then hides one.
+(function () {
+  var d = document.documentElement, p = null;
+  d.classList.add("js");
+  var m = /[?&]path=(panel|terminal)(?:&|$)/.exec(location.search);
+  try {
+    if (m) { p = m[1]; localStorage.setItem("workshop-path", p); }
+    else { p = localStorage.getItem("workshop-path"); }
+  } catch (e) {
+    console.warn("workshop: localStorage unavailable, the path choice is not remembered:", e);
+    if (m) p = m[1];
+  }
+  if (p !== "panel" && p !== "terminal") p = null;
+  d.setAttribute("data-path-mode", p || "panel");
+  if (p) d.setAttribute("data-path-chosen", "");
+})();
+</script>
+<link rel="stylesheet" href="assets/fonts.css?v=471d416a0c">
+<link rel="stylesheet" href="assets/site.css?v=84305200bf">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23632CA6'/%3E%3Cpath d='M8 21h4v-6H8zm6 0h4V10h-4zm6 0h4v-9h-4z' fill='white'/%3E%3C/svg%3E">
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<header class="topbar">
+  <button type="button" class="toc-toggle" aria-controls="toc" aria-expanded="false">
+    <span class="burger" aria-hidden="true"></span><span class="sr-only">Table of contents</span>
+  </button>
+  <a class="brand" href="intro.html" title="Start of the workshop"><span class="brand-mark" aria-hidden="true"></span><span>Observable inventory streaming</span></a>
+  <div class="path-switch" role="group" aria-label="Lab path">
+    <span class="path-switch-label" aria-hidden="true">Path</span>
+    <button type="button" data-set-path="panel" aria-pressed="true" title="Show the control panel steps">Panel</button>
+    <button type="button" data-set-path="terminal" aria-pressed="false" title="Show the terminal (make) steps">Terminal</button>
+  </div>
+  <a class="stack-badge" id="stack-badge" href="#connect-box" hidden title="Your stack is connected to this guide. Open the Connect box."><span class="stack-dot" aria-hidden="true"></span><span class="stack-badge-text">Connected<span class="stack-badge-name"></span></span></a>
+  <nav class="topbar-links" aria-label="Site">
+    <a class="topbar-home" href="index.html">Home</a>
+    <a class="topbar-current" href="intro.html" aria-current="page">Workshop</a><a class="topbar-extra" href="workshop.html">One-page guide</a>
+    <a class="topbar-extra topbar-md" href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/workshop/README.md" target="_blank" rel="noopener">Markdown source</a>
+    <a class="topbar-extra" href="https://github.com/gianlucanatali/observable-inventory-streaming" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+</header>
+<div class="layout">
+  <nav id="toc" class="toc" aria-label="Table of contents">
+    <p class="toc-title">Workshop</p><ol class="chapter-list"><li><a href="intro.html">Intro</a></li><li><a href="setup.html" aria-current="page"><span class="cl-n">0</span>Setup</a></li><li><a href="chapter-1.html"><span class="cl-n">1</span>One honest number</a></li><li><a href="chapter-2.html"><span class="cl-n">2</span>Unknown is not zero</a></li><li><a href="chapter-3.html"><span class="cl-n">3</span>The incident</a></li><li><a href="chapter-4.html"><span class="cl-n">4</span>Canary the fix</a></li><li><a href="chapter-5.html"><span class="cl-n">5</span>The AI offer</a></li><li><a href="chapter-6.html"><span class="cl-n">6</span>Datadog on top</a></li></ol><p class="toc-title">Help and reference</p><ol class="chapter-list chapter-list-help"><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="teardown.html">Teardown</a></li><li><a href="recap.html">Recap</a></li><li><a href="reference.html">Reference</a></li><li><a class="guide-link" href="workshop.html">One-page guide</a></li></ol><p class="toc-title toc-title-page">On this page</p><ol class="toc-list">
+<li class="toc-h2"><a href="#01-prerequisites">0.1 Prerequisites</a>
+<ol class="toc-sub">
+<li class="toc-h3"><a href="#011-accounts">0.1.1 Accounts</a></li>
+<li class="toc-h3"><a href="#012-local-tools">0.1.2 Local tools</a></li>
+<li class="toc-h3"><a href="#013-readiness-check">0.1.3 Readiness check</a></li>
+<li class="toc-h3"><a href="#014-get-the-code">0.1.4 Get the code</a></li>
+</ol></li>
+<li class="toc-h2"><a href="#02-build-the-stack">0.2 Build the stack</a>
+<ol class="toc-sub">
+<li class="toc-h3"><a href="#021-configure-demoyaml">0.2.1 Configure demo.yaml</a></li>
+<li class="toc-h3"><a href="#022-run-the-preflight-no-cloud-costs-yet">0.2.2 Run the preflight (no cloud costs yet)</a></li>
+<li class="toc-h3"><a href="#023-create-the-stack">0.2.3 Create the stack</a></li>
+<li class="toc-h3"><a href="#024-connect-this-guide-to-your-stack-recommended">0.2.4 Connect this guide to your stack (recommended)</a></li>
+<li class="toc-h3"><a href="#025-open-the-shop-the-control-panel-and-datadog">0.2.5 Open the shop, the control panel and Datadog</a></li>
+<li class="toc-h3"><a href="#026-start-from-a-clean-state">0.2.6 Start from a clean state</a></li>
+<li class="toc-h3"><a href="#027-checkpoint">0.2.7 Checkpoint</a></li>
+</ol></li>
+</ol>
+  </nav>
+  <div class="scrim" hidden></div>
+  <main id="content" class="content" tabindex="-1">
+    <article id="top" class="doc">
+<nav class="chapter-progress" aria-label="Chapters"><ol><li class="cp-step cp-extra"><a href="intro.html"><span class="cp-dot" aria-hidden="true">&middot;</span><span class="cp-label">Intro</span></a></li><li class="cp-step cp-extra cp-current"><a href="setup.html" aria-current="page"><span class="cp-dot" aria-hidden="true">0</span><span class="cp-label">Setup</span></a></li><li class="cp-step"><a href="chapter-1.html"><span class="cp-dot" aria-hidden="true">1</span><span class="cp-label">One honest number</span></a></li><li class="cp-step"><a href="chapter-2.html"><span class="cp-dot" aria-hidden="true">2</span><span class="cp-label">Unknown is not zero</span></a></li><li class="cp-step"><a href="chapter-3.html"><span class="cp-dot" aria-hidden="true">3</span><span class="cp-label">The incident</span></a></li><li class="cp-step"><a href="chapter-4.html"><span class="cp-dot" aria-hidden="true">4</span><span class="cp-label">Canary the fix</span></a></li><li class="cp-step"><a href="chapter-5.html"><span class="cp-dot" aria-hidden="true">5</span><span class="cp-label">The AI offer</span></a></li><li class="cp-step"><a href="chapter-6.html"><span class="cp-dot" aria-hidden="true">6</span><span class="cp-label">Datadog on top</span></a></li></ol></nav>
+<p class="chapter-kicker">Getting started, before Chapter 1</p>
+<h1 class="chapter-title">Setup</h1>
+<aside class="see-box"><p class="see-title">What you will do</p><ul>
+<li>Check your accounts and tools, then fill in one configuration file and run one command to build the stack.</li>
+<li>Open the Online shop, the control panel and Datadog, and start from a clean state.</li>
+<li>Check that everything is green before Chapter 1.</li>
+</ul>
+<p class="see-meta">The build takes about 30 minutes with the default core layers, about 36 with every layer, mostly waiting.</p>
+</aside>
+<h2 id="01-prerequisites">0.1 Prerequisites <a class="header-anchor" href="#01-prerequisites">#</a></h2>
+<!-- box: setup-do
+- Check your accounts and tools, then fill in one configuration file and run one command to build the stack.
+- Open the Online shop, the control panel and Datadog, and start from a clean state.
+- Check that everything is green before Chapter 1.
+
+The build takes about 30 minutes with the default core layers, about 36 with every layer, mostly waiting.
+-->
+<h3 id="011-accounts">0.1.1 Accounts <a class="header-anchor" href="#011-accounts">#</a></h3>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>Account</th>
+<th>What you need</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AWS</td>
+<td>Permission to create EC2, ECS, ECR, ELB, ElastiCache, IAM roles, SSM parameters, S3 and Cost and Usage Report exports; administrator access is simplest. Region <code>eu-west-1</code> must still have its <strong>default VPC</strong>. An AWS CLI profile, <code>dd-demo</code> in this guide, that you sign in to with <code>aws login</code></td>
+</tr>
+<tr>
+<td>Confluent Cloud</td>
+<td>An organisation and a <strong>Cloud resource management</strong> API key owned by a user with the OrganizationAdmin role. New sign-ups usually come with promotional credit; check its amount and expiry under Billing</td>
+</tr>
+<tr>
+<td>Datadog</td>
+<td>An organisation on the <strong>EU site</strong> (<code>app.datadoghq.eu</code>), for example a trial, with an API key and an application key. Not verified: which products every trial includes. This workshop uses APM, Logs, DSM, LLM Observability, Synthetics, RUM and Cloud Cost Management</td>
+</tr>
+<tr>
+<td>TypeSafe Jev (optional)</td>
+<td>An API key for the Jev decision API. Without it, everything still works, and every offer in Lab 5.1 uses the rule default</td>
+</tr>
+</tbody>
+</table></div>
+<p>Sign-up pages: <a href="https://aws.amazon.com/free/" rel="noopener" target="_blank">AWS</a>, <a href="https://www.confluent.io/confluent-cloud/tryfree/" rel="noopener" target="_blank">Confluent Cloud</a>, <a href="https://www.datadoghq.com/free-datadog-trial/" rel="noopener" target="_blank">Datadog trial</a>.</p>
+<h3 id="012-local-tools">0.1.2 Local tools <a class="header-anchor" href="#012-local-tools">#</a></h3>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>Version</th>
+<th>Used for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>git</code></td>
+<td>Any recent</td>
+<td>Getting the code and its submodule</td>
+</tr>
+<tr>
+<td><code>terraform</code></td>
+<td>1.6.0 or newer</td>
+<td>All cloud resources</td>
+</tr>
+<tr>
+<td><code>docker</code> CLI with the <code>compose</code> and <code>buildx</code> plugins</td>
+<td>Recent</td>
+<td>Driving Docker on the VM over SSH; images are built there</td>
+</tr>
+<tr>
+<td>AWS CLI v2</td>
+<td>2.32.0 or newer, the first with <code>aws login</code></td>
+<td>Sign-in and AWS calls</td>
+</tr>
+<tr>
+<td><code>ssh</code> and an Ed25519 key at <code>~/.ssh/id_ed25519.pub</code></td>
+<td>Any</td>
+<td>The VM's key pair (set <code>TF_VAR_ssh_public_key_path</code> for another key)</td>
+</tr>
+<tr>
+<td><code>python3</code>, <code>make</code>, <code>curl</code>, <code>jq</code>, <code>openssl</code></td>
+<td>Any recent</td>
+<td><code>./demo</code>, make targets, helper scripts, password generation</td>
+</tr>
+<tr>
+<td><code>confluent</code> CLI (optional)</td>
+<td>Any</td>
+<td>Read-only checks: prices and the leftover check after teardown</td>
+</tr>
+<tr>
+<td>A Chromium-based browser (Chrome)</td>
+<td>Recent</td>
+<td>The shop, the control panel, Datadog and the Confluent Cloud console; the console did not load topic lists in Safari in our tests</td>
+</tr>
+</tbody>
+</table></div>
+<p>You do not need Node.js, Python packages or a local Kafka.</p>
+<h3 id="013-readiness-check">0.1.3 Readiness check <a class="header-anchor" href="#013-readiness-check">#</a></h3>
+<p>Sign in to AWS. This command opens a browser window; finish the sign-in there:</p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>aws<span class="w"> </span>login<span class="w"> </span>--profile<span class="w"> </span>dd-demo
+</code></pre></div>
+<p>Then check which identity you are using (this is read-only):</p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>aws<span class="w"> </span>sts<span class="w"> </span>get-caller-identity<span class="w"> </span>--profile<span class="w"> </span>dd-demo
+</code></pre></div>
+<p>You should see your account ID and your user or role ARN in JSON. The full readiness check, which tests every tool and credential, runs as the first part of <code>./demo create</code> in <a href="#022-run-the-preflight-no-cloud-costs-yet">0.2.2 Run the preflight</a>.</p>
+<h3 id="014-get-the-code">0.1.4 Get the code <a class="header-anchor" href="#014-get-the-code">#</a></h3>
+<p>The workshop code is in a public GitHub repository. It uses one git submodule, <code>vendor/jr</code> (the generator for background sales). The build needs it, so clone with <code>--recurse-submodules</code>:</p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>git<span class="w"> </span>clone<span class="w"> </span>--recurse-submodules<span class="w"> </span>https://github.com/gianlucanatali/observable-inventory-streaming.git
+<span class="nb">cd</span><span class="w"> </span>observable-inventory-streaming
+</code></pre></div>
+<details><summary>Other ways to get the code: a fork, a clone without submodules, or no git</summary>
+<ul>
+<li>
+<p><strong>If you want to push your own changes:</strong> first press <strong>Fork</strong> on GitHub. Then run the same two commands with your fork's URL and folder name.</p>
+</li>
+<li>
+<p><strong>If you cloned without <code>--recurse-submodules</code>:</strong> fetch the submodule from the repository root:</p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>git<span class="w"> </span>submodule<span class="w"> </span>update<span class="w"> </span>--init
+</code></pre></div>
+</li>
+<li>
+<p><strong>If you don't have git:</strong> on the repository page, choose <strong>Code &gt; Download ZIP</strong> and unzip it. The ZIP does <strong>not</strong> include the submodule, so <code>vendor/jr</code> is empty and the build fails. On GitHub, the <code>vendor/jr</code> entry links to the exact commit that the workshop uses. Download that commit as a ZIP too, and unzip its contents into <code>vendor/jr</code>. Cloning with git is simpler.</p>
+</li>
+</ul>
+</details>
+<p>From here on, run every command from the root of this folder (<code>observable-inventory-streaming</code>, or your fork's folder).</p>
+<h2 id="02-build-the-stack">0.2 Build the stack <a class="header-anchor" href="#02-build-the-stack">#</a></h2>
+<p>You build everything with one configuration file and one command; the steps follow. If you are curious what the command does underneath, <a href="reference.html#i-what-demo-does-step-by-step">Reference I</a> explains it, but the labs do not need it.</p>
+<details><summary>Can I run it on my computer instead of the cloud? (preview, not yet tested)</summary>
+<p>This guide runs the demo in the cloud (AWS and Confluent Cloud, with Datadog). That is the tested way, and every lab is written for it.</p>
+<p>There is also a local mode (<code>mode: local</code> in <code>demo.yaml</code>) that runs the demo in a Lima VM on your computer, with no AWS or Confluent Cloud costs. It is a preview: it has not been tested end to end on a fresh machine yet, so expect rough edges. If you want to try it, set up with <a href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/LOCAL.md" rel="noopener" target="_blank">Run locally</a> instead of 0.1 and 0.2, then come back for the labs.</p>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th></th>
+<th>In the cloud (<code>mode: cloud</code>, the default)</th>
+<th>On your computer (<code>mode: local</code>)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Runs on</td>
+<td>AWS and Confluent Cloud, with Datadog</td>
+<td>A Lima VM on your computer, with Datadog</td>
+</tr>
+<tr>
+<td>Cost</td>
+<td>AWS and Confluent Cloud: about $1.50 to $2.50 per hour while it runs. Datadog: usage on your account (a trial covers it)</td>
+<td>No AWS or Confluent Cloud cost. Datadog: usage on your account (a trial covers it). Jev: its own calls, only if you set a key</td>
+</tr>
+<tr>
+<td>Labs</td>
+<td>Every lab</td>
+<td>Not Lab 1.2 (no Confluent Cloud console); no Synthetics, Confluent integration, AWS or cost views; Flink is replaced by a Python stand-in</td>
+</tr>
+<tr>
+<td>Tested end to end</td>
+<td>Yes</td>
+<td>Not yet on a fresh machine</td>
+</tr>
+<tr>
+<td>Use it for</td>
+<td>The full workshop</td>
+<td>Trying the main labs without AWS or Confluent Cloud costs, or changing the code and testing it on your computer</td>
+</tr>
+</tbody>
+</table></div>
+</details>
+<h3 id="021-configure-demoyaml">0.2.1 Configure <code>demo.yaml</code> <a class="header-anchor" href="#021-configure-demoyaml">#</a></h3>
+<p><code>demo.yaml</code> keeps all your settings and credentials in one file. Git ignores it, and <code>./demo</code> refuses to run if anyone other than you can read it. From the repository root (<a href="#014-get-the-code">0.1.4 Get the code</a>):</p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>cp<span class="w"> </span>demo.example.yaml<span class="w"> </span>demo.yaml
+chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>demo.yaml
+</code></pre></div>
+<p>Open <code>demo.yaml</code> in an editor and set the keys below. Use an editor, not <code>echo</code>, so your keys do not end up in your shell history. Write values as plain text, without quotes.</p>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>stack</code></td>
+<td>The name of your deployment. Keep <code>hybrid</code> to match the examples in this guide, or choose your own (see below)</td>
+</tr>
+<tr>
+<td><code>aws_profile</code>, <code>aws_region</code></td>
+<td>Keep <code>dd-demo</code> and <code>eu-west-1</code>. The code uses these by default</td>
+</tr>
+<tr>
+<td><code>layers</code></td>
+<td>Optional. Leave it out, or write <code>layers: core</code>, for step by step: core only, and the labs add layers one by one (<a href="intro.html#which-layers-each-chapter-needs">Which layers each Chapter needs</a>). Write <code>layers: all</code> for everything at once: it bills for every layer from the first hour</td>
+</tr>
+<tr>
+<td><code>datadog_site</code></td>
+<td>Keep <code>datadoghq.eu</code>. This guide does not support other sites</td>
+</tr>
+<tr>
+<td><code>dd_api_key</code>, <code>dd_app_key</code></td>
+<td>Your Datadog API key and application key</td>
+</tr>
+<tr>
+<td><code>confluent_cloud_api_key</code>, <code>confluent_cloud_api_secret</code></td>
+<td>Your Confluent Cloud resource management key and secret</td>
+</tr>
+<tr>
+<td><code>allowed_cidr</code></td>
+<td>Optional, commented out in the file. Leave it commented out and <code>./demo create</code> detects your current public IP. To set it, remove the leading <code># </code> and write one IPv4 address as a <code>/32</code>, without quotes, for example <code>allowed_cidr: 203.0.113.7/32</code>. Only this address can reach the Online shop, the control panel and the VM.</td>
+</tr>
+<tr>
+<td><code>jev_api_key</code></td>
+<td>Optional, commented out in the file. Leave it commented out to use only the rule default</td>
+</tr>
+<tr>
+<td><code>keep_images</code></td>
+<td>Optional, commented out in the file, <code>true</code> or <code>false</code> (default <code>false</code>). With <code>false</code>, <code>./demo destroy</code> also deletes the stack's container image repositories, so nothing is left billing. With <code>true</code>, destroy keeps them (storage about $0.10 per GB-month) and the next <code>./demo create</code> reuses every image whose code has not changed instead of building it again (<a href="teardown.html#teardown">Teardown</a>)</td>
+</tr>
+<tr>
+<td><code>owner</code></td>
+<td>Optional, commented out in the file (default: your local user name, <code>id -un</code>). The value of the <code>owner</code> tag on every AWS resource the build creates. Many companies ask for a work email, for example <code>jane.doe@example.com</code>. Letters, digits and <code>_ . : / = + - @</code> only, no spaces, up to 256 characters; <code>./demo</code> refuses anything else and names the key. Datadog does not receive this tag from the build</td>
+</tr>
+</tbody>
+</table></div>
+<aside class="admonition admonition-warning" role="note"><p class="admonition-title"><span class="admonition-icon" aria-hidden="true"></span>Warning</p>
+<p>Never paste these values into a chat, an issue, a screenshot or a terminal recording.</p>
+</aside>
+<p>Choose one way. Both are one line in <code>demo.yaml</code>.</p>
+<p>Step by step (default, cheaper). Core only, and the labs turn on the other layers. You can also leave the whole line out:</p>
+<div class="code code-out" data-lang="yaml"><div class="code-bar"><span class="code-label">YAML</span><button type="button" class="copy" aria-label="Copy yaml to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code><span class="nt">layers</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">core</span>
+</code></pre></div>
+<p>Everything at once. All layers, billed at the full rate from the first minute:</p>
+<div class="code code-out" data-lang="yaml"><div class="code-bar"><span class="code-label">YAML</span><button type="button" class="copy" aria-label="Copy yaml to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code><span class="nt">layers</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">all</span>
+</code></pre></div>
+<details><summary>Pick your own set of layers</summary>
+<p>You can also write a comma-separated list with no spaces, for example <code>layers: core,releases</code>. <code>core</code> is always on. Valid names are <code>core</code>, <code>releases</code>, <code>restock</code>, <code>offers</code>, <code>dd-streams</code>, <code>dd-synthetics</code> and <code>dd-rum</code>; <a href="intro.html#which-layers-each-chapter-needs">Which layers each Chapter needs</a> says what each one adds. <code>all</code> stands alone and does not mix with other names.</p>
+<p>There is one more layer, <code>control-center</code>, that no lab needs: Confluent Control Center, Confluent's web console for self-managed components, here the Kafka Connect worker on the VM. It is not part of <code>all</code>; to try it, add it to a list, for example <code>layers: core,control-center</code>.</p>
+</details>
+<p>You do not need to get anything for <code>stack</code> and <code>aws_region</code>: keep the defaults. For <code>layers</code>, write <code>core</code> (or <code>all</code>) as above, or leave the line out. The blocks below explain where each of the other values comes from.</p>
+<h4 id="the-stack-name">The stack name <a class="header-anchor" href="#the-stack-name">#</a></h4>
+<details><summary>More about <code>demo.yaml</code>: the stack name, where each value comes from, the files it writes</summary>
+<p><strong>Choosing another name, and where the name appears.</strong></p>
+<p><code>stack: hybrid</code> is the name of your deployment. You can change it before the first <code>./demo create</code>: use 2 to 16 characters, lowercase letters, digits and <code>-</code>, starting with a letter (the rule is <code>^[a-z][a-z0-9-]{1,15}$</code>). The name appears in three places:</p>
+<ul>
+<li>as the <code>stack</code> tag on everything the build creates in AWS and Datadog (<code>stack:&lt;name&gt;</code> in Datadog);</li>
+<li>in resource names, which start with <code>dd-demo-&lt;name&gt;</code>: the ECS cluster, the Confluent Cloud environment, the Datadog <code>env</code> and the dashboard titles;</li>
+<li>in the local files for this deployment, such as <code>.env.cloud-&lt;name&gt;</code> and <code>.state/logs/&lt;name&gt;-latest.log</code>.</li>
+</ul>
+<p>The make commands in this guide read <code>stack</code> (and the AWS profile, region and layers) from <code>demo.yaml</code>, the same way <code>./demo</code> does, so you type <code>make reset</code>, not <code>make STACK=&lt;name&gt; reset</code>. A value you give on the command line still wins. This guide uses <code>hybrid</code> in its examples: if you chose another name, read <code>dd-demo-&lt;your name&gt;</code> wherever it shows the <code>hybrid</code> environment name, and <code>stack:&lt;your name&gt;</code> for the <code>hybrid</code> stack tag. Do not rename the stack while it exists: the build would treat the new name as a second deployment.</p>
+<p><strong>How to find everything this demo created.</strong></p>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>Where</th>
+<th>How the build marks it</th>
+<th>Example search</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AWS</td>
+<td>Tags on every resource: <code>project = dd-demo</code>, <code>stack = &lt;name&gt;</code> (<code>stack = account</code> for the account-wide pieces) and <code>owner = &lt;your local user name&gt;</code>. The VM's resources also carry <code>layer = core</code></td>
+<td>Resource Groups &gt; Tag Editor with tag <code>project</code> = <code>dd-demo</code>, or <code>aws resourcegroupstaggingapi get-resources --tag-filters Key=project,Values=dd-demo --profile dd-demo --region eu-west-1</code>. This list lags behind deletions (see <a href="teardown.html#teardown">Teardown</a>)</td>
+</tr>
+<tr>
+<td>Datadog</td>
+<td>Tags <code>project:dd-demo</code> and <code>stack:&lt;name&gt;</code>, plus <code>layer:&lt;layer&gt;</code> on the objects of optional layers. The telemetry <code>env</code> is <code>dd-demo-&lt;name&gt;</code></td>
+<td>Search <code>project:dd-demo stack:&lt;name&gt;</code> in Monitors and Synthetic tests, and <code>dd-demo-&lt;name&gt;</code> in Dashboards</td>
+</tr>
+<tr>
+<td>Confluent Cloud</td>
+<td>The environment is named <code>dd-demo-&lt;name&gt;</code>. The build can also put Stream Catalog tags (project, stack, layer) on topics, but that option is off by default, so do not expect them</td>
+<td><code>confluent environment list</code>, or the environment list in the console</td>
+</tr>
+</tbody>
+</table></div>
+<p>The <code>owner</code> tag holds the user name you are logged in with on your computer (<code>id -un</code>) unless you set <code>owner:</code> in <code>demo.yaml</code>, for example <code>owner: jane.doe@example.com</code>. It is visible to anyone who can read the AWS account's tags, so use something you are happy to show. An <code>OWNER=&lt;value&gt;</code> environment variable, as in <code>OWNER=&lt;value&gt; ./demo create</code>, overrides the file for that run. Datadog does not get this tag from the build. If the Datadog AWS integration imports it, Datadog's tagging rules turn <code>@</code> into <code>_</code> (not tested in this workshop).</p>
+<p><strong>What the demo writes in this folder.</strong> Everything stays in the folder you cloned, and git ignores all of it, so none of it can be committed by mistake. Your own keys are in two places only: <code>demo.yaml</code> and a private copy in <code>.env</code>.</p>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>File</th>
+<th>What it holds</th>
+<th>Lifetime</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>demo.yaml</code></td>
+<td>Your settings and your Confluent and Datadog keys</td>
+<td>Yours; never changed by the build</td>
+</tr>
+<tr>
+<td><code>.env</code></td>
+<td>A copy of the keys from <code>demo.yaml</code>, readable only by you (mode 600). Docker Compose and the scripts read env files, not YAML</td>
+<td>Rewritten by every <code>./demo create</code>; stays until you delete it</td>
+</tr>
+<tr>
+<td><code>.env.secrets</code></td>
+<td>Random passwords the build generates (store databases, control panel, load tool). Not your keys</td>
+<td>Created once; stays until you delete it</td>
+</tr>
+<tr>
+<td><code>.env.cloud-&lt;name&gt;</code></td>
+<td>What the build created for this stack: addresses, ids, and keys the build made itself (for example the cost meter's Confluent key and the RUM client token). Mode 600</td>
+<td>Written by <code>./demo create</code>, deleted by <code>./demo destroy</code></td>
+</tr>
+<tr>
+<td><code>.state/</code></td>
+<td>Small bookkeeping files: which layers are on, the release routing</td>
+<td>The stack's files are removed by <code>./demo destroy</code></td>
+</tr>
+<tr>
+<td><code>terraform/&lt;part&gt;/terraform.tfstate.d/&lt;name&gt;/</code></td>
+<td>Terraform's record of what it created. Like any Terraform state, it can contain the secrets of those resources</td>
+<td>Emptied by <code>./demo destroy</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Running more than one deployment.</strong> Each folder holds the state of its deployments (see &quot;What the demo writes in this folder&quot; above). <code>./demo</code> works with the one stack named in that folder's <code>demo.yaml</code>. If you need more deployments, use a separate folder for each one:</p>
+<ol>
+<li>Make a <strong>fresh clone</strong> (<a href="#014-get-the-code">0.1.4 Get the code</a>) into a new folder. Do not copy a folder that has already built a stack: the copy would contain that stack's Terraform state and files, and a command run in the copy would change or destroy the other deployment.</li>
+<li>In the new folder, create <code>demo.yaml</code> and choose a <strong>different</strong> <code>stack</code> name.</li>
+<li>Decide what to do with the account-wide pieces (below), then run <code>./demo create</code> there.</li>
+</ol>
+<p>The account-wide pieces are shared by every deployment in the same AWS account, Datadog organisation and Confluent Cloud organisation: the Cost and Usage Report export and its S3 bucket, the Datadog AWS integration and its IAM role, the read-only Confluent identity for the cost meter and the account cost dashboard. Every <code>./demo create</code> applies them first, in the <code>terraform account</code> step, from the state in that folder (<code>terraform/account/terraform.tfstate.d/account/</code>). A fresh clone has no such state, so:</p>
+<ul>
+<li><strong>Other accounts</strong> (a different AWS account, Datadog organisation and Confluent organisation): nothing to do. The clone creates its own account-wide pieces.</li>
+<li><strong>The same accounts:</strong> a fresh clone tries to create the account-wide pieces again. The names are fixed, so expect the <code>terraform account</code> step to fail with &quot;already exists&quot; errors before any per-stack resource is created. Terraform may create some pieces before it stops, so after such a failure run <code>make stack-leftovers</code> and check the Confluent Cloud console. The build has no option to skip this step. The workaround is to copy only the account state file from the first folder into the clone before <code>./demo create</code>: <code>terraform/account/terraform.tfstate.d/account/terraform.tfstate</code>, to the same path. Both folders then manage the same account-wide resources, so remove them (<a href="reference.html#f-remove-the-account-wide-pieces">F</a>) from one folder only, after every deployment is destroyed. We have not tested two deployments in the same accounts.</li>
+</ul>
+<p>Each deployment bills on its own, about $1.50 to $2.50 per hour (<a href="reference.html#d-cost-details">details</a>). Destroy each one from its own folder.</p>
+<p><strong>Where do I get <code>aws_profile</code>?</strong></p>
+<ol>
+<li>Install AWS CLI 2.32.0 or newer (<a href="#012-local-tools">0.1.2 Local tools</a>).</li>
+<li>Run <code>aws login --profile dd-demo</code> as in <a href="#013-readiness-check">0.1.3 Readiness check</a>. The first time, it creates the profile and asks for a region: enter <code>eu-west-1</code>.</li>
+<li>Sign in in the browser with a user or role that has the permissions in <a href="#011-accounts">0.1.1 Accounts</a>. An IAM user or role also needs the AWS managed policy <code>SignInLocalDevelopmentAccess</code>; the root user does not.</li>
+<li>Check the profile with <code>aws sts get-caller-identity --profile dd-demo</code>, then keep <code>aws_profile: dd-demo</code>.</li>
+</ol>
+<p>The session lasts up to 12 hours. After that, run <code>aws login --profile dd-demo</code> again.</p>
+<p>Official docs: <a href="https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sign-in.html" rel="noopener" target="_blank">Login for AWS local development using console credentials</a></p>
+<p><strong>Where do I get <code>allowed_cidr</code>?</strong></p>
+<p><code>allowed_cidr</code> is an address range in CIDR notation, where <code>/32</code> means exactly one address. It is the only source address that the security groups (AWS firewall rules) of the load balancer and the VM let through.</p>
+<p>If you leave it commented out (or empty), <code>./demo create</code> looks up your public IPv4 address once at <code>https://checkip.amazonaws.com</code> (5 second timeout) and uses it as a <code>/32</code>, before it writes or bills anything. If the lookup fails, it stops and creates nothing, and you set <code>allowed_cidr</code> yourself. <code>--dry-run</code> skips the lookup. The detected address is not saved to <code>demo.yaml</code>, so if your IP changes, set <code>allowed_cidr</code> or run <code>./demo create</code> again. <code>make stack-preflight</code>, <code>make stack-up</code>, <code>make layer-on</code> and <code>make layer-off</code> do the same lookup when <code>allowed_cidr</code> is empty, print the address they use, and stop with a clear message if the lookup fails. See also <a href="troubleshooting.html#troubleshooting">Troubleshooting</a>.</p>
+<p>To find your public IP yourself, open <a href="https://checkip.amazonaws.com" rel="noopener" target="_blank">https://checkip.amazonaws.com</a> in the browser you will use for the labs, or run <code>curl https://checkip.amazonaws.com</code>. Add <code>/32</code> to the address it shows, for example <code>203.0.113.7/32</code>.</p>
+<p>If you are behind a VPN or a corporate NAT, set <code>allowed_cidr</code> to your outgoing IP yourself: the detected address may not be the one your browser uses.</p>
+<p><strong>Where do I get <code>datadog_site</code>?</strong></p>
+<ol>
+<li>Sign in to Datadog and look at the address bar.</li>
+<li>If it starts with <code>https://app.datadoghq.eu</code>, your site is <code>datadoghq.eu</code>: keep the default.</li>
+<li>If it shows another address, your organisation is on another site, which this guide does not support. Create a trial on the EU site instead.</li>
+</ol>
+<p>Official docs: <a href="https://docs.datadoghq.com/getting_started/site/" rel="noopener" target="_blank">Getting Started with Datadog Sites</a></p>
+<p><strong>Where do I get <code>dd_api_key</code> and <code>dd_app_key</code>?</strong></p>
+<ol>
+<li>In Datadog, open <strong>Organization Settings &gt; API Keys</strong>. Choose <strong>New Key</strong>, give it a name such as <code>dd-demo</code>, and copy the key into <code>dd_api_key</code>.</li>
+<li>Open <strong>Organization Settings &gt; Application Keys</strong>. Choose <strong>New Key</strong>, give it a name, and copy the key into <code>dd_app_key</code>. In new organisations, Datadog shows it only once.</li>
+<li>Do not set scopes on the application key. The build does not restrict them, and a key without scopes has the same permissions as your user.</li>
+<li>An application key belongs to the user who creates it. Create it with a user that can manage dashboards, monitors, Synthetic tests, RUM applications and the AWS and Confluent Cloud integrations, because the build creates all of these. An admin user is simplest.</li>
+</ol>
+<p>Official docs: <a href="https://docs.datadoghq.com/account_management/api-app-keys/" rel="noopener" target="_blank">API and Application Keys</a></p>
+<p><strong>Where do I get the Confluent Cloud <code>api_key</code> and <code>api_secret</code>?</strong> This must be a <strong>Cloud resource management</strong> key, not a Kafka cluster key. The build uses it to create the environment, the cluster, service accounts, their API keys and role bindings, some of them for the whole organisation. So the key's owner needs the <strong>OrganizationAdmin</strong> role.</p>
+<ol>
+<li>In the Confluent Cloud Console, open the <strong>API keys</strong> page (<a href="https://confluent.cloud/settings/api-keys" rel="noopener" target="_blank">confluent.cloud/settings/api-keys</a>) and choose <strong>Add API key</strong>.</li>
+<li>Choose <strong>My account</strong>, so the key has your user's permissions. Your user must have OrganizationAdmin.</li>
+<li>Under <strong>Resource scope</strong>, choose <strong>Cloud resource management</strong>, then <strong>Next</strong>.</li>
+<li>Give it a name such as <code>dd-demo</code>, choose <strong>Create API key</strong> and copy the key into <code>confluent_cloud_api_key</code> and the secret into <code>confluent_cloud_api_secret</code>. Confluent shows the secret only once.</li>
+</ol>
+<p>With the <code>confluent</code> CLI, after <code>confluent login</code>: <code>confluent api-key create --resource cloud</code>.</p>
+<p>Official docs: <a href="https://docs.confluent.io/cloud/current/security/authenticate/workload-identities/service-accounts/api-keys/manage-api-keys.html" rel="noopener" target="_blank">Manage API Keys in Confluent Cloud</a>, <a href="https://docs.confluent.io/confluent-cli/current/command-reference/api-key/confluent_api-key_create.html" rel="noopener" target="_blank">confluent api-key create</a></p>
+<p><strong>Where do I get <code>jev_api_key</code>?</strong> This key is optional. Jev is the external decision API from TypeSafe that the offer worker asks to choose an offer in <a href="chapter-5.html#lab-51-offers-with-a-safe-default">Lab 5.1</a>. If you have access to Jev, remove the leading <code># </code> from the <code>jev_api_key</code> line and put your Jev API key after the colon, without quotes. Leave it commented out and every offer uses the rule default; all labs still work.</p>
+</details>
+<h3 id="022-run-the-preflight-no-cloud-costs-yet">0.2.2 Run the preflight (no cloud costs yet) <a class="header-anchor" href="#022-run-the-preflight-no-cloud-costs-yet">#</a></h3>
+<p>Sign in to AWS first; the command opens a browser window:</p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>aws<span class="w"> </span>login<span class="w"> </span>--profile<span class="w"> </span>dd-demo
+</code></pre></div>
+<p>Then start the preflight. It runs for a minute or two and ends with a question that waits for your answer:</p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>./demo<span class="w"> </span>create
+</code></pre></div>
+<p>You should see the checks and then the cost question. If you are not ready to build yet, type anything other than <code>yes</code>: nothing has been created.</p>
+<details><summary>More about this step</summary>
+<p><strong>What the preflight checks.</strong> The preflight runs read-only checks of your tools, credentials and configuration. <code>./demo create</code> runs it first and asks you before it creates anything, so this step costs nothing.</p>
+<p><strong>The full preflight output, and what it means.</strong> If <code>allowed_cidr</code> is not set, the first line shows the detected address:</p>
+<div class="code code-out" data-lang="text"><div class="code-bar"><span class="code-label">Expected output</span></div><pre tabindex="0"><code>demo: allowed_cidr not set; using your current IP &lt;a.b.c.d&gt;/32
+gen-secrets: wrote &lt;repo&gt;/.env.secrets (&lt;n&gt; passwords, mode 600, values not shown)
+...
+   note: JEV_API_KEY not set: offers use the rule default only
+   AWS login session via refresh profile dd-demo-auto: ok
+   ...
+   terraform/account: valid
+   terraform/cloud: valid
+   terraform/vm: valid
+   terraform/datadog: valid
+   terraform/aws: valid
+   preflight ok for stack hybrid (owner &lt;your user&gt;)
+...
+========================================================================
+  ACTION NEEDED: ./demo is waiting for your answer
+========================================================================
+  This creates billed AWS and Confluent Cloud resources: about $1.50 to
+  $2.50 per hour (AWS about $0.50, Confluent Cloud about $1 to $2;
+  Datadog on its trial). This is an estimate, not a bill. Trial credit
+  depends on your accounts, so check it.
+
+  Type yes and press Enter to continue (anything else stops here):
+</code></pre></div>
+<p>Each <code>terraform/...: valid</code> line is one of the six Terraform configurations passing validation. A <code>MISSING</code> or <code>INVALID</code> line stops the run and says what to fix.</p>
+<p><strong>Look first with <code>--dry-run</code>, and the two files the preflight wrote.</strong> To look first without running anything, use <code>./demo create --dry-run</code>: it checks <code>demo.yaml</code> and prints the commands it would run, without writing any file.</p>
+<p><em>What just happened:</em> <code>./demo</code> checked <code>demo.yaml</code>, wrote two files and ran the preflight. Only you can read the two files, and git ignores them:</p>
+<ul>
+<li><code>.env</code>: a copy of your Confluent and Datadog keys from <code>demo.yaml</code>. The scripts read this file.</li>
+<li><code>.env.secrets</code>: new random passwords for the demo's own services (the store databases, the control panel login and the load tool). None of them comes from <code>demo.yaml</code>. You only ever need the control panel one, and a later step shows how to read it.</li>
+</ul>
+</details>
+<h3 id="023-create-the-stack">0.2.3 Create the stack <a class="header-anchor" href="#023-create-the-stack">#</a></h3>
+<aside class="admonition admonition-warning" role="note"><p class="admonition-title"><span class="admonition-icon" aria-hidden="true"></span>Warning</p>
+<p>As soon as you type <code>yes</code>, AWS and Confluent Cloud start billing you, about $1.50 to $2.50 per hour with every layer on; a core-only stack costs less, but we have not measured how much (<a href="reference.html#d-cost-details">details</a>). Confluent Cloud bills a partial hour as a full hour. Set an AWS budget alert, plan to finish in one session, and run the <a href="teardown.html#teardown">teardown</a> at the end.</p>
+</aside>
+<p>Run <code>./demo create</code> again and type <code>yes</code> at the question.</p>
+<aside class="admonition admonition-note" role="note"><p class="admonition-title"><span class="admonition-icon" aria-hidden="true"></span>Note</p>
+<p><strong>The build takes a while, and longer the more layers you bring up.</strong></p>
+<ul>
+<li>Every layer on (<code>layers: all</code>): about 36 minutes in our test run, most of it waiting on the cloud.</li>
+<li>Core only (<code>layers: core</code>, the default): about 28 to 30 minutes, estimated from our first test runs; we will re-measure it on a clean build.</li>
+</ul>
+<p>Keep the terminal open until the build ends.</p>
+</aside>
+<p>At the end you should see a summary that starts with <code>smoke: 9 passed, 0 failed</code>.</p>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Stack-up success"><img src="img/build-01-stack-up-success.png" alt="Stack-up success" width="2600" height="1622" loading="lazy" decoding="async"></button><figcaption>Stack-up success</figcaption></figure>
+<p>If a step fails, the script stops with <code>stack.sh: step '&lt;stage&gt;' FAILED (command: ...)</code>: see <a href="troubleshooting.html#troubleshooting">Troubleshooting</a>.</p>
+<details><summary>More about this step</summary>
+<p><strong>The progress lines, the log file and the full summary.</strong> The build shows its progress in the same terminal, and also saves it to <code>.state/logs/hybrid-latest.log</code>, so you can read it again later or keep it if something fails.</p>
+<p>Each step prints <code>== [stage name]</code> when it starts and <code>[stage name] took N s</code> when it ends. At the end it runs a smoke test, a quick end-to-end check of Connect, the availability API, the Online shop in a browser and the control panel. Then it prints a summary that starts with <code>smoke: 9 passed, 0 failed</code>.</p>
+<p>The output below comes from a run with every layer on (<code>layers: all</code>). With <code>layers: core</code> the summary lists the optional layers as <code>off</code>.</p>
+<div class="code code-out" data-lang="text"><div class="code-bar"><span class="code-label">Expected output</span></div><pre tabindex="0"><code>smoke: 9 passed, 0 failed
+
+== stack hybrid
+   layers (desired): core releases restock offers dd-streams dd-synthetics dd-rum
+   flink deferred:   []
+   shop:     http://&lt;alb-dns-name&gt;/#/product/P0042
+   control:  http://&lt;alb-dns-name&gt;/control/   (user demo, CONTROL_PASSWORD in .env.secrets)
+   dashboard: /dashboard/&lt;id&gt;/urbanstreet-stock-service-dd-demo-hybrid
+   cost dashboard: /dashboard/&lt;id&gt;/&lt;name&gt;
+   ALB:       http://&lt;alb-dns-name&gt;
+   ECS:       dd-demo-hybrid (services-stable required)
+   confluent environment: &lt;env-id&gt;, cluster &lt;cluster-id&gt;
+stack hybrid, core always on; optional layers:
+  releases: ON (inventory-api-110 inventory-api-120)
+  restock: ON (procurement-db supplier-sim)
+  offers: ON (offer-worker)
+  dd-synthetics: ON (Datadog/Terraform only, no containers)
+  dd-streams: ON (Datadog/Terraform only, no containers)
+  dd-rum: ON (Datadog/Terraform only, no containers)
+
+== stack hybrid is up in &lt;seconds&gt; s. At the end: make MODE=cloud STACK=hybrid stack-down CONFIRM=yes
+== log finished: &lt;repo&gt;/.state/logs/hybrid-up-&lt;timestamp&gt;.log (exit 0)
+</code></pre></div>
+<p><strong>If a step fails.</strong> Read the lines above it, check <a href="troubleshooting.html#troubleshooting">Troubleshooting</a>, and keep the log. If you run <code>./demo create</code> again, it updates the existing stack to match the configuration instead of starting from zero. We have not measured how long a rerun after a partial failure takes.</p>
+</details>
+<h3 id="024-connect-this-guide-to-your-stack-recommended">0.2.4 Connect this guide to your stack (recommended) <a class="header-anchor" href="#024-connect-this-guide-to-your-stack-recommended">#</a></h3>
+<ol>
+<li>
+<p>In the repository root, run (copies the JSON to your clipboard):</p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>-s<span class="w"> </span>links-json<span class="w"> </span><span class="p">|</span><span class="w"> </span>pbcopy
+</code></pre></div>
+</li>
+<li>
+<p>Paste it in the Connect box below and press <strong>Connect</strong>.</p>
+</li>
+</ol>
+<details class="connect-details" id="connect">
+<summary>Connect your stack <span class="connect-state">recommended</span></summary>
+<div class="connect-box" id="connect-box">
+<p class="connect-title">Connect your stack</p>
+<p class="connect-lead">Paste the output of <code>make links-json</code> (see <a href="setup.html#024-connect-this-guide-to-your-stack-recommended">0.2.4</a>).</p>
+<label class="connect-label" for="connect-json">Stack JSON</label>
+<textarea id="connect-json" rows="6" spellcheck="false" autocomplete="off" placeholder='{"version":1,"stack":"hybrid","env":"dd-demo-hybrid", ...}'></textarea>
+<div class="connect-buttons">
+<button type="button" class="connect-go">Connect</button>
+<button type="button" class="connect-forget" hidden>Forget my stack</button>
+</div>
+<p class="connect-status" role="status" aria-live="polite"></p>
+<p class="connect-note">The JSON holds your addresses and ids, no passwords. It stays in this browser (local storage) and is never sent anywhere. The guide uses it to fill in placeholders and to link to your pages.</p>
+</div>
+</details>
+
+<details><summary>More about this step</summary>
+<p><strong>Not on a Mac?</strong></p>
+<p><code>pbcopy</code> exists only on macOS. Use the clipboard command of your system instead:</p>
+<ul>
+<li>Linux: <code>make -s links-json | xclip -selection clipboard</code> (or <code>make -s links-json | wl-copy</code> on Wayland).</li>
+<li>Windows with WSL: <code>make -s links-json | clip.exe</code>.</li>
+<li>Or run <code>make -s links-json</code> and copy the whole output by hand.</li>
+</ul>
+<p><strong>Why is this recommended?</strong> We recommend this step: it takes a minute and makes every lab easier to follow. The labs send you to many places: the shop, the control panel, the Datadog dashboards and APM, the Confluent console. Once you connect the guide to your stack, each of those becomes a link to your own page, one click away, and placeholders in angle brackets, such as the load balancer address, show your real values. You paste your stack's addresses once, and they stay in your browser.</p>
+<p><strong>Skipping it?</strong> If you skip this step, read each placeholder in angle brackets as the matching value in your <code>./demo status</code> output.</p>
+<p><strong>Stable links for slides and bookmarks.</strong> Once a stack is connected in a browser, <a href="https://gianlucanatali.github.io/observable-inventory-streaming/go.html" target="_blank" rel="noopener"><code>go.html#&lt;key&gt;</code></a> on this site opens that stack's page, so a link in a slide or a bookmark survives a rebuild. The stack is stored per browser, so use the same browser (we recommend Chrome) where you connected it. Keys: <code>demo-home</code>, <code>demo-home-1</code> to <code>demo-home-6</code> (the demo home at that Chapter), <code>night-of-incident</code>, <code>control</code>, <code>shop</code>, <code>shop-home</code>, <code>stock-dashboard</code>, <code>online-dashboard</code>, <code>apm</code>, <code>dsm</code>, <code>cost-dashboard</code>, <code>confluent</code>, <code>stream-lineage</code>, <code>topic-inventory-cdc</code>, <code>topic-stock-sellable</code>. Without a connected stack the page says so and links to the Connect box.</p>
+</details>
+<h3 id="025-open-the-shop-the-control-panel-and-datadog">0.2.5 Open the shop, the control panel and Datadog <a class="header-anchor" href="#025-open-the-shop-the-control-panel-and-datadog">#</a></h3>
+<p>Open these three windows and keep them open for the labs.</p>
+<h4 id="1-open-the-online-shop">1. Open the Online shop <a class="header-anchor" href="#1-open-the-online-shop">#</a></h4>
+<p>Open the <a href="#1-open-the-online-shop" data-stack-link="shop-home">Online shop</a>. You should see the UrbanStreet Online shop: one card per model, with the price and a dot for each colour.</p>
+<details><summary>More about this step</summary>
+<p><strong>Not connected, or the page does not load? Find the addresses with <code>./demo status</code>.</strong> Print the stack's addresses:</p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>./demo<span class="w"> </span>status
+</code></pre></div>
+<p>It prints the summary from the end of the build again. Open the <code>shop:</code> URL in your browser. If the page does not load, your public IP has probably changed since the build; see <a href="troubleshooting.html#troubleshooting">Troubleshooting</a>.</p>
+<p><strong>More about the shop page.</strong> The shop shows one card per model: the 200 SKUs are grouped into 21 models. You open the product page in <a href="chapter-1.html#hop-5-the-shop-page">Lab 1.1</a>. The product photos are AI-generated images of fictional, unbranded products (<a href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/storefront/assets-src/README.md" rel="noopener" target="_blank">how they are made</a>).</p>
+</details>
+<h4 id="2-open-the-control-panel">2. Open the control panel <a class="header-anchor" href="#2-open-the-control-panel">#</a></h4>
+<p>Open the <a href="#2-open-the-control-panel" data-stack-link="control">control panel</a> and sign in with user <code>demo</code> and the password. Print the password:</p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>grep<span class="w"> </span><span class="s1">'^CONTROL_PASSWORD='</span><span class="w"> </span>.env.secrets<span class="w"> </span><span class="p">|</span><span class="w"> </span>cut<span class="w"> </span>-d<span class="o">=</span><span class="w"> </span>-f2-
+</code></pre></div>
+<p>It is a secret: do not paste it into a chat, a screenshot or a recording.</p>
+<details><summary>More about this step</summary>
+<p><strong>Not connected? Find the control panel address, and why the password is there.</strong> On the control panel path you run the labs from this page. On the terminal path you open it only in Labs 5.1 and 5.2, to change settings that have no make command.</p>
+<ol>
+<li>
+<p>In the <code>./demo status</code> output, find the <code>control:</code> line:</p>
+<div class="code code-out" data-lang="text"><div class="code-bar"><span class="code-label">Expected output</span></div><pre tabindex="0"><code>control:  http://&lt;alb-dns-name&gt;/control/   (user demo, CONTROL_PASSWORD in .env.secrets)
+</code></pre></div>
+</li>
+<li>
+<p>The password is a random password that <code>make secrets</code> generated on your computer when you built the stack.</p>
+</li>
+<li>
+<p>If the page does not load, check that your IP still matches <code>allowed_cidr</code> (<a href="troubleshooting.html#troubleshooting">Troubleshooting</a>).</p>
+</li>
+</ol>
+<p><strong>The Links card.</strong> The <strong>Links</strong> card at the top of the panel opens every page of this stack in a new tab: the Online shop, the Datadog dashboards, APM and DSM, the Confluent Cloud cluster and the ECS cluster. Bookmark the panel and you have them all. The build fills the card at the end; <code>make links-publish</code> fills it again.</p>
+<div data-path="panel" markdown="1">
+<p><strong>With the control panel</strong></p>
+<p><strong>The five cards of the panel.</strong> The panel shows five cards at the top and the demo's settings below them. You do not need to learn them now: each lab tells you which button to press and what the card shows afterwards.</p>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>Card</th>
+<th>You use it in</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Background sales</strong> (<strong>Full reset</strong>)</td>
+<td>Every lab, to start from a clean state</td>
+</tr>
+<tr>
+<td><strong>Actions</strong> (<strong>Sell out product</strong>)</td>
+<td>Labs 1.1, 5.1 and 5.2</td>
+</tr>
+<tr>
+<td><strong>Store feed</strong></td>
+<td>Labs 1.1 and 2.1</td>
+</tr>
+<tr>
+<td><strong>Release routing</strong></td>
+<td>Labs 3.1 and 4.1</td>
+</tr>
+<tr>
+<td><strong>Checks</strong> (<strong>Run load</strong>, <strong>Verify</strong>, <strong>Check canary</strong>)</td>
+<td>Start from a clean state, Labs 1.1 to 4.1</td>
+</tr>
+</tbody>
+</table></div>
+<p><a href="reference.html#h-the-control-panel-button-by-button">Reference H</a> describes every button, for when you want the details.</p>
+</div>
+</details>
+<h4 id="3-open-the-datadog-stock-dashboard">3. Open the Datadog stock dashboard <a class="header-anchor" href="#3-open-the-datadog-stock-dashboard">#</a></h4>
+<p>Open the <a href="#3-open-the-datadog-stock-dashboard" data-stack-link="stock-dashboard">Datadog stock dashboard</a>. Its charts fill up over the next minutes; you read them from Lab 1.1 on.</p>
+<details><summary>More about this step</summary>
+<p><strong>Not connected? Find the Datadog links with <code>./demo links</code>.</strong></p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>./demo<span class="w"> </span>links
+</code></pre></div>
+<p>It prints the Datadog links for this stack:</p>
+<div class="code code-out" data-lang="text"><div class="code-bar"><span class="code-label">Expected output</span></div><pre tabindex="0"><code>overview dashboard: https://app.datadoghq.eu/dashboard/&lt;id&gt;/...
+stock dashboard: https://app.datadoghq.eu/dashboard/&lt;id&gt;/...
+online dashboard: https://app.datadoghq.eu/dashboard/&lt;id&gt;/...
+account-cost dashboard: https://app.datadoghq.eu/dashboard/&lt;id&gt;/...
+APM inventory-api 1.1.0: https://app.datadoghq.eu/apm/services/inventory-api?env=dd-demo-hybrid&amp;version=1.1.0
+APM latency comparison: https://app.datadoghq.eu/apm/services/inventory-api?env=dd-demo-hybrid&amp;compare_to=previous
+DSM map: https://app.datadoghq.eu/data-streams?env=dd-demo-hybrid
+</code></pre></div>
+<p>The examples here come from a run with every layer on. Open the <a href="#3-open-the-datadog-stock-dashboard" data-stack-link="stock-dashboard">stock dashboard</a> (the <code>stock dashboard:</code> link).</p>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Stack-status and links output"><img src="img/build-02-status-and-links.png" alt="Stack-status and links output" width="2600" height="1573" loading="lazy" decoding="async"></button><figcaption>Stack-status and links output</figcaption></figure>
+<p><strong>Optional: see what the build created in AWS.</strong> Open the <a href="#2-open-the-control-panel" data-stack-link="ecs">ECS cluster</a> in the AWS console in <code>eu-west-1</code> (Ireland). It lists the running services. With every layer on, that includes the three <code>inventory-api</code> releases side by side; with core only, the 1.1.0 and 1.2.0 services exist but run no tasks until Lab 3.1 turns on the <code>releases</code> layer. On the load balancer, the listener rule for <code>/api/availability/*</code> sends traffic to three <abbr title="The set of containers that receives one release's share of the traffic.">target groups</abbr>, one per release, and the weight on each group sets its share. ElastiCache runs the Redis serving view.</p>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: ECS cluster services list"><img src="img/build-07-aws-ecs-services.png" alt="ECS cluster services list" width="2880" height="2000" loading="lazy" decoding="async"></button><figcaption>ECS cluster services list</figcaption></figure>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: ALB listener rule with the three weighted target groups"><img src="img/build-08-aws-alb-weights.png" alt="ALB listener rule with the three weighted target groups" width="4200" height="2000" loading="lazy" decoding="async"></button><figcaption>ALB listener rule with the three weighted target groups</figcaption></figure>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: ElastiCache cluster overview"><img src="img/build-09-aws-elasticache.png" alt="ElastiCache cluster overview" width="2880" height="2000" loading="lazy" decoding="async"></button><figcaption>ElastiCache cluster overview</figcaption></figure>
+</details>
+<h3 id="026-start-from-a-clean-state">0.2.6 Start from a clean state <a class="header-anchor" href="#026-start-from-a-clean-state">#</a></h3>
+<p>Every lab starts from the seeded stock, so do this once now.</p>
+<div data-path="panel" markdown="1">
+<p><strong>With the control panel</strong></p>
+<ol>
+<li>In the <a href="#2-open-the-control-panel" data-stack-link="control">control panel</a>, on the <strong>Background sales</strong> card, press <strong>Full reset</strong> and confirm. Wait until the card reads <code>full-reset succeeded: ...</code>.</li>
+<li>On the <strong>Checks</strong> card, press <strong>Verify</strong>. You should see <code>VERIFY PASSED</code>.</li>
+</ol>
+</div>
+<div data-path="terminal" markdown="1">
+<p><strong>With the terminal</strong></p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>reset
+make<span class="w"> </span>verify
+</code></pre></div>
+<p>You should see <code>reset ok: ...</code> and, at the end, <code>{&quot;ok&quot;: true, &quot;mismatches&quot;: 0, &quot;sellable_mismatches&quot;: 0}</code>.</p>
+</div>
+<p>Start Lab 1.1 now: its first Datadog step comes after about 10 minutes of data.</p>
+<details><summary>More about this step</summary>
+<div data-path="panel" markdown="1">
+<p><strong>With the control panel</strong></p>
+<p><strong>Full reset</strong> turns background sales off, sends all stock lookups to release 1.0.0 and writes the seeded stock back into the five stores. The card ends with <code>full-reset succeeded: Full reset done: background sales off (rate 0), routing 100/0/0 verified, demo data at the seeded baseline and Redis converged; ...</code>.</p>
+<p>After a few seconds <strong>Verify</strong> shows <code>VERIFY PASSED</code> in the result box, and the status line reads <code>verify succeeded: Verify passed: 0 position mismatch(es), 0 sellable mismatch(es)</code>.</p>
+<p>If you press <strong>Verify</strong> before <strong>Full reset</strong>, it can fail with a list such as <code>sellable P0011: sources sum 97, redis 96</code>. Nothing is broken: background sales were changing the stock while Verify compared it. Press <strong>Full reset</strong>, then <strong>Verify</strong> again.</p>
+</div>
+<div data-path="terminal" markdown="1">
+<p><strong>With the terminal</strong></p>
+<p><strong>Full output, and what to do if verify reports mismatches.</strong></p>
+<p><code>reset</code> turns background sales off, sends all stock lookups to release 1.0.0 and writes the seeded stock back into the five stores. It first prints the AWS rule JSON that changes the routing. Among the output lines you should see:</p>
+<div class="code code-out" data-lang="text"><div class="code-bar"><span class="code-label">Expected output</span></div><pre tabindex="0"><code>alb-routing: weights 1.0.0/1.1.0/1.2.0 = 100 0 0%
+reset ok: scenario &lt;id&gt;, &lt;n&gt; positions at baseline, sellable caught up, feed ok, &lt;n&gt; open purchase order(s) cancelled, &lt;n&gt; restock:eta key(s) cleared
+== background sales are OFF now: make sales-on to restart them
+{"ok": true, "mismatches": 0, "sellable_mismatches": 0}
+</code></pre></div>
+<p>The last line is <code>verify</code>: every store matches Redis. If you run <code>verify</code> before <code>reset</code>, it can report mismatches, because background sales were changing the stock while it compared. Run <code>reset</code>, then <code>verify</code> again.</p>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Key lines of make reset and make verify"><img src="img/build-03-reset-verify-smoke.png" alt="Key lines of make reset and make verify" width="2600" height="593" loading="lazy" decoding="async"></button><figcaption>Key lines of make reset and make verify</figcaption></figure>
+</div>
+<p><strong>Why background sales stay off, and why Datadog needs minutes.</strong> When the build ends, background sales are running: every store sells a few products each minute, so the stock keeps changing. Every lab starts by stopping them and writing the seeded stock back, so that you know what the page should show. Background sales stay off until you turn them on; the labs do not need them. Datadog needs about 10 minutes of data before its charts are useful, and the freshness probe keeps sending data while sales are off.</p>
+</details>
+<h3 id="027-checkpoint">0.2.7 Checkpoint <a class="header-anchor" href="#027-checkpoint">#</a></h3>
+<ul class="contains-task-list">
+<li class="task-list-item enabled">
+<p><input class="task-list-item-checkbox"  type="checkbox"> The build ended with <code>smoke: 9 passed, 0 failed</code> (<a href="#023-create-the-stack">0.2.3</a>).</p>
+</li>
+<li class="task-list-item enabled">
+<p><input class="task-list-item-checkbox"  type="checkbox"> The <a href="#1-open-the-online-shop" data-stack-link="shop-home">Online shop</a>, the <a href="#2-open-the-control-panel" data-stack-link="control">control panel</a> and the Datadog <a href="#3-open-the-datadog-stock-dashboard" data-stack-link="stock-dashboard">stock dashboard</a> are open (<a href="#025-open-the-shop-the-control-panel-and-datadog">0.2.5</a>).</p>
+</li>
+<li class="task-list-item enabled">
+<p><input class="task-list-item-checkbox"  type="checkbox"> The reset ended and verify passed. <strong>Control panel:</strong> <strong>Full reset</strong> ended with <code>full-reset succeeded</code>, and <strong>Verify</strong> showed <code>VERIFY PASSED</code> · <strong>Terminal:</strong> <code>make reset</code> printed <code>reset ok</code>, and <code>make verify</code> printed <code>&quot;mismatches&quot;: 0, &quot;sellable_mismatches&quot;: 0</code> (<a href="#026-start-from-a-clean-state">0.2.6</a>).</p>
+</li>
+</ul>
+
+<nav class="pager" aria-label="Previous and next"><a class="pager-btn pager-prev" href="intro.html"><span class="pager-dir">Previous</span><span class="pager-title">Intro</span></a><a class="pager-btn pager-next" href="chapter-1.html"><span class="pager-dir">Next</span><span class="pager-title">Chapter 1: One honest number</span></a></nav>
+    </article>
+    <footer class="doc-footer">
+      <p>Generated from <a href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/workshop/README.md" target="_blank" rel="noopener"><code>workshop/README.md</code></a>. Every product, store, sale and shopper in this workshop is synthetic.</p>
+      <p>Educational demo, not for production workloads. <a href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/LICENSE" target="_blank" rel="noopener">Apache License 2.0</a>, provided as is; trademarks and third-party notices in <a href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/NOTICE" target="_blank" rel="noopener">NOTICE</a>.</p>
+      <p><a href="#top">Back to top</a> &middot; <a href="workshop.html">One-page guide</a></p>
+    </footer>
+  </main>
+</div>
+<dialog class="lightbox" aria-label="Enlarged image">
+  <form method="dialog"><button class="lightbox-close" aria-label="Close">&times;</button></form>
+  <img alt="">
+  <p class="lightbox-caption"></p>
+</dialog>
+<dialog class="path-dialog" aria-labelledby="path-dialog-title" aria-describedby="path-dialog-text">
+  <h2 id="path-dialog-title">Switch to the <span class="path-dialog-other">terminal</span> path?</h2>
+  <p id="path-dialog-text">Pick one path and use it from start to finish. The control panel and the terminal each remember their own last routing for Rollback, so mixing them in one run can roll back to the wrong state. Switch only if you are starting a lab from a reset.</p>
+  <div class="path-dialog-buttons">
+    <button type="button" class="path-keep" autofocus>Keep control panel</button>
+    <button type="button" class="path-switch-confirm">Switch to terminal</button>
+  </div>
+</dialog>
+<div class="sr-only" aria-live="polite" id="live"></div>
+<script src="assets/stack.js?v=ec6a04c228"></script>
+<script src="assets/site.js?v=1de1666aca" defer></script>
+</body>
+</html>

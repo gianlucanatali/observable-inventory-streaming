@@ -196,7 +196,7 @@ resource "aws_ecs_task_definition" "app" {
   container_definitions = jsonencode([
     {
       name        = "app"
-      image       = "${aws_ecr_repository.app[each.value.image].repository_url}:${var.image_tag}"
+      image       = local.image_uri[each.value.image]
       essential   = true
       environment = local.app_environment[each.key]
       secrets     = local.app_secrets[each.key]
@@ -229,7 +229,7 @@ resource "aws_ecs_task_definition" "app" {
     },
     {
       name      = "log-router"
-      image     = "${aws_ecr_repository.app["log-router"].repository_url}:${var.image_tag}"
+      image     = local.image_uri["log-router"]
       essential = true
       environment = [
         { name = "AWS_REGION", value = var.region },

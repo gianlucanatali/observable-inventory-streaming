@@ -143,12 +143,23 @@
   var links = Array.prototype.slice.call(toc.querySelectorAll("a[href^='#']"));
   var byId = {};
   links.forEach(function (a) { byId[decodeURIComponent(a.getAttribute("href").slice(1))] = a; });
-  var heads = Array.prototype.slice.call(document.querySelectorAll(".doc h2[id], .doc h3[id]"))
+  var heads = Array.prototype.slice.call(document.querySelectorAll(".doc h2[id], .doc h3[id], .doc h4[id]"))
     .filter(function (h) { return byId[h.id]; });
   var current = null;
-  function spy() {
+  var lockUntil = 0;  // after a TOC click the clicked entry stays active while the page scrolls there
+  function spy(forced) {
+    if (!forced && Date.now() < lockUntil) return;
     var y = window.scrollY + 120, active = heads[0];
     for (var i = 0; i < heads.length; i++) { if (heads[i].offsetTop <= y) active = heads[i]; else break; }
+    // At the very bottom the last headings cannot reach the top: take the last heading that is on screen.
+    if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2) {
+      for (var j = heads.length - 1; j >= 0; j--) {
+        if (heads[j].offsetTop < window.scrollY + window.innerHeight - 80) { if (heads[j].offsetTop > y) active = heads[j]; break; }
+      }
+    }
+    activate(active);
+  }
+  function activate(active) {
     if (!active || active === current) return;
     current = active;
     links.forEach(function (a) { a.classList.remove("active"); });
@@ -162,11 +173,19 @@
       if (r.top < t.top + 40 || r.bottom > t.bottom - 40) toc.scrollTop += r.top - t.top - t.height / 3;
     }
   }
+  links.forEach(function (a) {
+    a.addEventListener("click", function () {
+      var h = document.getElementById(decodeURIComponent(a.getAttribute("href").slice(1)));
+      if (!h || heads.indexOf(h) < 0) return;
+      lockUntil = Date.now() + 900;
+      activate(h);
+    });
+  });
   var ticking = false;
   window.addEventListener("scroll", function () {
     if (!ticking) { ticking = true; requestAnimationFrame(function () { ticking = false; spy(); }); }
   }, { passive: true });
-  window.addEventListener("load", spy);
+  window.addEventListener("load", function () { spy(); });
   spy();
 
   // ---------- term explanations: <abbr title> becomes a tooltip on hover, focus and tap ----------
@@ -253,50 +272,14 @@
   // localStorage, and then (1) placeholders such as <alb-dns-name> are replaced by the reader's values and
   // (2) the "open the X" links (data-stack-link) go to the reader's own pages. Without a stack, or without
   // localStorage, the guide reads as before and those links go to the Connect box.
-  var STACK_KEY = "workshop-stack";
-  var STACK_MAX_BYTES = 20000;
-  var TEXT_FIELDS = { stack: /^[A-Za-z0-9][A-Za-z0-9_-]*$/, env: /^[A-Za-z0-9][A-Za-z0-9_-]*$/,
-    vm_public_ip: /^[A-Za-z0-9][A-Za-z0-9.-]*$/, confluent_env: /^[A-Za-z0-9_-]+$/, kafka_cluster: /^[A-Za-z0-9_-]+$/ };
-  var REQUIRED_LINKS = ["shop", "shop-home", "control"];
-  var OPTIONAL_LINKS = ["stock-dashboard", "online-dashboard", "apm", "dsm", "cost-dashboard", "confluent", "control-center", "ecs"];
-  var box = document.getElementById("connect-box");
+  var STACK_KEY = WorkshopStack.STACK_KEY, parseStack = WorkshopStack.parseStack;  // assets/stack.js
+  var box = document.getElementById("connect-box");  // only on the guide and on the Setup page
   var badge = document.getElementById("stack-badge");
+  // Chapter pages other than Setup have no box: links that need it go to the Setup page (data-connect-href on <body>).
+  var CONNECT_HREF = document.body.getAttribute("data-connect-href") || "#connect-box";
   var applied = [];  // {orig, nodes}: text nodes the stack replaced, so Forget can restore them
   var stackNow = null;
 
-  function webUrl(value, what) {
-    if (typeof value !== "string") throw new Error(what + " must be a text value");
-    var u;
-    try { u = new URL(value); } catch (e) { throw new Error(what + " is not a valid URL"); }
-    if (u.protocol !== "http:" && u.protocol !== "https:") throw new Error(what + " must start with http:// or https://");
-    return value;
-  }
-  // Returns a clean copy of the stack, or throws an Error whose message says what to fix.
-  function parseStack(text) {
-    if (!text.trim()) throw new Error("Paste the JSON first.");
-    if (text.length > STACK_MAX_BYTES) throw new Error("That is too long to be the stack JSON.");
-    var raw;
-    try { raw = JSON.parse(text); } catch (e) { throw new Error("This is not valid JSON (" + e.message + "). Copy it again from the panel or from make links-json."); }
-    if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("The JSON must be an object, as copied from the panel.");
-    if (raw.version !== 1) throw new Error('Unsupported "version": this guide reads version 1.');
-    var out = { version: 1, links: {} };
-    Object.keys(TEXT_FIELDS).forEach(function (k) {
-      if (typeof raw[k] !== "string" || !raw[k]) throw new Error('The field "' + k + '" is missing.');
-      if (!TEXT_FIELDS[k].test(raw[k])) throw new Error('The field "' + k + '" has characters that do not belong in it.');
-      out[k] = raw[k];
-    });
-    out.alb = webUrl(raw.alb, 'The field "alb"').replace(/\/+$/, "");
-    if (!raw.links || typeof raw.links !== "object") throw new Error('The field "links" is missing.');
-    REQUIRED_LINKS.concat(OPTIONAL_LINKS).forEach(function (k) {
-      var v = raw.links[k];
-      if (v === undefined || v === null || v === "") {
-        if (REQUIRED_LINKS.indexOf(k) >= 0) throw new Error('The link "' + k + '" is missing.');
-        return;
-      }
-      out.links[k] = webUrl(v, 'The link "' + k + '"');
-    });
-    return out;
-  }
 
   // ---- placeholder replacement ----
   // A segment is a plain string, or {text, href?, ph} for a value taken from the stack.
@@ -312,7 +295,7 @@
     function pathOf(url) { var u = new URL(url); return u.pathname; }
     var rules = [];
     // sample output lines of ./demo status and ./demo links
-    [[/(stock dashboard: )https:\/\/\S+/g, "stock-dashboard"], [/(online dashboard: )https:\/\/\S+/g, "online-dashboard"],
+    [[/(overview dashboard: )https:\/\/\S+/g, "overview-dashboard"], [/(stock dashboard: )https:\/\/\S+/g, "stock-dashboard"], [/(online dashboard: )https:\/\/\S+/g, "online-dashboard"],
      [/(account-cost dashboard: )https:\/\/\S+/g, "cost-dashboard"], [/(APM inventory-api 1\.1\.0: )https:\/\/\S+/g, "apm"],
      [/(DSM map: )https:\/\/\S+/g, "dsm"]].forEach(function (r) {
       var url = s.links[r[1]];
@@ -426,7 +409,7 @@
         a.classList.add("stk-on");
         a.title = "Opens your stack's page in a new tab";
       } else {
-        a.href = "#connect-box"; a.removeAttribute("target"); a.removeAttribute("rel");
+        a.href = CONNECT_HREF; a.removeAttribute("target"); a.removeAttribute("rel");
         a.classList.remove("stk-on");
         a.title = s ? "This page is not in your pasted JSON. Open the Connect box." : "Connect your stack to open this directly";
       }
@@ -434,6 +417,7 @@
   }
 
   function setStatus(msg, bad) {
+    if (!box) return;
     var el = box.querySelector(".connect-status");
     el.textContent = msg;
     el.classList.toggle("connect-bad", !!bad);
@@ -443,27 +427,43 @@
     restoreDoc();
     if (s) replaceInDoc(s);
     applyLinks(s);
-    box.querySelector(".connect-forget").hidden = !s;
-    badge.hidden = !s;
-    if (s) {
-      badge.querySelector(".stack-badge-name").textContent = ": stack " + s.stack;
-      box.classList.add("connected");
-    } else {
-      box.classList.remove("connected");
+    if (badge) {
+      badge.hidden = !s;
+      badge.classList.remove("stack-badge-bad");
+      badge.title = "Your stack is connected to this guide. Open the Connect box.";
+      if (s) badge.querySelector(".stack-badge-name").textContent = ": stack " + s.stack;
+    }
+    if (box) {
+      box.querySelector(".connect-forget").hidden = !s;
+      box.classList.toggle("connected", !!s);
+      var state = document.querySelector(".connect-state");
+      if (state) state.textContent = s ? "connected: stack " + s.stack : "recommended";
     }
   }
+  // A saved stack that cannot be read is KEPT (only Forget removes it): it may come from a newer or older guide, and
+  // deleting it would lose what the reader pasted without a word. The box and the badge say why it is not used.
+  function showUnreadable(reason) {
+    var msg = "The saved stack could not be read: " + reason + " Paste it again and press Connect, or press Forget my stack.";
+    console.warn("workshop: " + msg);
+    setStatus(msg, true);
+    if (badge) {
+      badge.hidden = false;
+      badge.classList.add("stack-badge-bad");
+      badge.title = "The stack saved in this browser could not be read. Open the Connect box.";
+      badge.querySelector(".stack-badge-name").textContent = ": saved stack unreadable";
+    }
+    if (box) box.querySelector(".connect-forget").hidden = false;
+    var state = document.querySelector(".connect-state");
+    if (state) state.textContent = "saved stack unreadable";
+  }
+  var saved = null, unreadable = null;
+  try { saved = WorkshopStack.loadSaved(); }
+  catch (e) { unreadable = e.message; }
+  showConnected(saved);
+  if (saved) setStatus("Connected: stack " + saved.stack + ", environment " + saved.env + ". Placeholders and links now use your values.");
+  if (unreadable) showUnreadable(unreadable);
   if (box) {
     var input = document.getElementById("connect-json");
-    var saved = null;
-    try {
-      var rawSaved = localStorage.getItem(STACK_KEY);
-      if (rawSaved) saved = parseStack(rawSaved);
-    } catch (e) {
-      console.warn("workshop: the saved stack was ignored:", e);
-      try { localStorage.removeItem(STACK_KEY); } catch (e2) { /* storage unavailable: nothing to remove */ }
-    }
-    showConnected(saved);
-    if (saved) setStatus("Connected: stack " + saved.stack + ", environment " + saved.env + ". Placeholders and links now use your values.");
     box.querySelector(".connect-go").addEventListener("click", function () {
       var s;
       try { s = parseStack(input.value); }
@@ -488,6 +488,23 @@
       live.textContent = "Stack forgotten";
     });
   }
+
+  // ---------- a link to something inside a closed <details> (the Connect box) opens it ----------
+  function openDetailsOf(id) {
+    var el = id && document.getElementById(id), d = el && el.closest("details");
+    if (d && !d.open) { d.open = true; return el; }
+    return null;
+  }
+  document.addEventListener("click", function (e) {
+    var a = e.target.closest('a[href^="#"]');
+    if (a && a.getAttribute("href").length > 1) openDetailsOf(decodeURIComponent(a.getAttribute("href").slice(1)));
+  });
+  function revealHash() {
+    var el = location.hash.length > 1 && openDetailsOf(decodeURIComponent(location.hash.slice(1)));
+    if (el) el.scrollIntoView();
+  }
+  window.addEventListener("hashchange", revealHash);
+  revealHash();
 
   // ---------- image zoom ----------
   var dialog = document.querySelector(".lightbox");

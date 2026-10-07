@@ -44,7 +44,7 @@ class Control:
         self.registry, self._backends, self._redis, self._statsd = registry, backends, redis_client, statsd
         self.stack, self._routing_file = stack, routing_file
         self.actions = actions
-        self.alb, self.feeds = alb, feeds  # routing.AlbRouting / store_feed.ConnectFeeds, None when not configured
+        self.alb, self.feeds = alb, feeds  # routing backend (AlbRouting | NginxRouting) / ConnectFeeds, None when not configured
         self.checks, self.sales = checks, sales  # checks.Checks / sales.BackgroundSales, None when not configured
 
     # --- reading ---------------------------------------------------------------------------------------------------

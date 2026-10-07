@@ -20,8 +20,8 @@ from .sales import BackgroundSales, SalesError
 CHECKS_OFF = ("Checks are not configured in this deployment (SCENARIO_API_URL / SCENARIO_API_TOKEN absent). "
               "Use make load, make verify and make canary-check.")
 SALES_OFF = "Background sales control needs the store sources (STORE_HOSTS) in this deployment."
-FULL_RESET_OFF = ("Full reset needs ALB release routing (hybrid stack); in this deployment use make reset "
-                  "(or Sales off, make route-baseline, Reset demo data).")
+FULL_RESET_OFF = ("Full reset needs release routing (the ALB rule on the hybrid stack, nginx in local mode); in this "
+                  "deployment use make reset (or Sales off, make route-baseline, Reset demo data).")
 BASELINE = "route-baseline"
 SALES_ON_RESET = "Background sales are on ({rate:g}/min per store): press Sales off first, or use Full reset"
 SALES_ON_VERIFY = ("Background sales are on ({rate:g}/min per store) and kept changing the stock while Verify "

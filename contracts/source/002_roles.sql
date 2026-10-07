@@ -1,6 +1,6 @@
 -- Least-privilege roles. Passwords are set at container start from untracked env files, never here.
 -- debezium: replication + read of the published table only.
--- writer: the synthetic workload (jr, scripts, watchdog probe) may only call sell/restock and upsert rows.
+-- writer: the synthetic workload (jr, scripts, freshness probe) may only call sell/restock and upsert rows.
 CREATE ROLE debezium WITH LOGIN REPLICATION;
 GRANT SELECT ON stock_position TO debezium;
 

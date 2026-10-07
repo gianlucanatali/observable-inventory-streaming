@@ -20,7 +20,7 @@ sync, show = body.find("$(ROUTE) --sync"), body.find("$(ROUTE) --show")
 if sync < 0 or show < 0 or sync > show: raise SystemExit(1)
 PY
 
-python3 - "$MAKEFILE" <<'PY' || fail "route-check must be a hybrid read-only ALB credential gate"
+python3 - "$MAKEFILE" <<'PY' || fail "route-check must read the live routing back (ALB rule in hybrid, nginx in local mode)"
 import sys
 from pathlib import Path
 text = Path(sys.argv[1]).read_text()
@@ -56,6 +56,17 @@ if 'stack-$STACK.layers' not in status: raise SystemExit(1)
 if 'inventory-api-110' not in ecs or 'inventory-api-120' not in ecs or '!var.enable_releases' not in ecs: raise SystemExit(1)
 offers = stack[stack.index('    offers:on)'):stack.index('    dd-streams:on)', stack.index('    offers:on)'))]
 if 'sync_ssm_secrets' not in offers or offers.index('sync_ssm_secrets') > offers.index('tf_apply aws'): raise SystemExit(1)
+PY
+
+python3 - "$ROOT/compose" "$LAYER" <<'PY' || fail "compose must not hard-require Control Center keys (absent without the layer; compose interpolates every service, so every compose call of a core stack failed); layer.sh checks them before control-center starts"
+import re, sys
+from pathlib import Path
+compose, layer = Path(sys.argv[1]), Path(sys.argv[2]).read_text()
+for f in compose.glob("compose*.yaml"):
+    if re.search(r"\$\{CONTROL_CENTER_[A-Z_]*:\?", f.read_text()): raise SystemExit(f"{f.name}: CONTROL_CENTER_* with ':?'")
+on = layer[layer.index("layer_on() {"):]
+check = on.find("require_control_center_keys")
+if check < 0 or check > on.index('$DC --profile "$layer" up -d'): raise SystemExit("layer_on: no key check before compose up")
 PY
 
 printf 'test-hybrid-lifecycle-parity: PASS (offline guards)\n'

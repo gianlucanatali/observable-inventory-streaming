@@ -67,7 +67,9 @@ def test_control_center_cloud_identity_topics_ingress_and_lifecycle_links_are_wi
     assert 'cidr_ipv4         = var.presenter_cidr' in VM_MAIN
 
     assert 'ALL_LAYERS="releases restock offers dd-streams dd-synthetics dd-rum"' in STACK
-    assert '[ "$TOPOLOGY" = hybrid ] && ALL_LAYERS="$ALL_LAYERS control-center"' in STACK
+    # Control Center is optional: valid when named explicitly, never part of LAYERS=all.
+    assert '[ "$TOPOLOGY" = hybrid ] && VALID_LAYERS="$VALID_LAYERS control-center"' in STACK
+    assert 'ALL_LAYERS="$ALL_LAYERS control-center"' not in STACK
     assert 'control-center:on) tf_apply cloud; tf_apply vm;;' in STACK
     assert 'for l in releases restock offers; do' in STACK
     assert 'if has control-center; then' in STACK

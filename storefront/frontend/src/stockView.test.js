@@ -15,7 +15,47 @@ describe('describeStock', () => {
   it('says "At least" when the answer is a lower bound', () => {
     const v = describeStock({ ...base, sellable: 7, at_least: true });
     expect(v.title).toBe('At least 7 available online');
-    expect(v.qualifier).toMatch(/not reporting live/);
+    expect(v.qualifier).toMatch(/Only stores reporting live are counted/);
+  });
+  it('shows an unchanged answer when every store is live', () => {
+    const v = describeStock({ ...base, confirmed_min: 9, stores: stores.map((s) => ({ ...s, live: true })) });
+    expect(v.title).toBe('9 available online');
+    expect(v.warning).toBe(false);
+    expect(v.stores.map((s) => s.text).join(' · ')).toBe('Milano 2 · Torino 1 · Bologna 3 · Roma 1 · Firenze 2');
+  });
+  it('counts only live stores and shows a quiet store as last seen (Lab 2.1)', () => {
+    const lab2 = stores.map((s) => (s.store_id === 'S03' ? { ...s, feed: 'stale', live: false } : { ...s, live: true }));
+    const v = describeStock({ ...base, sellable: 9, confirmed_min: 6, at_least: true, feed: 'stale', stores: lab2 });
+    expect(v.tone).toBe('available');
+    expect(v.title).toBe('At least 6 available online');
+    expect(v.stores.map((s) => s.text)).toEqual([
+      'Milano 2', 'Torino 1', 'Bologna 3 (last seen, not live)', 'Roma 1', 'Firenze 2',
+    ]);
+    expect(v.stores[2].tone).toBe('stale');
+  });
+  it('never promises a quiet store\'s last seen stock when confirmed_min is missing', () => {
+    const lab2 = stores.map((s) => (s.store_id === 'S03' ? { ...s, feed: 'stale' } : s));
+    const v = describeStock({ ...base, sellable: 9, at_least: true, feed: 'stale', stores: lab2 });
+    expect(v.title).toBe('At least 6 available online');
+    expect(v.stores[2].text).toBe('Bologna 3 (last seen, not live)');
+  });
+  it('is unknown, never out of stock, when only a quiet store had stock', () => {
+    const quiet = stores.map((s) => (s.store_id === 'S03'
+      ? { ...s, quantity: 3, feed: 'stale', live: false } : { ...s, status: 'out_of_stock', quantity: 0, live: true }));
+    const api = describeStock({ ...base, status: 'unknown', sellable: 3, confirmed_min: 0, at_least: true,
+      unknown_reason: 'stores_unknown', stores: quiet });
+    expect(api.tone).toBe('unknown');
+    expect(api.title).not.toMatch(/Out of stock|available/);
+    // the same answer from an older API that still said available: the shop downgrades it to unknown
+    const old = describeStock({ ...base, status: 'available', sellable: 3, at_least: true, stores: quiet });
+    expect(old.tone).toBe('unknown');
+    expect(old.title).not.toMatch(/Out of stock|available/);
+  });
+  it('shows the true number after the quiet store resumes having sold out', () => {
+    const after = stores.map((s) => ({ ...s, ...(s.store_id === 'S03' ? { status: 'out_of_stock', quantity: 0 } : {}), live: true }));
+    const v = describeStock({ ...base, sellable: 6, confirmed_min: 6, at_least: false, stores: after });
+    expect(v.title).toBe('6 available online');
+    expect(v.stores[2].text).toBe('Bologna 0');
   });
   it.each([
     ['per-store positions lag the aggregate', 9, 7],
@@ -71,8 +111,9 @@ describe('describeStore', () => {
     const v = describeStore(st('S04', 'unknown', null));
     expect(v).toMatchObject({ text: 'Roma ?', tone: 'unknown' });
   });
-  it('marks a known store whose feed is not ok as not live', () => {
-    expect(describeStore(st('S02', 'available', 1, 'stale'))).toMatchObject({ text: 'Torino 1 (not live)', tone: 'stale' });
+  it('marks a known store whose feed is not ok as last seen, not live', () => {
+    expect(describeStore(st('S02', 'available', 1, 'stale'))).toMatchObject({ text: 'Torino 1 (last seen, not live)', tone: 'stale' });
+    expect(describeStore({ ...st('S02', 'available', 1, 'stale'), live: false }).text).toBe('Torino 1 (last seen, not live)');
   });
   it('shows an unknown store with a stale feed as ?', () => {
     expect(describeStore(st('S02', 'unknown', null, 'unknown')).text).toBe('Torino ?');

@@ -2,7 +2,9 @@
 """Print the non-secret make defaults that ./demo derives from demo.yaml, for the Makefile.
 
 Usage: demo-yaml.py <path/to/demo.yaml>
-Output (one line, space separated): <stack> <aws_profile> <aws_region> <layers> <allowed_cidr or ->
+Output (one line, space separated):
+  <stack> <aws_profile> <aws_region> <layers> <allowed_cidr or -> <keep_images: true|false> <mode: cloud|local> <owner or ->
+mode: local reads no cloud keys: the cloud fields print as `-` and the Makefile uses only layers and mode.
 The file is parsed and validated by ./demo's own parse_yaml/validate, so make and ./demo accept
 exactly the same files. Secrets are never printed. Exit 2 with a message on stderr if invalid.
 """
@@ -38,7 +40,8 @@ def main() -> int:
     except ValueError as error:
         print(f"make: {path}: {error}", file=sys.stderr)
         return 2
-    print(values["stack"], values["aws_profile"], values["aws_region"], values["layers"], values.get("allowed_cidr") or "-")
+    print(values.get("stack", "-"), values.get("aws_profile", "-"), values.get("aws_region", "-"), values["layers"],
+          values.get("allowed_cidr") or "-", values.get("keep_images", "false"), values["mode"], values.get("owner") or "-")
     return 0
 
 

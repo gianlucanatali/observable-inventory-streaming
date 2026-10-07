@@ -48,6 +48,8 @@ locals {
   }
 }
 
+# Registered on every stack (before any offers DDL). sa-flink's DeveloperWrite on carts.at-risk-* is therefore a core
+# binding (main.tf), and the schema waits for the role bindings.
 resource "confluent_schema" "carts_at_risk_value" {
   subject_name  = "carts.at-risk-value"
   format        = "AVRO"
@@ -60,6 +62,8 @@ resource "confluent_schema" "carts_at_risk_value" {
     key    = confluent_api_key.sr["flink"].id
     secret = confluent_api_key.sr["flink"].secret
   }
+
+  depends_on = [confluent_role_binding.app]
 }
 
 resource "confluent_flink_statement" "ddl" {

@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
 # Cloud stack lifecycle. Run via make, MODE=cloud STACK=<name>:
 #   make stack-preflight            read-only checks: tools, credentials present, AWS identity, ssh key, terraform validate
-#   make stack-up   CONFIRM=yes     Terraform cloud + vm, docker context, build, compose up, seed, connectors, layers,
-#                                   schema priming, Flink statements, Terraform datadog, verify. LAYERS=all (default) | core | releases,restock,...
+#   make stack-up   CONFIRM=yes     Terraform account, images (hybrid), cloud + vm, RUM app (hybrid, dd-rum), docker context,
+#                                   images (reused from ECR by content tag, else built on the VM) in parallel with Terraform aws,
+#                                   compose up, seed, connectors, layers, schema priming, Flink statements, Terraform datadog,
+#                                   verify. LAYERS=core (default) | all | releases,restock,...
+#                                   REBUILD_IMAGES=1 builds and pushes every image even when its content tag is in ECR.
 #   make stack-status               Terraform outputs (non-sensitive), layers, containers
-#   make stack-down CONFIRM=yes     compose down -v, terraform destroy datadog, vm, cloud; leftover check
+#   make stack-down CONFIRM=yes     compose down -v, terraform destroy datadog, aws, vm, images (unless KEEP_IMAGES=true),
+#                                   with cloud in parallel; leftover check
 #   make stack-leftovers            read-only: tagged AWS resources confirmed with their service APIs, Confluent environments
 # Internal (layer.sh, MODE=cloud): stack.sh layer-tf <layer> on|off ; stack.sh layer-post <layer> on|off
 #
@@ -37,12 +41,22 @@ STATE_DIR="$OVERLAY/.state"
 LAYERS_FILE="$STATE_DIR/stack-$STACK.layers"          # desired optional layers, one per line (core is implicit)
 DEFER_FILE="$STATE_DIR/stack-$STACK.flink-deferred"   # Flink files held back until their inputs have schemas
 DD_APPLIED="$STATE_DIR/stack-$STACK.datadog-applied"  # marker: the datadog dir has outputs for this stack
+DD_RUM_APPLIED="$STATE_DIR/stack-$STACK.datadog-rum-applied"  # marker: only the RUM application was applied (early, hybrid)
+IMAGE_TAGS_FILE="$STATE_DIR/stack-$STACK.image-tags"      # image=c-<hash> per image: the tags terraform/aws deploys
+IMAGES_PUSHED_FILE="$STATE_DIR/stack-$STACK.images-pushed" # images built and pushed by the last stack-up (one per line)
+SSM_DIGEST_FILE="$STATE_DIR/stack-$STACK.ssm-digest"     # sha256 of the last synced SSM values (never the values)
 ENV_CLOUD="$ENV_DIR/.env.cloud-$STACK"
 CTX="dd-demo-$STACK"
-ALL_LAYERS="releases restock offers dd-streams dd-synthetics dd-rum"
-[ "$TOPOLOGY" = hybrid ] && ALL_LAYERS="$ALL_LAYERS control-center"
+ALL_LAYERS="releases restock offers dd-streams dd-synthetics dd-rum"   # what LAYERS=all turns on
+VALID_LAYERS="$ALL_LAYERS"                                          # what may be named explicitly
+# Control Center is optional and not part of "all" (no longer in the workshop); name it in layers: to turn it on.
+# No LAYERS (no layers key in demo.yaml) means core only.
+[ "$TOPOLOGY" = hybrid ] && VALID_LAYERS="$VALID_LAYERS control-center"
 ALL_FLINK="sellable offers demand procurement restock"
-OWNER="${OWNER:-$(id -un)}"
+OWNER="${OWNER:-$(id -un)}"   # demo.yaml owner reaches here as OWNER; the environment wins, then the yaml key, then id -un
+# AWS tag value rules (letters, digits, _ . : / = + - @, up to 256); no spaces so the value stays one word.
+{ [[ "$OWNER" =~ ^[A-Za-z0-9_.:/=+@-]+$ ]] && [ "${#OWNER}" -le 256 ]; } \
+  || { echo "stack.sh: OWNER '$OWNER' is not a valid owner tag value: use 1 to 256 characters from letters, digits and _ . : / = + - @ (no spaces); set owner in demo.yaml or OWNER in the environment" >&2; exit 1; }
 AWS_SOURCE_PROFILE="${AWS_PROFILE:-dd-demo}"
 AWS_PROFILE="${AWS_SOURCE_PROFILE}-auto"
 AWS_CONFIG_FILE="$STATE_DIR/aws-config"
@@ -117,7 +131,7 @@ set_layers() { # set_layers all|core|<comma list>
   [ "$want" = core ] && want=""
   : > "$LAYERS_FILE"
   for l in ${want//,/ }; do
-    case "$l" in core) ;; *) case " $ALL_LAYERS " in *" $l "*) echo "$l" >> "$LAYERS_FILE";; *) die "unknown layer '$l' (valid: core, $ALL_LAYERS, or all)";; esac;; esac
+    case "$l" in core) ;; *) case " $VALID_LAYERS " in *" $l "*) echo "$l" >> "$LAYERS_FILE";; *) die "unknown layer '$l' (valid: core, $VALID_LAYERS, or all = $ALL_LAYERS)";; esac;; esac
   done
 }
 layer_set() { # layer_set <layer> on|off
@@ -145,10 +159,22 @@ flink_dml_deferred_hcl() { # FLINK_DML_DEFERRED="a b" -> ["a","b"]
 
 # --- terraform ------------------------------------------------------------------------------------------------
 presenter_cidr() {
-  [ -n "${PRESENTER_CIDR:-}" ] || die "no allowed CIDR for public ingress: set allowed_cidr in demo.yaml (your public IPv4 as a.b.c.d/32) and rerun; ./demo create detects it when allowed_cidr is empty"
+  [ -n "${PRESENTER_CIDR:-}" ] || die "no allowed CIDR for public ingress: set allowed_cidr in demo.yaml (your public IPv4 as a.b.c.d/32) and rerun; ./demo create, make stack-preflight/stack-up and make layer-on/off detect it when allowed_cidr is empty"
   [[ "$PRESENTER_CIDR" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}/32$ ]] \
     || die "allowed CIDR '$PRESENTER_CIDR' is not a single IPv4 address in /32 form (for example 203.0.113.7/32); fix allowed_cidr in demo.yaml"
   echo "$PRESENTER_CIDR"
+}
+IP_LOOKUP_URL="${IP_LOOKUP_URL:-https://checkip.amazonaws.com}"   # same lookup as ./demo create (overridable for tests)
+resolve_presenter_cidr() { # empty allowed_cidr: use the caller's current public IPv4 as /32, exactly like ./demo create
+  [ -z "${PRESENTER_CIDR:-}" ] || return 0
+  local ip
+  ip="$(curl -fsS --max-time 5 "$IP_LOOKUP_URL" | head -c 64 | tr -d '[:space:]')" \
+    || die "allowed_cidr is not set and your public IPv4 could not be detected via $IP_LOOKUP_URL (curl failed); set allowed_cidr in demo.yaml to your public IPv4 as a.b.c.d/32 (nothing was changed)"
+  [[ "$ip" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] \
+    || die "allowed_cidr is not set and $IP_LOOKUP_URL did not return an IPv4 address ('$ip'); set allowed_cidr in demo.yaml to your public IPv4 as a.b.c.d/32 (nothing was changed)"
+  PRESENTER_CIDR="$ip/32"; TF_VAR_presenter_cidr="$PRESENTER_CIDR"
+  export PRESENTER_CIDR TF_VAR_presenter_cidr
+  echo "stack.sh: allowed_cidr not set; using your current IP $PRESENTER_CIDR"
 }
 tf() { terraform -chdir="$TF/$1" "${@:2}"; }
 tf_out() { tf_workspace "$1"; tf "$1" output -raw "$2"; }   # always the stack's own workspace
@@ -192,9 +218,11 @@ vars_of() { # vars_of <dir> : prints one -var argument per line
         "-var=enable_dd_streams=$(b dd-streams)" "-var=flink_deferred=$(deferred_hcl)" \
         "-var=flink_dml_deferred=$(flink_dml_deferred_hcl)";;
     vm)
-      local cidr; if [ "${TF_DESTROY:-}" = 1 ]; then cidr="${PRESENTER_CIDR:-127.0.0.1/32}"; else cidr="$(presenter_cidr)"; fi
+      local cidr; if [ "${TF_DESTROY:-}" = 1 ]; then cidr="${PRESENTER_CIDR:-127.0.0.1/32}"; else cidr="$(presenter_cidr)" || exit 1; fi
       printf '%s\n' "-var=stack=$STACK" "-var=aws_profile=" "-var=owner=$OWNER" "-var=presenter_cidr=$cidr" \
         "-var=enable_dd_synthetics=$(b dd-synthetics)" "-var=enable_control_center=$(b control-center)";;
+    images)    # per-stack ECR repositories; kept by stack-down when KEEP_IMAGES=true
+      printf '%s\n' "-var=stack=$STACK" "-var=owner=$OWNER" "-var=aws_profile=" "-var=region=$(aws_region)";;
     account)   # account-wide CCM for AWS: not per stack, workspace "account"
       printf '%s\n' "-var=aws_profile=" "-var=owner=$OWNER";;
     aws)
@@ -207,11 +235,11 @@ vars_of() { # vars_of <dir> : prints one -var argument per line
           "-var=kafka_bootstrap=destroy.invalid:9092" "-var=schema_registry_url=https://destroy.invalid" \
           "-var=confluent_environment_id=env-destroy" "-var=kafka_cluster_id=lkc-destroy" "-var=flink_compute_pool_id=lfcp-destroy" \
           "-var=enable_releases=$(b releases)" "-var=enable_offers=$(b offers)" "-var=enable_jev=$ENABLE_JEV" \
-          "-var=enable_dd_rum=false" "-var=rum_application_id=" "-var=image_tag=${IMAGE_TAG:-dev}"
+          "-var=enable_dd_rum=false" "-var=rum_application_id=" "-var=image_tags=$(image_tags_hcl destroy)"
         return 0
       fi
       local cidr vm_instance vm_sg vm_private_ip vm_public_ip vm_cost_inputs vm_instance_type vm_root_ebs_gb cloud_env cloud_cluster cloud_bootstrap cloud_sr cloud_flink synthetics_cidrs rum_enabled rum_application_id
-      cidr="${PRESENTER_CIDR:-$(presenter_cidr)}"
+      cidr="$(presenter_cidr)" || exit 1   # vars_of runs in $(...) || die: set -e is off here, so check by hand
       vm_instance="$(tf_out vm instance_id)" || die "could not read VM instance_id for terraform/aws"
       vm_sg="$(aws ec2 describe-instances --instance-ids "$vm_instance" --query 'Reservations[0].Instances[0].SecurityGroups[0].GroupId' --output text --region "$(aws_region)")" || die "could not read VM security-group ID for terraform/aws"
       vm_private_ip="$(aws ec2 describe-instances --instance-ids "$vm_instance" --query 'Reservations[0].Instances[0].PrivateIpAddress' --output text --region "$(aws_region)")" || die "could not read VM private IP for terraform/aws"
@@ -226,10 +254,10 @@ vars_of() { # vars_of <dir> : prints one -var argument per line
       cloud_sr="$(tf_out cloud schema_registry_url)" || die "could not read cloud schema_registry_url for terraform/aws"
       cloud_flink="$(tf_out cloud flink_compute_pool_id)" || die "could not read cloud flink_compute_pool_id for terraform/aws"
       synthetics_cidrs="[]"
-      has dd-synthetics && synthetics_cidrs="$(tf_out_json vm dd_synthetics_cidrs)"
+      if has dd-synthetics; then synthetics_cidrs="$(tf_out_json vm dd_synthetics_cidrs)" || die "could not read VM output dd_synthetics_cidrs for terraform/aws"; fi
       rum_enabled=false
       rum_application_id=""
-      if has dd-rum && [ -f "$DD_APPLIED" ]; then
+      if has dd-rum && { [ -f "$DD_APPLIED" ] || [ -f "$DD_RUM_APPLIED" ]; }; then
         rum_enabled=true
         rum_application_id="$(tf_out datadog rum_application_id)" || die "could not read Datadog RUM application ID for terraform/aws"
         [ -n "$rum_application_id" ] && [ "$rum_application_id" != null ] || die "Datadog RUM application ID is missing while dd-rum is enabled"
@@ -241,22 +269,36 @@ vars_of() { # vars_of <dir> : prints one -var argument per line
         "-var=kafka_bootstrap=$cloud_bootstrap" "-var=schema_registry_url=$cloud_sr" \
         "-var=confluent_environment_id=$cloud_env" "-var=kafka_cluster_id=$cloud_cluster" \
         "-var=flink_compute_pool_id=$cloud_flink" "-var=enable_releases=$(b releases)" "-var=enable_offers=$(b offers)" "-var=enable_jev=$ENABLE_JEV" \
-        "-var=enable_dd_rum=$rum_enabled" "-var=rum_application_id=$rum_application_id" "-var=image_tag=${IMAGE_TAG:-dev}";;
+        "-var=enable_dd_rum=$rum_enabled" "-var=rum_application_id=$rum_application_id" "-var=image_tags=$(image_tags_hcl)";;
     datadog)
       printf '%s\n' "-var=stack=$STACK" "-var=enable_releases=$(b releases)" "-var=enable_restock=$(b restock)" \
         "-var=enable_offers=$(b offers)" "-var=enable_dd_streams=$(b dd-streams)" \
         "-var=enable_dd_synthetics=$(b dd-synthetics)" "-var=enable_dd_rum=$(b dd-rum)"
       hybrid_enabled && printf '%s\n' "-var=enable_fargate=true"
-      if has dd-synthetics && [ "${TF_DESTROY:-}" = 1 ]; then
+      if has dd-synthetics && [ "${DATADOG_RUM_ONLY:-}" = 1 ]; then
+        :   # targeted RUM-only apply before terraform/aws exists: the Synthetics tests are not planned, the URL stays null
+      elif has dd-synthetics && [ "${TF_DESTROY:-}" = 1 ]; then
         printf '%s\n' "-var=ingress_base_url=http://destroy.invalid"   # destroy acts on state; aws/vm may already be gone
       elif has dd-synthetics; then
         if hybrid_enabled; then
           tf_has_state aws || die "layer dd-synthetics needs the AWS ALB (terraform/aws) of stack $STACK"
-          printf '%s\n' "-var=ingress_base_url=$(tf_out aws alb_url)"
+          local synth_url; synth_url="$(tf_out aws alb_url)" || die "terraform/aws output alb_url missing (dd-synthetics target)"
+          printf '%s\n' "-var=ingress_base_url=$synth_url"
         else
           tf_has_state vm || die "layer dd-synthetics needs the VM (terraform/vm) of stack $STACK"
-          printf '%s\n' "-var=ingress_base_url=$(tf_out vm ingress_base_url)"
+          local synth_url; synth_url="$(tf_out vm ingress_base_url)" || die "terraform/vm output ingress_base_url missing (dd-synthetics target)"
+          printf '%s\n' "-var=ingress_base_url=$synth_url"
         fi
+      fi
+      # The demo home links the stack's shop and control panel; best effort, an empty value renders a hint instead.
+      if [ "${TF_DESTROY:-}" != 1 ] && [ "${DATADOG_RUM_ONLY:-}" != 1 ]; then
+        local shop_url=""
+        if hybrid_enabled; then
+          if tf_has_state aws; then shop_url="$(tf_out aws alb_url)" || die "terraform/aws output alb_url missing (shop link of the demo home)"; fi
+        elif tf_has_state vm; then
+          shop_url="$(tf_out vm ingress_base_url)" || die "terraform/vm output ingress_base_url missing (shop link of the demo home)"
+        fi
+        printf '%s\n' "-var=shop_url=$shop_url"
       fi;;
   esac
 }
@@ -333,8 +375,27 @@ tf_apply() { # tf_apply <dir> [destroy] [attempt]
   [ ! -s "$err" ] || cat "$err" >&2
   rm -f "$err"
   rm -f "$plan"
-  [ "$dir" = datadog ] && { if [ "$mode" = destroy ]; then rm -f "$DD_APPLIED"; else touch "$DD_APPLIED"; fi; }
+  [ "$dir" = datadog ] && { if [ "$mode" = destroy ]; then rm -f "$DD_APPLIED" "$DD_RUM_APPLIED"; else touch "$DD_APPLIED"; fi; }
   return 0
+}
+
+tf_apply_datadog_rum() { # create only the RUM application, before terraform/aws registers the storefront task definition
+  # Hybrid + dd-rum: the storefront then gets its RUM settings in its first deployment, and the later full datadog apply
+  # finds the application in state (no change). Outputs that depend only on the targeted resource are written.
+  local plan="$STATE_DIR/$STACK-datadog-rum.tfplan" vars=() v vf
+  load_env; tf_init datadog
+  datadog_streams_env
+  vf="$(DATADOG_RUM_ONLY=1 vars_of datadog)" || die "could not build the variables for the terraform/datadog RUM apply"
+  while IFS= read -r v; do vars+=("$v"); done <<< "$vf"
+  echo "   terraform/datadog workspace $STACK: RUM application only (-target)"
+  tf datadog plan -input=false -out="$plan" -target=datadog_rum_application.shop "${vars[@]}" >/dev/null \
+    || { rm -f "$plan"; die "terraform datadog RUM plan failed"; }
+  tf datadog show -no-color "$plan" | grep -E '^  # .* (will|must) be|^Plan:|^No changes|^Changes to Outputs' | sed 's/^/   /' || true
+  confirm "Apply the Datadog RUM application plan (stack $STACK)?" || { rm -f "$plan"; exit 1; }
+  tf datadog apply -input=false "$plan" || { rm -f "$plan"; die "terraform datadog RUM apply failed"; }
+  rm -f "$plan"
+  tf_out datadog rum_application_id >/dev/null || die "terraform/datadog output rum_application_id missing after the RUM apply"
+  touch "$DD_RUM_APPLIED"
 }
 
 tf_bootstrap_cloud() { # make apply-time cluster CRNs known before the full new-stack plan
@@ -368,6 +429,12 @@ write_env_file() { # <repo>/.env.cloud-<stack> = cloud + vm env_file (+ datadog 
   rm -f "$key_tmp" "$secret_tmp"
   if [ -f "$DD_APPLIED" ]; then
     tf_out datadog env_file >> "$tmp" || { rm -f "$tmp"; die "terraform/datadog output env_file failed (workspace $STACK)"; }
+    echo >> "$tmp"
+  elif [ -f "$DD_RUM_APPLIED" ] && has dd-rum; then   # early RUM-only apply: the same two lines env_file writes
+    printf 'DD_RUM_APPLICATION_ID=' >> "$tmp"
+    tf_out datadog rum_application_id >> "$tmp" || { rm -f "$tmp"; die "terraform/datadog output rum_application_id failed (workspace $STACK)"; }
+    printf '\nDD_RUM_CLIENT_TOKEN=' >> "$tmp"
+    tf_out datadog rum_client_token >> "$tmp" || { rm -f "$tmp"; die "terraform/datadog output rum_client_token failed (workspace $STACK)"; }
     echo >> "$tmp"
   fi
   mv "$tmp" "$ENV_CLOUD" || die "could not write $ENV_CLOUD"
@@ -408,6 +475,25 @@ aws_alb_url() {
   aws_out alb_url 2>/dev/null || aws_out alb_dns_name 2>/dev/null | sed 's#^#http://#';
 }
 
+keep_images() { # true when demo.yaml keep_images is true (KEEP_IMAGES from the Makefile); anything but true/false fails
+  case "${KEEP_IMAGES:-false}" in
+    true) return 0;;
+    false) return 1;;
+    *) die "KEEP_IMAGES must be true or false (demo.yaml keep_images), got '${KEEP_IMAGES}'";;
+  esac
+}
+refuse_legacy_ecr_state() { # stacks created before the per-stack image repositories hold the same repository names in terraform/aws
+  local state
+  tf_has_state aws || { echo "   terraform/aws has no state: nothing to check"; return 0; }
+  state="$(tf aws state list)" || die "could not list terraform/aws state while checking for old ECR repositories"
+  if printf '%s\n' "$state" | grep -q '^aws_ecr_repository\.'; then
+    die "terraform/aws of stack $STACK still owns its ECR repositories (older layout); terraform/images would create the same names. Run ./demo destroy (it deletes them), then ./demo create"
+  fi
+  echo "   no ECR repository in terraform/aws state"
+}
+
+# Legacy only (stacks created before the per-stack image repositories): terraform/aws owned the repositories. New stacks keep them in
+# terraform/images, which has force_delete and is destroyed by down_images.
 delete_ecr_repositories() {
   local repository region repository_urls repositories err state
   region="$(aws_region)"
@@ -460,8 +546,9 @@ ssm_secret_key() {
     *) return 1;;
   esac
 }
+SSM_CHANGED=0   # set by sync_ssm_secrets: 1 when the synced values differ from the previous sync of this stack
 sync_ssm_secrets() {
-  local file line key value count=0 name
+  local file line key value count=0 name digest_input="" digest old=""
   # Values may live in any of the three untracked deploy-time env files. The
   # exact allowlist below is still the security boundary for what reaches SSM.
   for file in "$ENV_CLOUD" "$ENV_DIR/.env.secrets" "$ENV_DIR/.env"; do
@@ -478,9 +565,17 @@ sync_ssm_secrets() {
       aws ssm put-parameter --name "$name" --type SecureString --value "$value" --overwrite \
         --region "$(aws_region)" >/dev/null || die "could not sync SSM parameter $name"
       count=$((count + 1))
+      digest_input="$digest_input$name=$value"$'\n'
     done < "$file"
   done
   echo "   synced $count secret values to SSM SecureString (values not shown)"
+  # Tasks read SSM only when they start. A one-way digest (mode 600, never printed) tells roll_out_images whether the
+  # running tasks hold older values; no earlier digest means no task started before this sync (or a pre-0031 stack).
+  digest="$(printf '%s' "$digest_input" | sha256_hex)" || die "could not digest the synced secret values"
+  [ -f "$SSM_DIGEST_FILE" ] && old="$(cat "$SSM_DIGEST_FILE")"
+  SSM_CHANGED=0
+  if [ -n "$old" ] && [ "$old" != "$digest" ]; then SSM_CHANGED=1; echo "   secret values changed since the last sync: running tasks restart in the roll-out"; fi
+  printf '%s\n' "$digest" > "$SSM_DIGEST_FILE" || die "could not write $SSM_DIGEST_FILE"
 }
 
 delete_stack_ssm_parameters() {
@@ -506,6 +601,9 @@ delete_stack_ssm_parameters() {
   echo "   deleted $count SSM parameters under $path (names only)"
 }
 
+# --- images: content tags, reuse from ECR, one builder function ------------------------------------
+# Every image is tagged c-<hash of its build inputs>. When ECR already holds that tag the build is skipped: ECS pulls
+# it, and the VM pulls it instead of rebuilding. Only the missing images go to build_and_push_images.
 app_images() {
   # Keep this list explicit so infrastructure-only images are never pushed accidentally.
   printf '%s\n' inventory-api storefront stock-projector offer-worker demo-control cost-meter
@@ -513,53 +611,254 @@ app_images() {
 log_router_image() {
   printf '%s\n' log-router
 }
+vm_images() { # images the on-prem VM runs through compose (built locally today, pulled from ECR when unchanged)
+  printf '%s\n' connect jr freshness-probe scenario smoke supplier-sim
+}
+ecs_images() { app_images; log_router_image; }
+all_images() { ecs_images; vm_images; }   # must match local.images in terraform/images/main.tf
+is_vm_image() { case " $(vm_images | tr '\n' ' ') " in *" $1 "*) return 0;; *) return 1;; esac; }
 ecs_services() {
   printf '%s\n' inventory-api-100 inventory-api-110 inventory-api-120 storefront stock-projector offer-worker demo-control cost-meter
 }
-aws_repo_url() {
-  local image="$1" url
-  tf_workspace aws
-  url="$(tf aws output -json ecr_repositories | jq -r --arg image "$image" '.[$image] // empty')" \
-    || die "could not read ECR repository map from terraform/aws"
-  [ -n "$url" ] || die "terraform/aws has no ECR repository for image $image"
+ecs_service_image() { case "$1" in inventory-api-*) echo inventory-api;; *) echo "$1";; esac; }
+compose_service_of() { # the compose service whose build: section builds <image> (log-router has none)
+  case "$1" in
+    inventory-api) echo inventory-api-100;;
+    jr) echo jr-sales-s01;;
+    log-router) echo "";;
+    *) echo "$1";;
+  esac
+}
+local_image() { printf 'dd-%s:%s\n' "$1" "${IMAGE_TAG:-dev}"; }   # the name compose gives the image (compose.yaml image:)
+
+image_inputs() { # image_inputs <image> : absolute paths of the build inputs (the Dockerfile COPY sources, as a superset)
+  local o="$OVERLAY"
+  case "$1" in
+    inventory-api)   printf '%s\n' "$o/inventory-api";;
+    storefront)      printf '%s\n' "$o/storefront" "$o/contracts/avro";;
+    stock-projector) printf '%s\n' "$o/stock-projector" "$o/contracts/avro";;
+    offer-worker)    printf '%s\n' "$o/offer-worker" "$o/contracts/avro" "$o/storefront/backend/app/products.json";;
+    demo-control)    printf '%s\n' "$o/demo-control" "$o/contracts" "$o/scenario/scenario";;
+    cost-meter|log-router|connect|freshness-probe|scenario|smoke|supplier-sim) printf '%s\n' "$o/$1";;
+    jr)
+      : "${JR_CONTEXT:?stack.sh: JR_CONTEXT must be set (the Makefile exports it)}"
+      : "${JR_DOCKERFILE:?stack.sh: JR_DOCKERFILE must be set (the Makefile exports it)}"
+      local ctx dockerfile_dir
+      ctx="$(cd "$o/compose/$JR_CONTEXT" && pwd)" || { echo "stack.sh: jr build context $o/compose/$JR_CONTEXT is missing" >&2; return 1; }
+      dockerfile_dir="$(cd "$ctx/$(dirname "$JR_DOCKERFILE")" && pwd)" || { echo "stack.sh: jr Dockerfile directory of $JR_DOCKERFILE is missing" >&2; return 1; }
+      printf '%s\n' "$ctx" "$dockerfile_dir/$(basename "$JR_DOCKERFILE")";;
+    *) echo "stack.sh: image_inputs: unknown image '$1'" >&2; return 1;;
+  esac
+}
+image_build_args() { # build arguments that change the image, as in compose.yaml
+  case "$1" in inventory-api) printf 'arg CATALOGUE_PRODUCTS=%s\n' "${CATALOGUE_PRODUCTS:-3500}";; esac
+}
+sha256_hex() { if command -v sha256sum >/dev/null; then sha256sum | cut -d' ' -f1; else shasum -a 256 | cut -d' ' -f1; fi; }
+image_input_manifest() { # image_input_manifest <image> : "<blob> <path>" for every input file (tracked or untracked, not ignored)
+  local image="$1" path label list files existing blobs f
+  printf 'scheme 1 image %s platform linux/arm64\n' "$image"
+  image_build_args "$image"
+  list="$(image_inputs "$image")" || return 1
+  for path in $list; do
+    label="${path#"$ROOT"/}"
+    if [ -f "$path" ]; then
+      blobs="$(git hash-object -- "$path")" || { echo "stack.sh: git hash-object failed for $path" >&2; return 1; }
+      printf '%s %s\n' "$blobs" "$label"
+    elif [ -d "$path" ]; then
+      files="$(cd "$path" && git ls-files -co --exclude-standard -- .)" \
+        || { echo "stack.sh: git ls-files failed in $path (content tags need a git checkout of the repository)" >&2; return 1; }
+      existing=""
+      while IFS= read -r f; do
+        if [ -n "$f" ] && [ -f "$path/$f" ]; then existing="$existing$f"$'\n'; fi   # deleted tracked files are skipped
+      done <<< "$files"
+      [ -n "$existing" ] || { echo "stack.sh: no build input files under $path for image $image" >&2; return 1; }
+      blobs="$(printf '%s' "$existing" | sed "s#^#$path/#" | git hash-object --stdin-paths)" \
+        || { echo "stack.sh: git hash-object failed under $path" >&2; return 1; }
+      paste -d' ' <(printf '%s\n' "$blobs") <(printf '%s' "$existing" | sed "s#^#$label/#")
+    else
+      echo "stack.sh: build input $path of image $image is missing" >&2; return 1
+    fi
+  done
+}
+image_content_tag() { # image_content_tag <image> : c-<20 hex>; changes exactly when a build input changes
+  local manifest
+  manifest="$(image_input_manifest "$1")" || return 1
+  printf 'c-%s\n' "$(printf '%s\n' "$manifest" | LC_ALL=C sort | sha256_hex | cut -c1-20)"
+}
+write_image_tags() { # computes every tag once per stack-up; terraform/aws and the image job read this file
+  local tmp="$IMAGE_TAGS_FILE.tmp" image tag
+  : > "$tmp" || die "could not write $tmp"
+  for image in $(all_images); do
+    tag="$(image_content_tag "$image")" || { rm -f "$tmp"; die "could not compute the content tag of image $image"; }
+    [[ "$tag" =~ ^c-[0-9a-f]{20}$ ]] || { rm -f "$tmp"; die "malformed content tag '$tag' for image $image"; }
+    printf '%s=%s\n' "$image" "$tag" >> "$tmp"
+    echo "   $image $tag"
+  done
+  mv "$tmp" "$IMAGE_TAGS_FILE" || die "could not install $IMAGE_TAGS_FILE"
+}
+image_tag() { # image_tag <image> : the tag of the last stack-up (the one terraform/aws deploys)
+  local tag
+  [ -f "$IMAGE_TAGS_FILE" ] || die "$IMAGE_TAGS_FILE is missing: the image tags are written by stack-up (run ./demo create)"
+  tag="$(sed -n "s/^$1=//p" "$IMAGE_TAGS_FILE")"
+  [ -n "$tag" ] || die "no tag for image $1 in $IMAGE_TAGS_FILE (rerun ./demo create)"
+  printf '%s\n' "$tag"
+}
+image_tags_hcl() { # image_tags_hcl [destroy] : {"inventory-api"="c-...",...} for -var=image_tags
+  local image out="" tag
+  for image in $(ecs_images); do
+    if [ "${1:-}" = destroy ]; then tag=destroy; else tag="$(image_tag "$image")" || return 1; fi
+    out="$out\"$image\"=\"$tag\","
+  done
+  echo "{${out%,}}"
+}
+image_repo_url() { # image_repo_url <image> : from IMAGE_REPOS_JSON (terraform/images output, read once)
+  local url
+  url="$(printf '%s' "$IMAGE_REPOS_JSON" | jq -r --arg image "$1" '.[$image] // empty')" \
+    || die "could not parse the repository map of terraform/images"
+  [ -n "$url" ] || die "terraform/images has no ECR repository for image $1 (add it to local.images)"
   printf '%s\n' "$url"
 }
-push_arm64_images() {
-  local image repo registry
-  registry="$(aws_repo_url inventory-api | cut -d/ -f1)"
+ecr_has_tag() { # ecr_has_tag <image> <tag> : 0 present, 1 absent; any other AWS error fails loudly
+  local err
+  if err="$(aws ecr describe-images --repository-name "dd-demo-$STACK/$1" --image-ids "imageTag=$2" \
+      --region "$(aws_region)" 2>&1 >/dev/null)"; then return 0; fi
+  if printf '%s' "$err" | grep -q 'ImageNotFoundException'; then return 1; fi
+  die "could not check image $1:$2 in ECR (AWS error, not a missing image): $err"
+}
+ecr_login() {
+  local registry
+  registry="$(image_repo_url inventory-api | cut -d/ -f1)"
   aws ecr get-login-password --region "$(aws_region)" | \
     docker --context "$CTX" login --username AWS --password-stdin "$registry" >/dev/null \
     || die "could not authenticate the VM's Docker client to ECR"
-  for image in $(app_images); do
-    repo="$(aws_repo_url "$image")"
-    docker --context "$CTX" tag "dd-$image:${IMAGE_TAG:-dev}" "$repo:${IMAGE_TAG:-dev}" || die "could not tag ARM64 image $image"
-    docker --context "$CTX" push "$repo:${IMAGE_TAG:-dev}" >/dev/null || die "could not push ARM64 image for $image to ECR"
-  done
-  image="$(log_router_image)"
-  repo="$(aws_repo_url "$image")"
-  docker --context "$CTX" build --platform linux/arm64 -t "dd-$image:${IMAGE_TAG:-dev}" "$OVERLAY/log-router" >/dev/null || die "could not build ARM64 FireLens log-router image"
-  docker --context "$CTX" tag "dd-$image:${IMAGE_TAG:-dev}" "$repo:${IMAGE_TAG:-dev}" || die "could not tag ARM64 FireLens log-router image"
-  docker --context "$CTX" push "$repo:${IMAGE_TAG:-dev}" >/dev/null || die "could not push ARM64 FireLens log-router image to ECR"
-  echo "   pushed ARM64 application images to ECR (credentials not printed)"
 }
-force_ecs_deployments() {
-  if [ "${SKIP_ECS_FORCE:-}" = 1 ]; then
-    echo "   SKIP_ECS_FORCE=1: retaining the already published task deployments"
-    return
+pull_vm_images() { # pull_vm_images <image...> : unchanged VM images come from ECR, tagged with their compose name
+  local image repo tag pids=() names=() i failed=""
+  for image in "$@"; do
+    repo="$(image_repo_url "$image")"; tag="$(image_tag "$image")"
+    ( docker --context "$CTX" pull -q "$repo:$tag" >/dev/null \
+        && docker --context "$CTX" tag "$repo:$tag" "$(local_image "$image")" ) &
+    pids+=("$!"); names+=("$image")
+  done
+  i=0
+  while [ "$i" -lt "${#pids[@]}" ]; do
+    if wait "${pids[$i]}"; then echo "   pulled ${names[$i]}:$(image_tag "${names[$i]}") from ECR (as $(local_image "${names[$i]}"))"
+    else failed="$failed ${names[$i]}"; fi
+    i=$((i + 1))
+  done
+  [ -z "$failed" ] || die "could not pull from ECR:$failed (docker --context $CTX pull <repo>:<tag>)"
+}
+
+# The image builder: builds the given images and pushes each as <repo>:<content tag>. Today it builds on the stack's
+# ARM64 VM. A different builder (for example AWS CodeBuild) can replace this one function: the tags, the ECR check,
+# the repositories and the task-definition tags do not depend on where the build runs.
+build_and_push_images() { # build_and_push_images <image...>
+  local image services=() repo tag build_log_router=0
+  for image in "$@"; do
+    if [ "$image" = "$(log_router_image)" ]; then build_log_router=1; else services+=("$(compose_service_of "$image")"); fi
+  done
+  if [ "${#services[@]}" -gt 0 ]; then
+    # Build only: the runtime-only endpoints from terraform/aws may not exist yet (this runs while it applies).
+    # shellcheck disable=SC2086
+    env ELASTICACHE_REDIS_URL=redis://build.invalid:6379/0 HYBRID_ONLINE_URL=http://build.invalid \
+      $DC --profile releases --profile restock --profile offers --profile tools --profile jr --profile control-center \
+      --profile cloud-online build "${services[@]}" || die "docker compose build failed for: ${services[*]}"
   fi
-  local cluster service
+  if [ "$build_log_router" = 1 ]; then
+    docker --context "$CTX" build --platform linux/arm64 -t "$(local_image log-router)" "$OVERLAY/log-router" >/dev/null \
+      || die "could not build ARM64 FireLens log-router image"
+  fi
+  for image in "$@"; do
+    if is_vm_image "$image" && ! keep_images; then
+      # Only a later stack would pull it, and with keep_images false the repositories go with this stack.
+      echo "   built $image on the VM (not pushed: keep_images is false, nothing would reuse it)"
+      continue
+    fi
+    repo="$(image_repo_url "$image")"; tag="$(image_tag "$image")"
+    docker --context "$CTX" tag "$(local_image "$image")" "$repo:$tag" || die "could not tag ARM64 image $image"
+    docker --context "$CTX" push "$repo:$tag" >/dev/null || die "could not push ARM64 image $image:$tag to ECR"
+    echo "$image" >> "$IMAGES_PUSHED_FILE"
+    echo "   pushed $image:$tag to ECR (credentials not printed)"
+  done
+}
+
+images_ready() { # every image of this stack exists in ECR under its content tag, and every VM image on the VM
+  local image tag missing=() pulls=()
+  : > "$IMAGES_PUSHED_FILE" || die "could not write $IMAGES_PUSHED_FILE"
+  ecr_login
+  for image in $(all_images); do
+    tag="$(image_tag "$image")"
+    if [ "${REBUILD_IMAGES:-}" != 1 ] && ecr_has_tag "$image" "$tag"; then
+      if is_vm_image "$image"; then pulls+=("$image"); echo "   $image:$tag skipped: image unchanged (in ECR; pulled for the VM)"
+      else echo "   $image:$tag skipped: image unchanged (in ECR)"; fi
+    else
+      missing+=("$image"); echo "   $image:$tag not in ECR$( [ "${REBUILD_IMAGES:-}" = 1 ] && echo ' (REBUILD_IMAGES=1)'): build and push"
+    fi
+  done
+  if [ "${#pulls[@]}" -gt 0 ]; then pull_vm_images "${pulls[@]}"; fi
+  if [ "${#missing[@]}" -gt 0 ]; then build_and_push_images "${missing[@]}"; else echo "   no image to build"; fi
+}
+
+IMAGES_PID=""
+IMAGES_LOG=""
+stop_images_job() { # EXIT trap while the image job runs: a failed foreground step must not leave it building
+  if [ -n "$IMAGES_PID" ] && kill -0 "$IMAGES_PID" 2>/dev/null; then
+    pkill -TERM -P "$IMAGES_PID" 2>/dev/null || echo "stack.sh: note: no child process of the image job to stop" >&2
+    kill -TERM "$IMAGES_PID" 2>/dev/null || echo "stack.sh: note: the image job had already ended" >&2
+    echo "stack.sh: stopped the background image job (its log: $IMAGES_LOG)" >&2
+  fi
+}
+start_images_job() { # runs images_ready in the background; terraform aws applies meanwhile (they are independent)
+  IMAGE_REPOS_JSON="$(tf_out_json images repositories)" || die "could not read the ECR repositories of terraform/images"
+  export IMAGE_REPOS_JSON
+  IMAGES_LOG="$LOG_DIR/$STACK-images-$(date +%Y%m%d-%H%M%S).log"
+  mkdir -p "$LOG_DIR" || die "could not create $LOG_DIR"
+  : > "$IMAGES_LOG" || die "could not create $IMAGES_LOG"
+  chmod 600 "$IMAGES_LOG" || die "could not protect $IMAGES_LOG"
+  ( images_ready ) > "$IMAGES_LOG" 2>&1 &
+  IMAGES_PID=$!
+  trap stop_images_job EXIT
+  echo "   image job started (pid $IMAGES_PID); its log is copied here when it ends: $IMAGES_LOG"
+}
+wait_images_job() {
+  local status=0
+  [ -n "$IMAGES_PID" ] || die "wait_images_job: no image job was started"
+  wait "$IMAGES_PID" || status=$?
+  IMAGES_PID=""
+  trap - EXIT
+  sed 's/^/   | /' "$IMAGES_LOG" || die "could not read $IMAGES_LOG"
+  [ "$status" = 0 ] || die "the image job failed (exit $status): see the '|' lines above or $IMAGES_LOG"
+}
+
+wait_ecs_services() { # wait_ecs_services <service...> : one services-stable wait per 10 services (the API limit)
+  local cluster service batch=() names=()
   cluster="$(aws_cluster)"
-  for service in $(ecs_services); do
-    service="dd-demo-$STACK-$service"
-    aws ecs update-service --cluster "$cluster" --service "$service" --force-new-deployment \
-      --region "$(aws_region)" >/dev/null || die "could not force ECS deployment for $service"
+  for service in "$@"; do names+=("dd-demo-$STACK-$service"); done
+  while [ "${#names[@]}" -gt 0 ]; do
+    batch=("${names[@]:0:10}")
+    names=("${names[@]:10}")
+    aws ecs wait services-stable --cluster "$cluster" --services "${batch[@]}" --region "$(aws_region)" \
+      || die "ECS services did not reach steady state: ${batch[*]} (aws ecs describe-services --cluster $cluster --services <name>)"
   done
+  echo "   ECS services reached steady state: $* (cluster $cluster)"
+}
+roll_out_images() { # new deployment only where this run pushed a new image (or secrets changed); then wait for all
+  local cluster service image forced=""
+  cluster="$(aws_cluster)"
+  [ -f "$IMAGES_PUSHED_FILE" ] || die "$IMAGES_PUSHED_FILE is missing: the image job did not run"
   for service in $(ecs_services); do
-    service="dd-demo-$STACK-$service"
-    aws ecs wait services-stable --cluster "$cluster" --services "$service" --region "$(aws_region)" \
-      || die "ECS service $service did not reach steady state"
+    image="$(ecs_service_image "$service")"
+    # A task that started before the push failed to pull and backs off; a new deployment starts it now.
+    if [ "$SSM_CHANGED" = 1 ] || grep -qx -e "$image" -e "$(log_router_image)" "$IMAGES_PUSHED_FILE"; then
+      aws ecs update-service --cluster "$cluster" --service "dd-demo-$STACK-$service" --force-new-deployment \
+        --region "$(aws_region)" >/dev/null || die "could not force ECS deployment for dd-demo-$STACK-$service"
+      forced="$forced $service"
+    fi
   done
-  echo "   ECS services reached steady state (cluster $cluster)"
+  if [ -n "$forced" ]; then echo "   new deployment forced (image pushed in this run, or secrets changed):$forced"
+  else echo "   no image changed: no forced deployment (ECS runs the task definitions Terraform registered)"; fi
+  # shellcheck disable=SC2046
+  wait_ecs_services $(ecs_services)
 }
 
 # --- host -----------------------------------------------------------------------------------------------------
@@ -691,13 +990,9 @@ wait_sellable() { # the Flink aggregate reached Redis through the sink connector
 
 recreate_storefront() { # compose re-reads .env.cloud-<stack> (RUM ids)
   if hybrid_enabled; then
-    local cluster service="dd-demo-$STACK-storefront"
-    cluster="$(aws_cluster)"
-    aws ecs update-service --cluster "$cluster" --service "$service" --force-new-deployment --region "$(aws_region)" >/dev/null \
-      || die "could not redeploy hybrid storefront"
-    aws ecs wait services-stable --cluster "$cluster" --services "$service" --region "$(aws_region)" \
-      || die "hybrid storefront did not reach steady state"
-    echo "   hybrid storefront redeployed"
+    # terraform/aws registered a storefront task definition with (or without) the RUM settings, and ECS deploys a
+    # changed task definition by itself: wait for it instead of forcing a second deployment.
+    wait_ecs_services storefront
     return
   fi
   # shellcheck disable=SC2086
@@ -715,7 +1010,6 @@ recreate_storefront() { # compose re-reads .env.cloud-<stack> (RUM ids)
 #    login session ends. The session metadata sits in ~/.aws/login/cache, whose format is not documented, so we do not parse it.
 #  So we cannot fail early on "too little session left". We state the documented upper bound and fail loudly when it ends
 #  (aws_session_ready here, apply_log_has_expired_token during an apply). The real mitigation is `aws login` right before a build.
-# Notes: ../../../notes/2026-10-05-aws-login-credentials.md
 AWS_LOGIN_MAX_HOURS=12   # documented maximum session duration (URL above); the real limit can be lower (IAM principal setting)
 
 credential_expiration() { # credential_expiration : reads the JSON on stdin, prints ONLY the Expiration field (never key material)
@@ -753,7 +1047,8 @@ preflight() {
   aws_session_ready
   echo "   public ingress CIDR: $(presenter_cidr)"
   local tf_dirs="account cloud vm datadog"
-  hybrid_enabled && tf_dirs="$tf_dirs aws"
+  hybrid_enabled && tf_dirs="$tf_dirs aws images"
+  if keep_images; then echo "   keep_images: true (stack-down keeps the ECR repositories of stack $STACK)"; fi   # also validates it
   for d in $tf_dirs; do
     tf "$d" init -backend=false -input=false >/dev/null 2>&1 && tf "$d" validate -no-color >/dev/null 2>&1 \
       && echo "   terraform/$d: valid" || { echo "   terraform/$d: INVALID (terraform -chdir=terraform/$d validate)"; ok=0; }
@@ -767,7 +1062,11 @@ up() {
   [ "${CONFIRM:-}" = yes ] || die "stack-up creates billed resources: add CONFIRM=yes (after the cost note and approval)"
   step "preflight" preflight
   step "terraform account (cost-meter identity and AWS CCM)" tf_apply account
-  set_layers "${LAYERS:-all}"
+  if hybrid_enabled; then
+    step "check for per-stack ECR repositories of the old layout" refuse_legacy_ecr_state
+    step "terraform images (ECR repositories of the stack, lifecycle policy)" tf_apply images
+  fi
+  set_layers "${LAYERS:-core}"
   echo "   layers: core $(tr '\n' ' ' < "$LAYERS_FILE")"
   # Flink inputs get their schemas from the apps' first records: hold every statement back until then.
   # A re-run on a stack whose statements already run must not destroy and recreate them.
@@ -783,18 +1082,23 @@ up() {
   step "terraform cloud bootstrap (new-stack CRNs)" tf_bootstrap_cloud
   step "terraform cloud (Confluent: cluster, topics, keys, compute pool; statements deferred)" tf_apply cloud
   step "terraform vm (EC2 host)" tf_apply vm
+  if hybrid_enabled && has dd-rum; then
+    step "terraform datadog (RUM application only, before the storefront's first deployment)" tf_apply_datadog_rum
+  fi
   step "env file .env.cloud-$STACK" write_env_file
   step "docker context $CTX" docker_context
   step "secrets" mk secrets
   if hybrid_enabled; then
-    step "terraform aws (ECS, ECR, ALB, SSM)" tf_apply aws
-    step "hybrid endpoint env" write_hybrid_endpoints
+    step "image tags (content hash of the build inputs)" write_image_tags
+    # Before terraform aws, so that the first tasks find every secret (the RUM token included).
     step "sync secrets to SSM SecureString" sync_ssm_secrets
-  fi
-  step "build images on the host" mk build
-  if hybrid_enabled; then
-    step "push ARM64 application images to ECR" push_arm64_images
-    step "force ECS deployments and wait for steady state" force_ecs_deployments
+    step "start the image job: reuse images from ECR, build only the missing ones (background)" start_images_job
+    step "terraform aws (ECS, ALB, ElastiCache; images in parallel)" tf_apply aws
+    step "hybrid endpoint env" write_hybrid_endpoints
+    step "wait for the image job" wait_images_job
+    step "roll out changed images and wait for all ECS services" roll_out_images
+  else
+    step "build images on the host" mk build
   fi
   step "copy compose config files to the host" sync_configs
   step "compose up (core)" mk _up
@@ -832,14 +1136,11 @@ up() {
   step "background sales on" mk sales-on
   step "terraform datadog (dashboard, monitors, layers)" tf_apply datadog
   step "env file (with RUM ids)" write_env_file
-  if has dd-rum && hybrid_enabled; then
-    step "sync RUM client token to SSM SecureString" sync_ssm_secrets
-    step "terraform aws (storefront RUM configuration)" tf_apply aws
-  fi
+  # Hybrid: the RUM application was applied before terraform aws, so the storefront already runs with it.
   for l in dd-streams dd-synthetics dd-rum; do
     if has "$l"; then step "layer $l (record)" mk layer-on L="$l" LAYER_SKIP_TF=1; fi
   done
-  if has dd-rum; then step "storefront picks up RUM" recreate_storefront; fi
+  if has dd-rum && ! hybrid_enabled; then step "storefront picks up RUM" recreate_storefront; fi
   if hybrid_enabled; then step "publish demo:links (control panel Links card)" mk links-publish; fi
   step "smoke test (browser + API)" mk smoke
   status
@@ -849,6 +1150,7 @@ up() {
 layer_tf() { # layer_tf <layer> on|off : Terraform side of layer.sh in MODE=cloud (before containers on, after containers off)
   local layer="$1" st="$2"
   [ "${CONFIRM:-}" = yes ] || die "layer $layer $st applies Terraform (billed resources): add CONFIRM=yes"
+  presenter_cidr >/dev/null
   layer_set "$layer" "$st"
   case "$layer:$st" in
     restock:on)  defer demand procurement restock; tf_apply cloud; tf_apply datadog;;   # statements after priming (layer-post)
@@ -860,7 +1162,9 @@ layer_tf() { # layer_tf <layer> on|off : Terraform side of layer.sh in MODE=clou
     control-center:off) tf_apply vm; tf_apply cloud;;
     dd-synthetics:on) tf_apply vm; tf_apply aws; tf_apply datadog;;
     dd-synthetics:off) tf_apply datadog; tf_apply aws; tf_apply vm;;
-    releases:*|dd-rum:*) tf_apply datadog;;
+    releases:on) if hybrid_enabled; then tf_apply aws; fi; tf_apply datadog;;   # aws: 1.1.0 and 1.2.0 to desired 1
+    releases:off) tf_apply datadog; if hybrid_enabled; then tf_apply aws; fi;;  # aws: back to desired 0
+    dd-rum:*) tf_apply datadog;;
     *) die "layer_tf: unknown layer '$layer'";;
   esac
   write_env_file
@@ -868,6 +1172,7 @@ layer_tf() { # layer_tf <layer> on|off : Terraform side of layer.sh in MODE=clou
     if [ "$st" = on ]; then sync_ssm_secrets; fi
     tf_apply aws
   fi
+  if [ "$layer" = releases ] && hybrid_enabled; then wait_ecs_services inventory-api-110 inventory-api-120; fi
 }
 
 layer_post() { # layer_post <layer> on|off : after layer.sh started or stopped the containers
@@ -1010,6 +1315,28 @@ down_vm() {
   fi
 }
 down_cloud() { detach_cloud_schemas_before_destroy || return 1; tf_apply cloud destroy; }
+down_images() { tf_apply images destroy; }   # force_delete: the images go with their repositories
+DOWN_CLOUD_PID=""
+DOWN_CLOUD_LOG=""
+start_down_cloud() { # down_layer cloud in the background; its output is copied into this log by wait_down_cloud
+  DOWN_CLOUD_LOG="$LOG_DIR/$STACK-down-cloud-$(date +%Y%m%d-%H%M%S).log"
+  mkdir -p "$LOG_DIR" || die "could not create $LOG_DIR"
+  : > "$DOWN_CLOUD_LOG" || die "could not create $DOWN_CLOUD_LOG"
+  chmod 600 "$DOWN_CLOUD_LOG" || die "could not protect $DOWN_CLOUD_LOG"
+  # The subshell starts with DOWN_FAILED empty; down_layer sets it on failure, which becomes the exit status.
+  # shellcheck disable=SC2030  # deliberate: the subshell's DOWN_FAILED only sets its exit status
+  ( DOWN_FAILED=""; down_layer cloud down_cloud; [ -z "$DOWN_FAILED" ] ) > "$DOWN_CLOUD_LOG" 2>&1 &
+  DOWN_CLOUD_PID=$!
+  echo; echo "== [destroy cloud] started in the background (pid $DOWN_CLOUD_PID), output copied here when it ends"
+}
+wait_down_cloud() {
+  local status=0
+  wait "$DOWN_CLOUD_PID" || status=$?
+  echo; echo "== [destroy cloud] background output:"
+  cat "$DOWN_CLOUD_LOG" || echo "stack.sh: could not read $DOWN_CLOUD_LOG" >&2
+  # shellcheck disable=SC2031  # the parent's DOWN_FAILED, not the background subshell's
+  [ "$status" = 0 ] || DOWN_FAILED="$DOWN_FAILED cloud"
+}
 
 down() {
   [ "${CONFIRM:-}" = yes ] || die "stack-down destroys stack $STACK: add CONFIRM=yes"
@@ -1017,7 +1344,8 @@ down() {
   # Read-only. Terraform state and workspaces are never deleted, so a failed run can always be rerun.
   local d found="" workspaces state
   local tf_dirs="cloud vm datadog"
-  hybrid_enabled && tf_dirs="$tf_dirs aws"
+  hybrid_enabled && tf_dirs="$tf_dirs aws images"
+  if keep_images; then echo "   keep_images: true: the ECR repositories of stack $STACK are kept"; fi   # also validates it, before any destroy
   for d in $tf_dirs; do
     [ -d "$TF/$d/.terraform" ] || tf "$d" init -input=false >/dev/null || die "terraform init failed in terraform/$d"
     workspaces="$(tf "$d" workspace list)" || die "could not list Terraform workspaces in terraform/$d"
@@ -1026,7 +1354,7 @@ down() {
     state="$(tf "$d" state list)" || die "could not list the Terraform state of terraform/$d (workspace $STACK)"
     [ -n "$state" ] && found="$found $d"
   done
-  [ -n "$found" ] || die "no Terraform state for stack '$STACK' in cloud, vm or datadog (typo? workspaces: $(tf cloud workspace list | tr -d '* \n' | tr '\n' ' '))"
+  [ -n "$found" ] || die "no Terraform state for stack '$STACK' in cloud, vm, datadog, aws or images (typo? workspaces: $(tf cloud workspace list | tr -d '* \n' | tr '\n' ' '))"
   echo "   stack $STACK has state in:$found"
   # Credentials before the question and before any destroy: an expired login must stop here with nothing touched.
   down_credentials_preflight "$found"
@@ -1037,14 +1365,16 @@ down() {
       mk _down PURGE=1 || echo "WARNING: compose down failed on the host (continuing: the host is destroyed next)" >&2
     fi;;
   esac
-  [ -f "$LAYERS_FILE" ] || set_layers all   # destroy needs a variable set; all is the superset
+  [ -f "$LAYERS_FILE" ] || set_layers "${VALID_LAYERS// /,}"   # destroy needs a variable set; every valid layer is the superset
   export TF_DESTROY=1
-  # Order: datadog, aws, vm, cloud. Each layer runs even when an earlier one failed, except vm after aws:
-  # terraform/aws owns an ElastiCache rule that references the VM security group, and AWS refuses to delete
-  # a referenced group (DependencyViolation), so the vm destroy would stall and fail. aws reads no other
-  # layer's outputs while destroying, so cloud is still destroyed (it bills the most).
+  # Order: datadog, then cloud in the background while aws, vm and images run in turn. Each layer runs even when an
+  # earlier one failed, except vm after aws: terraform/aws owns an ElastiCache rule that references the VM security
+  # group, and AWS refuses to delete a referenced group (DependencyViolation), so the vm destroy would stall and fail.
+  # cloud shares nothing with aws, vm or images (destroy plans use placeholders, never another layer's outputs), and
+  # CONFIRM=yes means no prompt can compete for the terminal, so it runs in parallel (it bills the most).
   DOWN_FAILED=""
   case " $found " in *" datadog "*) down_layer datadog down_datadog;; esac
+  case " $found " in *" cloud "*) start_down_cloud;; esac
   case " $found " in *" aws "*) down_layer aws down_aws;; esac
   case " $found " in *" vm "*)
     case " $DOWN_FAILED " in
@@ -1053,14 +1383,21 @@ down() {
       *) down_layer vm down_vm;;
     esac;;
   esac
-  case " $found " in *" cloud "*) down_layer cloud down_cloud;; esac
+  case " $found " in *" images "*)
+    if keep_images; then
+      echo; echo "== [destroy images] KEPT: keep_images is true; the ECR repositories of stack $STACK stay (see the leftover check)"
+    else
+      down_layer images down_images
+    fi;;
+  esac
+  case " $found " in *" cloud "*) wait_down_cloud;; esac
   if [ -n "$DOWN_FAILED" ]; then
     echo >&2
     echo "stack.sh: FAILED:$DOWN_FAILED; Terraform state, local env files and docker context kept. Fix the cause printed above (log: $LOG_DIR/$STACK-latest.log) and rerun stack-down: it resumes with the layers that still have state." >&2
     exit 1
   fi
   if docker context inspect "$CTX" >/dev/null 2>&1; then docker context rm -f "$CTX" >/dev/null && echo "   removed docker context $CTX"; fi
-  rm -f "$ENV_CLOUD" "$LAYERS_FILE" "$DEFER_FILE" "$DD_APPLIED" "$STATE_DIR/layers-$STACK.env" "$STATE_DIR/dd-layers-$STACK" "$STATE_DIR/routing-$STACK"
+  rm -f "$ENV_CLOUD" "$LAYERS_FILE" "$DEFER_FILE" "$DD_APPLIED" "$DD_RUM_APPLIED" "$IMAGE_TAGS_FILE" "$IMAGES_PUSHED_FILE" "$SSM_DIGEST_FILE" "$STATE_DIR/layers-$STACK.env" "$STATE_DIR/dd-layers-$STACK" "$STATE_DIR/routing-$STACK"
   leftover_check || die "stack $STACK: resources still exist after the destroy (list above); delete them or rerun stack-down"
   echo "== stack $STACK destroyed in $(( $(date +%s) - T0 )) s"
 }
@@ -1118,7 +1455,8 @@ arn_exists() { # arn_exists <arn> : prints 1 (exists), 0 (gone) or "?" (type not
 }
 
 aws_leftovers() { # confirm every tagged project=dd-demo ARN; returns 1 when this stack still has resources
-  local tagged arn tag n=0 skipped=0 gone=0 exists mine=() other=() account=() unverified=()
+  local tagged arn tag n=0 skipped=0 gone=0 exists mine=() other=() account=() unverified=() kept=() keep=0
+  if keep_images; then keep=1; fi
   echo "== leftover check: AWS resources tagged project=dd-demo, each confirmed with its service API"
   tagged="$(aws resourcegroupstaggingapi get-resources --region "$(aws_region)" --tag-filters "Key=project,Values=dd-demo" \
     --query 'ResourceTagMappingList[].[ResourceARN, Tags[?Key==`stack`].Value | [0]]' --output text)" \
@@ -1134,6 +1472,9 @@ aws_leftovers() { # confirm every tagged project=dd-demo ARN; returns 1 when thi
       [1-9]*) ;;
       *) die "leftover check: unexpected answer '$exists' for $arn";;
     esac
+    case "$arn" in
+      *":repository/dd-demo-$STACK/"*) if [ "$keep" = 1 ]; then kept+=("${arn##*:repository/}"); continue; fi;;
+    esac
     case "$tag" in
       account) account+=("$arn");;
       "$STACK"|None|"") mine+=("$arn	stack=$tag");;
@@ -1144,6 +1485,7 @@ aws_leftovers() { # confirm every tagged project=dd-demo ARN; returns 1 when thi
   [ "${#account[@]}" -eq 0 ] || printf '   account-owned, kept on purpose (make account-down removes it): %s\n' "${account[@]}"
   [ "${#other[@]}" -eq 0 ] || printf '   other stack, not part of this teardown: %s\n' "${other[@]}"
   [ "${#unverified[@]}" -eq 0 ] || printf 'WARNING: %s\n' "${unverified[@]}" >&2
+  if [ "${#kept[@]}" -gt 0 ]; then kept_images_report "${kept[@]}"; fi
   if [ "${#mine[@]}" -eq 0 ]; then
     echo "   no billable AWS leftovers for stack $STACK"
     return 0
@@ -1151,6 +1493,23 @@ aws_leftovers() { # confirm every tagged project=dd-demo ARN; returns 1 when thi
   echo "WARNING: ${#mine[@]} resource(s) of stack $STACK still exist and may bill:" >&2
   printf 'WARNING:   %s\n' "${mine[@]}" >&2
   return 1
+}
+
+ECR_USD_PER_GB_MONTH=0.10   # private ECR storage, eu-west-1: AWS Price List API, read 2026-10-06
+kept_images_report() { # kept_images_report <repository...> : count, stored size and storage price, read-only
+  local repo bytes total=0
+  for repo in "$@"; do
+    bytes="$(aws ecr describe-images --repository-name "$repo" --region "$(aws_region)" \
+      --query 'sum(imageDetails[].imageSizeInBytes)' --output text)" \
+      || die "leftover check: could not read the image sizes of kept ECR repository $repo"
+    [[ "$bytes" =~ ^[0-9]+$ ]] || die "leftover check: unexpected image size '$bytes' for ECR repository $repo"
+    total=$((total + bytes))
+  done
+  # shellcheck disable=SC2016  # awk program: $ is literal dollar text in its printf
+  LC_ALL=C awk -v n="$#" -v b="$total" -v p="$ECR_USD_PER_GB_MONTH" -v s="$STACK" -v r="$(aws_region)" 'BEGIN {
+    gb = b / 1073741824
+    printf "   kept on purpose (keep_images: true): %d ECR repositories of stack %s, %.2f GB stored, about $%.2f per month at $%.2f per GB-month (price read for eu-west-1; region %s). To delete them: keep_images: false, then ./demo destroy\n", n, s, gb, gb * p, p, r
+  }' || die "leftover check: could not format the kept-images report"
 }
 
 confluent_leftovers() { # returns 1 when a dd-demo-* environment still exists
@@ -1181,6 +1540,8 @@ leftover_check() { # read-only; also standalone: make MODE=cloud STACK=<s> stack
 
 dispatch_command() { # dispatch_command <command> [args...]
   configure_aws_refresh_profile
+  # Commands that plan terraform/vm or terraform/aws with the ingress CIDR: fill an empty allowed_cidr once, first.
+  case "$1" in preflight|up|layer-tf) resolve_presenter_cidr;; esac
   case "$1" in
     preflight) preflight;;
     up) up;;

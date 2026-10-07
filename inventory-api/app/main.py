@@ -117,10 +117,13 @@ def create_app(config=None, redis_client=None, statsd=None, catalogue=None):
                 span.set_exc_info(type(e), e, e.__traceback__)
 
         now_ms = int(time.time() * 1000)
-        stores, any_unknown = [], False
+        # A store is live when the namespace is ready, its feed is ok and its position is present. Only live
+        # stores count towards confirmed_min; a not-live store keeps its last seen quantity as detail.
+        stores, any_unknown, live_sum = [], False, 0
         for sid, fh in zip(cfg.stores, feeds):
             feed = store_feed(fh, now_ms)
-            entry = {"store_id": sid, "status": "unknown", "quantity": None, "revision": None, "feed": feed}
+            entry = {"store_id": sid, "status": "unknown", "quantity": None, "revision": None, "feed": feed,
+                     "live": False}
             pos = positions.get(sid)
             if pos:
                 q, rev, deleted = parse_position(sid, product_id, pos)
@@ -130,7 +133,10 @@ def create_app(config=None, redis_client=None, statsd=None, catalogue=None):
                 else:
                     entry["quantity"] = q
                     entry["status"] = "available" if q > 0 else "out_of_stock"
-            if entry["status"] == "unknown" or feed != "ok" or not ready:
+            entry["live"] = entry["status"] != "unknown" and feed == "ok" and ready
+            if entry["live"]:
+                live_sum += entry["quantity"] or 0
+            else:
                 any_unknown = True
             stores.append(entry)
         feed_order = {"ok": 0, "stale": 1, "unknown": 2}
@@ -148,16 +154,22 @@ def create_app(config=None, redis_client=None, statsd=None, catalogue=None):
             except (KeyError, ValueError) as e:
                 log.error("malformed sellable product=%s: %r (%s)", product_id, sellable_h, e)
                 raise  # a malformed serving view is an API failure: 500, loudly
+        # confirmed_min is what the shop may promise: the Flink total when every store is live, otherwise the
+        # live stores' sum, capped by the Flink total so it never exceeds what both paths agree on.
+        confirmed_min = None
         if reason is not None:
             status, sellable, last_changed = "unknown", None, None
-        elif sellable > 0:
-            status = "available"
-        elif any_unknown:
-            status, reason = "unknown", "stores_unknown"
         else:
-            status = "out_of_stock"
+            confirmed_min = min(live_sum, sellable) if any_unknown else sellable
+            if confirmed_min > 0:
+                status = "available"
+            elif any_unknown:
+                status, reason = "unknown", "stores_unknown"
+            else:
+                status = "out_of_stock"
 
-        body = {"product_id": product_id, "status": status, "sellable": sellable, "at_least": any_unknown,
+        body = {"product_id": product_id, "status": status, "sellable": sellable, "confirmed_min": confirmed_min,
+                "at_least": any_unknown,
                 "last_changed_at": last_changed, "restock_eta": parse_eta(product_id, eta_raw), "unknown_reason": reason, "feed": worst, "stores": stores,
                 "product": cat.product(product_id), "release": cfg.release}
         sd.increment("stock.lookup.result", tags=[f"status:{status}",

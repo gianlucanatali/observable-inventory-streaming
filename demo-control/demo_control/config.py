@@ -74,6 +74,7 @@ class Config:
     alb_target_groups: tuple[tuple[str, str], ...] = ()  # (("100", arn), ("110", arn), ("120", arn))
     scenario_api_url: str | None = None     # scenario API on the VM (Checks card); None = card disabled
     scenario_api_token: str | None = field(default=None, repr=False)
+    nginx_routing_dir: str | None = None    # local mode: shared nginx-routing volume; None = no nginx routing
 
     @classmethod
     def from_env(cls, env: Mapping[str, str]) -> "Config":
@@ -116,6 +117,11 @@ class Config:
         rule = env.get("ALB_INVENTORY_RULE_ARN") or ""
         if rule and not rule.startswith("arn:aws:elasticloadbalancing:"):
             errors.append(f"ALB_INVENTORY_RULE_ARN={rule!r} is not an elasticloadbalancing listener-rule ARN")
+        nginx_dir = env.get("NGINX_ROUTING_DIR") or None
+        if nginx_dir and not nginx_dir.startswith("/"):
+            errors.append(f"NGINX_ROUTING_DIR={nginx_dir!r} must be an absolute path (the mounted nginx-routing volume)")
+        if nginx_dir and rule:
+            errors.append("set either ALB_INVENTORY_* (hybrid ALB routing) or NGINX_ROUTING_DIR (local nginx routing), not both")
         connect_url = env.get("CONNECT_URL") or None
         if connect_url and not connect_url.startswith("http://") and not connect_url.startswith("https://"):
             errors.append(f"CONNECT_URL={connect_url!r} must start with http:// or https://")
@@ -148,5 +154,5 @@ class Config:
             connect_url=connect_url, alb_rule_arn=rule or None,
             alb_target_groups=tuple((k, env[f"ALB_INVENTORY_{k}_TARGET_GROUP_ARN"]) for k in ("100", "110", "120"))
             if rule else (),
-            scenario_api_url=api_url, scenario_api_token=api_token,
+            scenario_api_url=api_url, scenario_api_token=api_token, nginx_routing_dir=nginx_dir,
         )

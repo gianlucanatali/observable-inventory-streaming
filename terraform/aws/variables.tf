@@ -143,10 +143,14 @@ variable "enable_llmobs" {
   default     = true
 }
 
-variable "image_tag" {
-  description = "Immutable image tag that stack.sh pushes to each ECR repository."
-  type        = string
-  default     = "dev"
+variable "image_tags" {
+  description = "Content tag (c-<hash of the build inputs>) per image, written by stack.sh. A changed tag registers a new task definition revision, so ECS deploys exactly the services whose image changed."
+  type        = map(string)
+
+  validation {
+    condition     = alltrue([for tag in values(var.image_tags) : can(regex("^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$", tag))])
+    error_message = "image_tags values must be valid image tags."
+  }
 }
 
 variable "inventory_weights" {
@@ -167,7 +171,7 @@ variable "inventory_weights" {
 variable "enable_releases" {
   description = "Run inventory-api 1.1.0 and 1.2.0 for the releases layer."
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "service_sizing" {

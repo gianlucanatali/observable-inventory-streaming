@@ -15,6 +15,7 @@ from .checks import Checks, ScenarioApi, parse_routing_value
 from .sales import RATE_KEY, BackgroundSales, SalesError, store_probe
 from .ops import make_operations
 from .routing import AlbRouting, region_from_arn
+from .nginx_routing import NginxRouting
 from .store_feed import ConnectFeeds
 from .app import create_app
 from .backends import (KafkaConfigBackend, ProcurementBackend, ReadOnlyBackend, RedisBackend, StoreDbsBackend)
@@ -62,10 +63,12 @@ def build() -> "object":
     # the backends above keep the bytes client they were written for.
     r_text = redis.Redis.from_url(cfg.redis_url, decode_responses=True, socket_timeout=3, socket_connect_timeout=3)
     sell_out, reset_data = make_presenter_operations(store_conn, cfg.stores, r_text)
-    alb = None
+    alb = None  # the release-routing backend: the ALB rule (hybrid) or nginx's upstream (local mode), same interface
     if cfg.alb_rule_arn:
         elbv2 = boto3.client("elbv2", region_name=region_from_arn(cfg.alb_rule_arn))
         alb = AlbRouting(elbv2, cfg.alb_rule_arn, dict(cfg.alb_target_groups), r)
+    elif cfg.nginx_routing_dir:
+        alb = NginxRouting(cfg.nginx_routing_dir, r)
     feeds = ConnectFeeds(cfg.connect_url) if cfg.connect_url else None
     control: Control | None = None  # created below; the callbacks run only after startup
 

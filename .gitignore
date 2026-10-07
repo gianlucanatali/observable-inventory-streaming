@@ -21,3 +21,6 @@ logs/
 # Keep tracked examples and locks visible
 !.env.example
 !.terraform.lock.hcl
+
+# local status snapshot, never commit
+stack-status.env

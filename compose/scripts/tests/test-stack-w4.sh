@@ -10,6 +10,7 @@ HYBRID="$ROOT/compose/compose.hybrid.yaml"
 AWS_MAIN="$ROOT/terraform/aws/main.tf"
 AWS_ECS="$ROOT/terraform/aws/ecs.tf"
 AWS_VARS="$ROOT/terraform/aws/variables.tf"
+IMAGES_MAIN="$ROOT/terraform/images/main.tf"
 
 fail() { printf 'test-stack-w4: %s\n' "$*" >&2; exit 1; }
 contains() { grep -Fq -- "$1" "$STACK" || fail "stack.sh is missing: $1"; }
@@ -24,9 +25,12 @@ contains '--overwrite'
 contains 'aws ecs update-service'
 contains '--force-new-deployment'
 contains 'aws ecs wait services-stable'
-contains 'pushed ARM64 application images to ECR'
+contains 'to ECR (credentials not printed)'
+contains 'build_and_push_images() { # build_and_push_images <image...>'
+contains 'ecr_has_tag "$image" "$tag"'
+contains 'skipped: image unchanged'
 contains 'ALB:'
-contains 'terraform aws (ECS, ECR, ALB, SSM)'
+contains 'terraform aws (ECS, ALB, ElastiCache; images in parallel)'
 contains '"-var=presenter_cidr=$cidr"'
 contains '"-var=on_prem_security_group_id=$vm_sg"'
 contains '"-var=on_prem_private_ip=$vm_private_ip"'
@@ -51,12 +55,14 @@ contains 'COST_ECS_CLUSTER_NAME='
 contains 'COST_ALB_COUNT=1'
 contains 'COST_ELASTICACHE_NODE_TYPE=cache.t4g.small'
 contains '"-var=enable_fargate=true"'
-contains '"-var=ingress_base_url=$(tf_out aws alb_url)"'
+contains 'synth_url="$(tf_out aws alb_url)"'
+contains '"-var=ingress_base_url=$synth_url"'
+contains '"-var=shop_url=$shop_url"'
 contains '"-var=datadog_synthetics_cidrs=$synthetics_cidrs"'
 contains 'offers:on) tf_apply cloud; sync_ssm_secrets; tf_apply aws; tf_apply datadog;;'
 contains 'dd-synthetics:on) tf_apply vm; tf_apply aws; tf_apply datadog;;'
 contains 'chmod 600 "$ENV_CLOUD"'
-contains 'service="dd-demo-$STACK-$service"'
+contains '--service "dd-demo-$STACK-$service"'
 contains '"$OVERLAY/log-router"'
 contains 'repository_urls="$(tf_out_json aws ecr_repositories)"'
 contains 'detach_cloud_schemas_before_destroy'
@@ -65,7 +71,16 @@ contains 'down_cloud() { detach_cloud_schemas_before_destroy || return 1; tf_app
 contains "jq -r 'to_entries[] | .value | sub(\"^[^/]+/\"; \"\")'"
 contains 'for repository in $repositories; do'
 contains 'inventory-api-100 inventory-api-110 inventory-api-120 storefront stock-projector offer-worker demo-control cost-meter'
-grep -Eq 'force_delete[[:space:]]*=[[:space:]]*true' "$AWS_MAIN" || fail "ECR repositories must be removable with populated images during stack-down"
+grep -Eq 'force_delete[[:space:]]*=[[:space:]]*true' "$IMAGES_MAIN" || fail "ECR repositories must be removable with populated images during stack-down"
+! grep -q 'resource "aws_ecr_repository"' "$AWS_MAIN" || fail "terraform/aws must not own ECR repositories (they live in terraform/images)"
+grep -Fq 'image       = local.image_uri[each.value.image]' "$AWS_ECS" || fail "task definitions must use the content-tagged image URI"
+# Every image stack.sh handles has a repository in terraform/images.
+for image in inventory-api storefront stock-projector offer-worker demo-control cost-meter log-router connect jr freshness-probe scenario smoke supplier-sim; do
+  grep -Fq "\"$image\"" "$IMAGES_MAIN" || fail "terraform/images has no repository for $image"
+done
+contains 'printf '"'"'%s\n'"'"' inventory-api storefront stock-projector offer-worker demo-control cost-meter'
+contains 'printf '"'"'%s\n'"'"' connect jr freshness-probe scenario smoke supplier-sim'
+
 grep -Fq 'name = "OFFERS_ENABLED", value = tostring(var.enable_offers)' "$AWS_ECS" \
   || fail "Fargate storefront must expose offers when the offers layer is enabled"
 grep -Fq 'resource "aws_vpc_security_group_ingress_rule" "alb_http_synthetics"' "$AWS_MAIN" \
@@ -87,7 +102,7 @@ grep -A28 '^resource "aws_ecs_service" "app" {' "$AWS_ECS" | grep -Fq 'health_ch
   || fail "inventory ECS services need an ALB health-check grace period"
 # RUM parity: when dd-rum is enabled, only the ECS storefront receives the
 # application ID and its client token must stay on the stack-local SSM path.
-contains 'if has dd-rum && [ -f "$DD_APPLIED" ]; then'
+contains 'if has dd-rum && { [ -f "$DD_APPLIED" ] || [ -f "$DD_RUM_APPLIED" ]; }; then'
 contains 'rum_application_id="$(tf_out datadog rum_application_id)"'
 contains '"-var=enable_dd_rum=$rum_enabled"'
 contains '"-var=rum_application_id=$rum_application_id"'
@@ -125,15 +140,27 @@ def require_order(body, snippets):
             raise SystemExit(f"missing or out-of-order: {snippet}")
         position = next_position
 
+# Hybrid: the RUM application exists before the env file, the SSM sync and terraform aws, so the storefront's first
+# task definition carries RUM; images build in the background while terraform aws applies.
 require_order(function_body("up() {", "layer_tf() {"), [
+    'step "terraform datadog (RUM application only, before the storefront\'s first deployment)" tf_apply_datadog_rum',
+    'step "env file .env.cloud-$STACK" write_env_file',
+    'step "image tags (content hash of the build inputs)" write_image_tags',
+    'step "sync secrets to SSM SecureString" sync_ssm_secrets',
+    'start_images_job',
+    'step "terraform aws (ECS, ALB, ElastiCache; images in parallel)" tf_apply aws',
+    'step "wait for the image job" wait_images_job',
+    'step "roll out changed images and wait for all ECS services" roll_out_images',
     'step "terraform datadog (dashboard, monitors, layers)" tf_apply datadog',
-    'step "env file (with RUM ids)" write_env_file',
-    'if has dd-rum && hybrid_enabled; then',
-    'step "sync RUM client token to SSM SecureString" sync_ssm_secrets',
-    'step "terraform aws (storefront RUM configuration)" tf_apply aws',
+    'if has dd-rum && ! hybrid_enabled; then step "storefront picks up RUM" recreate_storefront; fi',
 ])
+up_body = function_body("up() {", "layer_tf() {")
+if "terraform aws (storefront RUM configuration)" in up_body:
+    raise SystemExit("hybrid up must not apply terraform aws a second time for RUM")
 require_order(function_body("layer_tf() {", "layer_post() {"), [
-    'releases:*|dd-rum:*) tf_apply datadog;;',
+    'releases:on) if hybrid_enabled; then tf_apply aws; fi; tf_apply datadog;;',
+    'releases:off) tf_apply datadog; if hybrid_enabled; then tf_apply aws; fi;;',
+    'dd-rum:*) tf_apply datadog;;',
     'write_env_file',
     'if [ "$layer" = dd-rum ] && hybrid_enabled; then',
     'if [ "$st" = on ]; then sync_ssm_secrets; fi',
@@ -143,7 +170,7 @@ PY
 grep -Fq 'hybrid_ecs_layer "$layer"' "$LAYER" \
   || fail "hybrid layer toggles must not start duplicate VM release/offer containers"
 grep -A1 '^  datadog-agent:' "$HYBRID" | grep -Fq 'profiles: !reset []' \
-  || fail "hybrid VM must run its Datadog Agent for watchdog/host metrics"
+  || fail "hybrid VM must run its Datadog Agent for freshness-probe/host metrics"
 grep -A4 '^  datadog-agent:' "$HYBRID" | grep -Fq 'configs: !override' \
   || fail "hybrid VM Agent must override dead Redis/nginx checks"
 ! grep -A8 '^  datadog-agent:' "$HYBRID" | grep -Eq 'dd_redisdb|dd_nginx' \

@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Troubleshooting | Observable inventory streaming</title>
+<meta name="description" content="Hands-on workshop: stream stock changes from five PostgreSQL store databases through Debezium and Confluent Cloud into Redis on AWS, then find and fix a slow release with Datadog.">
+<meta name="color-scheme" content="light dark">
+<!-- Generated from workshop/README.md by workshop/site/build.py. Do not edit by hand. -->
+<script>
+// Set the lab path before the first paint, so the page never shows both paths and then hides one.
+(function () {
+  var d = document.documentElement, p = null;
+  d.classList.add("js");
+  var m = /[?&]path=(panel|terminal)(?:&|$)/.exec(location.search);
+  try {
+    if (m) { p = m[1]; localStorage.setItem("workshop-path", p); }
+    else { p = localStorage.getItem("workshop-path"); }
+  } catch (e) {
+    console.warn("workshop: localStorage unavailable, the path choice is not remembered:", e);
+    if (m) p = m[1];
+  }
+  if (p !== "panel" && p !== "terminal") p = null;
+  d.setAttribute("data-path-mode", p || "panel");
+  if (p) d.setAttribute("data-path-chosen", "");
+})();
+</script>
+<link rel="stylesheet" href="assets/fonts.css?v=471d416a0c">
+<link rel="stylesheet" href="assets/site.css?v=84305200bf">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23632CA6'/%3E%3Cpath d='M8 21h4v-6H8zm6 0h4V10h-4zm6 0h4v-9h-4z' fill='white'/%3E%3C/svg%3E">
+</head>
+<body data-connect-href="setup.html#connect-box">
+<a class="skip" href="#content">Skip to content</a>
+<header class="topbar">
+  <button type="button" class="toc-toggle" aria-controls="toc" aria-expanded="false">
+    <span class="burger" aria-hidden="true"></span><span class="sr-only">Table of contents</span>
+  </button>
+  <a class="brand" href="intro.html" title="Start of the workshop"><span class="brand-mark" aria-hidden="true"></span><span>Observable inventory streaming</span></a>
+  <div class="path-switch" role="group" aria-label="Lab path">
+    <span class="path-switch-label" aria-hidden="true">Path</span>
+    <button type="button" data-set-path="panel" aria-pressed="true" title="Show the control panel steps">Panel</button>
+    <button type="button" data-set-path="terminal" aria-pressed="false" title="Show the terminal (make) steps">Terminal</button>
+  </div>
+  <a class="stack-badge" id="stack-badge" href="setup.html#connect-box" hidden title="Your stack is connected to this guide. Open the Connect box."><span class="stack-dot" aria-hidden="true"></span><span class="stack-badge-text">Connected<span class="stack-badge-name"></span></span></a>
+  <nav class="topbar-links" aria-label="Site">
+    <a class="topbar-home" href="index.html">Home</a>
+    <a class="topbar-current" href="intro.html" aria-current="page">Workshop</a><a class="topbar-extra" href="workshop.html">One-page guide</a>
+    <a class="topbar-extra topbar-md" href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/workshop/README.md" target="_blank" rel="noopener">Markdown source</a>
+    <a class="topbar-extra" href="https://github.com/gianlucanatali/observable-inventory-streaming" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+</header>
+<div class="layout">
+  <nav id="toc" class="toc" aria-label="Table of contents">
+    <p class="toc-title">Workshop</p><ol class="chapter-list"><li><a href="intro.html">Intro</a></li><li><a href="setup.html"><span class="cl-n">0</span>Setup</a></li><li><a href="chapter-1.html"><span class="cl-n">1</span>One honest number</a></li><li><a href="chapter-2.html"><span class="cl-n">2</span>Unknown is not zero</a></li><li><a href="chapter-3.html"><span class="cl-n">3</span>The incident</a></li><li><a href="chapter-4.html"><span class="cl-n">4</span>Canary the fix</a></li><li><a href="chapter-5.html"><span class="cl-n">5</span>The AI offer</a></li><li><a href="chapter-6.html"><span class="cl-n">6</span>Datadog on top</a></li></ol><p class="toc-title">Help and reference</p><ol class="chapter-list chapter-list-help"><li><a href="troubleshooting.html" aria-current="page">Troubleshooting</a></li><li><a href="teardown.html">Teardown</a></li><li><a href="recap.html">Recap</a></li><li><a href="reference.html">Reference</a></li><li><a class="guide-link" href="workshop.html">One-page guide</a></li></ol><p class="toc-title toc-title-page">On this page</p><ol class="toc-list">
+<li class="toc-h2"><a href="#troubleshooting">Troubleshooting</a>
+</li>
+</ol>
+  </nav>
+  <div class="scrim" hidden></div>
+  <main id="content" class="content" tabindex="-1">
+    <article id="top" class="doc">
+<nav class="chapter-progress" aria-label="Chapters"><ol><li class="cp-step cp-extra"><a href="intro.html"><span class="cp-dot" aria-hidden="true">&middot;</span><span class="cp-label">Intro</span></a></li><li class="cp-step cp-extra"><a href="setup.html"><span class="cp-dot" aria-hidden="true">0</span><span class="cp-label">Setup</span></a></li><li class="cp-step"><a href="chapter-1.html"><span class="cp-dot" aria-hidden="true">1</span><span class="cp-label">One honest number</span></a></li><li class="cp-step"><a href="chapter-2.html"><span class="cp-dot" aria-hidden="true">2</span><span class="cp-label">Unknown is not zero</span></a></li><li class="cp-step"><a href="chapter-3.html"><span class="cp-dot" aria-hidden="true">3</span><span class="cp-label">The incident</span></a></li><li class="cp-step"><a href="chapter-4.html"><span class="cp-dot" aria-hidden="true">4</span><span class="cp-label">Canary the fix</span></a></li><li class="cp-step"><a href="chapter-5.html"><span class="cp-dot" aria-hidden="true">5</span><span class="cp-label">The AI offer</span></a></li><li class="cp-step"><a href="chapter-6.html"><span class="cp-dot" aria-hidden="true">6</span><span class="cp-label">Datadog on top</span></a></li></ol></nav>
+<p class="chapter-kicker">Troubleshooting</p>
+<h2 id="troubleshooting">Troubleshooting <a class="header-anchor" href="#troubleshooting">#</a></h2>
+<p>When a step fails, read the last lines before the failure. Every script prints the step, the command and, where it can, the fix. If a step fails twice, stop and read before you try a third time. Running the build again without knowing why it failed is the most expensive way to debug.</p>
+<p><strong>Setup and preflight</strong></p>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Cause and check</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>demo: demo.yaml must be mode 0600</code> or <code>... still contains a placeholder</code></td>
+<td>Other users can read <code>demo.yaml</code>, or a <code>REPLACE_WITH_...</code> value is still there</td>
+<td><code>chmod 600 demo.yaml</code>; fill in every required key</td>
+</tr>
+<tr>
+<td><code>AWS login session unavailable; run: aws login --profile dd-demo</code></td>
+<td>Your sign-in expired. Check: <code>aws sts get-caller-identity --profile dd-demo</code></td>
+<td><code>aws login --profile dd-demo</code>, then run the command again. The routing commands need it too</td>
+</tr>
+<tr>
+<td><code>MISSING docker compose plugin</code> or <code>buildx</code></td>
+<td>The Docker CLI cannot find its plugins. Check: <code>docker compose version</code></td>
+<td>Install the plugins. With Homebrew, add their directory to <code>cliPluginsExtraDirs</code> in <code>~/.docker/config.json</code></td>
+</tr>
+<tr>
+<td><code>MISSING ~/.ssh/id_ed25519.pub</code></td>
+<td>You have no Ed25519 key</td>
+<td><code>ssh-keygen -t ed25519</code>, or set <code>TF_VAR_ssh_public_key_path</code></td>
+</tr>
+<tr>
+<td><code>calibration selection failed</code></td>
+<td>You changed the VM or Fargate size</td>
+<td>Use the default sizes (<code>t4g.xlarge</code>, <code>FARGATE_SIZE=512-1024</code>)</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Build</strong></p>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Cause and check</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The step <code>build images on the host</code> fails with a path under <code>vendor/jr</code> that does not exist, or <code>vendor/jr</code> is empty</td>
+<td>The <code>vendor/jr</code> submodule was not downloaded (you cloned without <code>--recurse-submodules</code>, or downloaded a ZIP)</td>
+<td>Run <code>git submodule update --init</code> from the repository root (<a href="setup.html#014-get-the-code">0.1.4 Get the code</a>), then <code>./demo create</code> again</td>
+</tr>
+<tr>
+<td><code>terraform account</code> fails creating the Datadog AWS integration</td>
+<td>Your Datadog organisation already has an integration with this AWS account (Integrations &gt; AWS)</td>
+<td>Use an AWS account that has no integration yet, or remove the existing integration if it is yours</td>
+</tr>
+<tr>
+<td><code>This server does not host this topic-partition</code></td>
+<td>A temporary Confluent Cloud error after topic creation</td>
+<td>No action needed: the script retries up to three times</td>
+</tr>
+<tr>
+<td><code>readiness timeout after 300s for table/topic: &lt;topic&gt;</code></td>
+<td>An input topic never received its first record, usually because of a connector. Check: <code>make status</code></td>
+<td>Fix the producer, then run <code>./demo create</code> again. Existing Flink statements are kept</td>
+</tr>
+<tr>
+<td><code>after 5 minutes only N sellable:P* keys in Redis (expected 200)</code></td>
+<td>The Flink <code>sellable</code> statement or the <code>sellable-redis</code> connector is not running</td>
+<td>Fix that piece, then run <code>./demo create</code> again</td>
+</tr>
+<tr>
+<td><code>ECS service ... did not reach steady state</code></td>
+<td>A task does not start. Check: AWS console &gt; ECS &gt; <code>dd-demo-hybrid</code> &gt; service &gt; Events</td>
+<td>Fix the cause shown there, then run <code>./demo create</code> again</td>
+</tr>
+<tr>
+<td><code>AWS login expired during apply of terraform/...</code>, or <code>ExpiredToken: The security token included in the request is expired</code> during <code>./demo create</code></td>
+<td>Your AWS login session ended during the build, often while Terraform waited for ElastiCache or the load balancer. A login lasts at most 12 hours, and the script cannot read how much is left</td>
+<td><code>aws login --profile dd-demo</code>, then <code>./demo create</code> again. Resources that were being created when it failed are rebuilt, which costs extra minutes (we have not measured how many). To prevent it, sign in again right before a long build</td>
+</tr>
+<tr>
+<td>You changed a table in <code>flink/*.sql</code> and nothing changed</td>
+<td>Output tables use <code>CREATE TABLE IF NOT EXISTS</code>, so an existing table is not replaced</td>
+<td>Change the schema in a compatible way, or tear down and rebuild</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Labs</strong></p>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Cause and check</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The shop or control panel does not load</td>
+<td>Your public IP no longer matches <code>allowed_cidr</code>. Check: <code>curl -s https://checkip.amazonaws.com</code></td>
+<td>Put the new address with <code>/32</code> in <code>allowed_cidr</code> in <code>demo.yaml</code> (or comment the line out to detect it automatically), then run <code>./demo create</code> again to update the security groups (duration not measured)</td>
+</tr>
+<tr>
+<td><code>allowed_cidr is not set and your public IPv4 could not be detected via https://checkip.amazonaws.com (...); set allowed_cidr in demo.yaml to your public IPv4 as a.b.c.d/32 (nothing was created)</code></td>
+<td><code>allowed_cidr</code> is not set and the lookup failed (you are offline, the request was blocked, or it timed out after 5 seconds)</td>
+<td>Set <code>allowed_cidr: a.b.c.d/32</code> in <code>demo.yaml</code> with your public IPv4, then run <code>./demo create</code> again</td>
+</tr>
+<tr>
+<td><code>demo.yaml: allowed_cidr must be a single IPv4 address in /32 form, for example 203.0.113.7/32 (or empty to auto-detect)</code></td>
+<td>The value is a range, has another prefix length, or is not an IPv4 address</td>
+<td>Use one IPv4 address with <code>/32</code>, or comment the line out to detect it automatically</td>
+</tr>
+<tr>
+<td>The Actions card shows <code>unavailable: Actions are not configured</code> or a request returns <code>actions are not configured</code></td>
+<td>The control panel started without the Actions operations</td>
+<td>Check the control panel service in AWS console &gt; ECS &gt; <code>dd-demo-hybrid</code>. This should not happen on a healthy build</td>
+</tr>
+<tr>
+<td>The browser keeps asking for a password, or shows <code>authentication required</code></td>
+<td>Wrong user or password for the control panel</td>
+<td>The user is <code>demo</code>. Copy <code>CONTROL_PASSWORD</code> from <code>.env.secrets</code> again</td>
+</tr>
+<tr>
+<td>The Store feed card shows <code>Store feed control is not configured in this deployment (CONNECT_URL absent)</code></td>
+<td>The control panel has no Connect address, as in a local run</td>
+<td>Use <code>store-pause</code> and <code>store-resume</code></td>
+</tr>
+<tr>
+<td>Both Actions buttons are disabled and the card shows <code>queued</code> or <code>running</code></td>
+<td>Only one action runs at a time. A second request while one is running does not start; the card shows the running one</td>
+<td>Wait for <code>succeeded</code> or <code>failed</code>, then press the button again</td>
+</tr>
+<tr>
+<td><code>product_id must match Pdddd, for example P0042</code></td>
+<td>The product field is not <code>P</code> followed by four digits</td>
+<td>Enter a product such as <code>P0042</code></td>
+</tr>
+<tr>
+<td><code>failed: Action failed: S01/P9999 not found in its source ...</code></td>
+<td>The product does not exist in a store's Source</td>
+<td>Use a product between <code>P0001</code> and <code>P0200</code></td>
+</tr>
+<tr>
+<td><code>failed: Action failed: source verification failed for S0n/P0042: ...</code></td>
+<td>A store's Source did not end with a live position of zero</td>
+<td>Check <code>status</code> and <code>verify</code>, then retry. If in doubt, use <code>make ... reset</code></td>
+</tr>
+<tr>
+<td><strong>Reset demo data</strong> does not start: <code>Background sales are on (&lt;rate&gt;/min per store): press Sales off first, or use Full reset</code></td>
+<td>Background sales are on. <strong>Reset demo data</strong> does not stop them, and while sales keep changing the stock the reset can never match the baseline, so the panel refuses to run it</td>
+<td>Press <strong>Full reset</strong> on the <strong>Background sales</strong> card (sales off, routing 100 / 0 / 0, data reset), or press <strong>Sales off</strong> and then <strong>Reset demo data</strong>, or run <code>make reset</code></td>
+</tr>
+<tr>
+<td><code>failed: Action failed: sell-out P0042 did not converge in 30s ...</code>, or <code>reset did not converge</code> with sales already off</td>
+<td>The Sources changed, but Redis did not match them in time because a connector or the projector is stopped, for example a store you paused in Lab 2.1</td>
+<td>Run <code>make status</code>, resume any paused store, then retry</td>
+</tr>
+<tr>
+<td><code>AWS rejected the weighted forward action ...</code> from a make routing command, with an expired-session message above it</td>
+<td>Your AWS login expired (the make commands run on your laptop)</td>
+<td><code>aws login --profile dd-demo</code>, then retry</td>
+</tr>
+<tr>
+<td>A Release routing button fails with <code>AWS rejected the weighted forward action ...: ... AccessDenied ...</code> on <code>ModifyRule</code></td>
+<td>The control panel's task role cannot change the inventory rule. Either the stack was built before the role existed, or the rule changed</td>
+<td>Run <code>./demo create</code> again to apply the role, then retry (duration not measured)</td>
+</tr>
+<tr>
+<td><code>ALB rule reports &lt;weights&gt; after requesting &lt;weights&gt;</code></td>
+<td>The weights read back after the change did not match the request. Someone else changed the rule at the same moment, or AWS did not apply it</td>
+<td>Press <strong>Refresh weights</strong>, then run <code>route-show</code>, and set the split again</td>
+</tr>
+<tr>
+<td>Store feed fails with <code>Connect REST ... unreachable</code> or <code>answered HTTP 404</code></td>
+<td>Unreachable: the Connect container on the VM is down or was not recreated to publish port 8083, or the VM security group is missing the rule. 404: the connector name does not exist</td>
+<td>Run <code>make status</code>. Run <code>./demo create</code> again to restore the rule and the container. Check that the store is between <code>S01</code> and <code>S05</code></td>
+</tr>
+<tr>
+<td>Store feed fails with <code>... still reports connector ..., tasks ... 20s after pause</code> (or <code>resume</code>), or <code>reports connector FAILED</code></td>
+<td>The connector did not reach <code>PAUSED</code> or <code>RUNNING</code> within 20 seconds, or it failed</td>
+<td>Press <strong>Refresh state</strong>. If it failed, read the Connect container logs on the VM and run <code>status</code></td>
+</tr>
+<tr>
+<td><code>no previous routing recorded; make a routing change first</code></td>
+<td><strong>Rollback</strong> has nothing to restore because no routing change was made through the panel yet. The panel keeps its own record, separate from the make commands</td>
+<td>Press a preset first, then <strong>Rollback</strong>, or use <code>make ... rollback</code></td>
+</tr>
+<tr>
+<td><code>Release routing is not configured in this deployment (ALB_INVENTORY_* variables absent)</code></td>
+<td>The control panel runs without the routing settings, as in a local run</td>
+<td>Use the make commands, or use the hybrid stack, where the panel runs on ECS next to the load balancer</td>
+</tr>
+<tr>
+<td>The Checks card shows <code>Checks are not configured in this deployment (SCENARIO_API_URL / SCENARIO_API_TOKEN absent)</code></td>
+<td>The control panel runs without the scenario API settings, as in a local run, or the stack was built before the card existed</td>
+<td>Use <code>load</code>, <code>verify</code> and <code>canary-check</code>. On an existing stack, run <code>make secrets</code> once, then <code>./demo create</code> again</td>
+</tr>
+<tr>
+<td>A Checks action fails with <code>scenario API ... answered HTTP 401 ... (token mismatch: SCENARIO_API_TOKEN differs between demo-control and the VM)</code></td>
+<td>The token in the control panel and the token on the VM are different, for example after someone ran <code>make secrets</code> on another machine</td>
+<td>Keep one <code>.env.secrets</code>. Run <code>./demo create</code> again so the VM and the control panel get the same token</td>
+</tr>
+<tr>
+<td>A Checks action fails with <code>answered HTTP 409: run &lt;id&gt; (load) is still running; one run at a time</code></td>
+<td>Another run is active, for example a load started from the panel or from the terminal API</td>
+<td>Wait for it to end (a load takes about 2 minutes) and retry</td>
+</tr>
+<tr>
+<td><code>scenario API ... unreachable</code></td>
+<td>The <code>scenario-api</code> container on the VM is down, or port 8090 is not open to the control panel</td>
+<td>Run <code>make status</code>. Run <code>./demo create</code> again to restore the container and the security group rule</td>
+</tr>
+<tr>
+<td><strong>Check canary</strong> fails with <code>canary-check error on the VM: ... does not exist: run load first</code> (or <code>verify first</code>)</td>
+<td>The gate needs the summary of a load and the result of a verify, and one of them does not exist yet</td>
+<td>Press <strong>Run load</strong> and <strong>Verify</strong>, then <strong>Check canary</strong></td>
+</tr>
+<tr>
+<td><strong>Check canary</strong> fails with <code>routing changed since the panel's last load (load ran at &lt;weights&gt;, live is &lt;weights&gt;): run load again before gating</code></td>
+<td>You changed the routing after the last load you ran from the panel</td>
+<td>Press <strong>Run load</strong> again, then <strong>Verify</strong> and <strong>Check canary</strong></td>
+</tr>
+<tr>
+<td><strong>Check canary</strong> fails with <code>live routing is 100/0/0 ...</code></td>
+<td>Only the baseline 1.0.0 receives traffic, so there is no canary to check</td>
+<td>First set a canary step on the <strong>Release routing</strong> card (<strong>Canary 1.1.0 (10%)</strong> in Lab 3.1, <strong>Canary 1.2.0 (10%)</strong> in Lab 4.1)</td>
+</tr>
+<tr>
+<td><code>CANARY GATES FAILED: p95 1.1.0 &lt;ms&gt; ms &gt; budget 200 ms; roll back</code> in Lab 3.1</td>
+<td>This is expected: the gate exists to catch this regression</td>
+<td>Roll back (<a href="chapter-3.html#5-roll-back">Lab 3.1, step 5</a>) and continue. Never send more traffic to a canary after a failed gate</td>
+</tr>
+<tr>
+<td>The Lab 3.1 gate passes for 1.1.0</td>
+<td>The p95 of 1.1.0 stayed within the 200 ms budget for this load, for example because few lookups reached it</td>
+<td>Press <strong>Run load</strong> and <strong>Check canary</strong> again. If it still passes, roll back anyway and use the APM comparison and the optional all-traffic step of Lab 3.1</td>
+</tr>
+<tr>
+<td><strong>Sales on</strong> fails with <code>no background sale was recorded in any store for ... s: the jr-sales containers are probably stopped</code></td>
+<td>The sales containers are stopped, for example after <code>make sales-off</code> or <code>reset</code></td>
+<td>Run <code>make sales-on</code> to start them, then press <strong>Sales on</strong></td>
+</tr>
+<tr>
+<td><strong>Full reset</strong> is disabled, or fails with <code>Full reset needs ALB release routing (hybrid stack)</code></td>
+<td>The control panel runs without the routing settings</td>
+<td>Use <code>make ... reset</code>, or use the hybrid stack</td>
+</tr>
+<tr>
+<td>No data in Datadog charts</td>
+<td>Telemetry needs a few minutes to fill a 15-minute window</td>
+<td>Wait 10 to 15 minutes. The freshness probe sends data even while background sales are off</td>
+</tr>
+<tr>
+<td><code>route-show</code> shows an unexpected split</td>
+<td>Someone changed the ALB rule</td>
+<td>Set the split you want with <code>route-baseline</code>, <code>canary-110-10</code>, <code>canary-*</code> or <code>incident</code></td>
+</tr>
+<tr>
+<td><code>canary-check</code> fails on samples at 10%</td>
+<td>The canary (1.1.0 in Lab 3.1, 1.2.0 in Lab 4.1) received too few responses. A weight does not give an exact split</td>
+<td>Run a longer <code>load</code>, or pass <code>--min-samples</code> explicitly (<a href="chapter-4.html#lab-41-canary-the-fix">Lab 4.1</a>)</td>
+</tr>
+<tr>
+<td><code>smoke</code> fails with a feed not ok</td>
+<td>A store is paused (Lab 2.1) or a connector is down. Check: <code>status</code></td>
+<td>Run <code>make store-resume STORE=S0n</code>, then <code>reset</code></td>
+</tr>
+<tr>
+<td>Offers are always <code>disabled</code> although you have a Jev key</td>
+<td>You added the key after the build</td>
+<td>Uncomment <code>jev_api_key</code> in <code>demo.yaml</code>, set your key and run <code>./demo create</code> again (billed while it runs)</td>
+</tr>
+<tr>
+<td>No offer after the sell-out</td>
+<td>No product was added to a cart after the last reset</td>
+<td>Run <code>reset</code>, reload, press <strong>Add to cart</strong>, and sell out again</td>
+</tr>
+<tr>
+<td>AI Observability shows another application</td>
+<td>The application picker selected another application by default</td>
+<td>Select <code>urbanstreet-offers</code></td>
+</tr>
+<tr>
+<td>No RUM session</td>
+<td>The <code>dd-rum</code> layer is off, or the Online shop was not redeployed with the RUM settings. Check: <code>curl -s http://&lt;alb-dns-name&gt;/config</code> has a <code>rum</code> block</td>
+<td>If the block is missing, check that <code>dd-rum</code> is in the layers (<code>./demo status</code>) and run <code>./demo create</code> again</td>
+</tr>
+<tr>
+<td>Some ElastiCache or host widgets on the stock dashboard are empty</td>
+<td>Unverified on the current build</td>
+<td>Use the AWS-native online dashboard for ElastiCache</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Teardown</strong></p>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Cause and check</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>AWS session expired or missing ...</code> or <code>Confluent CLI session expired or missing ...</code>, then <code>Nothing was destroyed.</code></td>
+<td>The login check at the start of the teardown failed</td>
+<td>Run the login that the message names (<code>aws login --profile dd-demo</code> or <code>confluent login</code>), then <code>./demo destroy</code> again</td>
+</tr>
+<tr>
+<td><code>stack.sh: FAILED: &lt;layers&gt;; Terraform state, local env files and docker context kept</code></td>
+<td>One or more pieces could not be destroyed. The script still tried the others</td>
+<td>Read the error above <code>destroy of layer '&lt;layer&gt;' FAILED</code>, fix it, then run <code>./demo destroy</code> again. It continues with the pieces that still exist</td>
+</tr>
+<tr>
+<td><code>[destroy vm] SKIPPED: terraform/aws failed ...</code></td>
+<td>The AWS online side still uses the VM's security group, so AWS cannot delete the VM's network rules yet. The VM keeps billing</td>
+<td>Fix the AWS error above, then run <code>./demo destroy</code> again</td>
+</tr>
+<tr>
+<td>The leftover check skips Confluent</td>
+<td>The <code>confluent</code> CLI is missing</td>
+<td>Look for <code>dd-demo-hybrid</code> in the Confluent Cloud console</td>
+</tr>
+<tr>
+<td>The leftover check stops with <code>'aws ...' failed</code> or <code>'confluent environment list' failed</code></td>
+<td>The AWS or Confluent login expired during the teardown</td>
+<td>Log in again (<code>aws login --profile dd-demo</code>, <code>confluent login</code>) and run <code>make stack-leftovers</code></td>
+</tr>
+<tr>
+<td><code>WARNING: ... still exist and may bill</code></td>
+<td>A resource was not deleted by the destroy</td>
+<td>Delete it in the console or run <code>./demo destroy</code> again, then <code>make stack-leftovers</code></td>
+</tr>
+</tbody>
+</table></div>
+
+<nav class="pager" aria-label="Previous and next"><a class="pager-btn pager-prev" href="chapter-6.html"><span class="pager-dir">Previous</span><span class="pager-title">Chapter 6: Datadog on top</span></a><a class="pager-btn pager-next" href="teardown.html"><span class="pager-dir">Next</span><span class="pager-title">Teardown</span></a></nav>
+    </article>
+    <footer class="doc-footer">
+      <p>Generated from <a href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/workshop/README.md" target="_blank" rel="noopener"><code>workshop/README.md</code></a>. Every product, store, sale and shopper in this workshop is synthetic.</p>
+      <p>Educational demo, not for production workloads. <a href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/LICENSE" target="_blank" rel="noopener">Apache License 2.0</a>, provided as is; trademarks and third-party notices in <a href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/NOTICE" target="_blank" rel="noopener">NOTICE</a>.</p>
+      <p><a href="#top">Back to top</a> &middot; <a href="workshop.html">One-page guide</a></p>
+    </footer>
+  </main>
+</div>
+<dialog class="lightbox" aria-label="Enlarged image">
+  <form method="dialog"><button class="lightbox-close" aria-label="Close">&times;</button></form>
+  <img alt="">
+  <p class="lightbox-caption"></p>
+</dialog>
+<dialog class="path-dialog" aria-labelledby="path-dialog-title" aria-describedby="path-dialog-text">
+  <h2 id="path-dialog-title">Switch to the <span class="path-dialog-other">terminal</span> path?</h2>
+  <p id="path-dialog-text">Pick one path and use it from start to finish. The control panel and the terminal each remember their own last routing for Rollback, so mixing them in one run can roll back to the wrong state. Switch only if you are starting a lab from a reset.</p>
+  <div class="path-dialog-buttons">
+    <button type="button" class="path-keep" autofocus>Keep control panel</button>
+    <button type="button" class="path-switch-confirm">Switch to terminal</button>
+  </div>
+</dialog>
+<div class="sr-only" aria-live="polite" id="live"></div>
+<script src="assets/stack.js?v=ec6a04c228"></script>
+<script src="assets/site.js?v=1de1666aca" defer></script>
+</body>
+</html>

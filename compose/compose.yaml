@@ -320,7 +320,7 @@ services:
       # PLAINTEXT (dev.env) drops sasl.* and the API key/secret requirement; SASL_SSL (default) requires all four credentials.
       KAFKA_SECURITY_PROTOCOL: ${KAFKA_SECURITY_PROTOCOL:-SASL_SSL}
       REDIS_URL: redis://redis:6379/0
-    # No HTTP port: this only proves PID 1 is alive. Real health = stock.serving.ready metric and the watchdog.
+    # No HTTP port: this only proves PID 1 is alive. Real health = stock.serving.ready metric and the freshness probe.
     healthcheck:
       test: ["CMD", "python", "-c", "import os; os.kill(1, 0)"]
       interval: 15s
@@ -479,12 +479,12 @@ services:
       com.datadoghq.tags.version: "1.30.5"
       com.datadoghq.ad.logs: '[{"source":"nginx","service":"nginx"}]'
 
-  watchdog:
+  freshness-probe:
     <<: *restart
     build:
       context: ..
-      dockerfile: watchdog/Dockerfile
-    image: dd-watchdog:${IMAGE_TAG:-dev}
+      dockerfile: freshness-probe/Dockerfile
+    image: dd-freshness-probe:${IMAGE_TAG:-dev}
     pull_policy: never
     depends_on:
       store-s01: {condition: service_healthy}
@@ -496,9 +496,9 @@ services:
       datadog-agent: {condition: service_started}
     environment:
       <<: [*dd-env, *pg-client, *store-hosts]
-      DD_SERVICE: watchdog
+      DD_SERVICE: freshness-probe
       DD_TAGS: "project:dd-demo stack:${STACK} layer:core"
-      DD_VERSION: ${WATCHDOG_VERSION:-1.0.0}
+      DD_VERSION: ${FRESHNESS_PROBE_VERSION:-1.0.0}
       PG_WRITER_USER: stock_writer
       PG_WRITER_PASSWORD: ${PG_WRITER_PASSWORD:?PG_WRITER_PASSWORD missing (run make secrets)}
       REDIS_URL: redis://redis:6379/0
@@ -517,9 +517,9 @@ services:
       com.datadoghq.tags.project: dd-demo
       com.datadoghq.tags.stack: ${STACK}
       com.datadoghq.tags.layer: core
-      com.datadoghq.tags.service: watchdog
-      com.datadoghq.tags.version: ${WATCHDOG_VERSION:-1.0.0}
-      com.datadoghq.ad.logs: '[{"source":"python","service":"watchdog"}]'
+      com.datadoghq.tags.service: freshness-probe
+      com.datadoghq.tags.version: ${FRESHNESS_PROBE_VERSION:-1.0.0}
+      com.datadoghq.ad.logs: '[{"source":"python","service":"freshness-probe"}]'
 
   # Real-time cost estimate and Confluent bill per vendor. Off EC2 (dev) the AWS lines are not sent;
   # without COST_METER_API_KEY (account Terraform output, read-only BillingAdmin + MetricsViewer key) the Confluent lines are not sent.

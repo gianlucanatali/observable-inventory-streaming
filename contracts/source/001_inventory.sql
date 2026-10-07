@@ -1,6 +1,6 @@
 -- Synthetic recorded inventory (the source). Stands in for the Retailer's legacy store systems.
 -- Contract: absolute quantities, immutable (store_id, product_id) keys, a revision that only grows,
--- soft delete only. The database enforces these rules, so every writer (jr, scripts, watchdog) obeys them.
+-- soft delete only. The database enforces these rules, so every writer (jr, scripts, freshness probe) obeys them.
 
 CREATE TABLE stock_position (
     store_id    text        NOT NULL,

@@ -1,0 +1,962 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reference | Observable inventory streaming</title>
+<meta name="description" content="Hands-on workshop: stream stock changes from five PostgreSQL store databases through Debezium and Confluent Cloud into Redis on AWS, then find and fix a slow release with Datadog.">
+<meta name="color-scheme" content="light dark">
+<!-- Generated from workshop/README.md by workshop/site/build.py. Do not edit by hand. -->
+<script>
+// Set the lab path before the first paint, so the page never shows both paths and then hides one.
+(function () {
+  var d = document.documentElement, p = null;
+  d.classList.add("js");
+  var m = /[?&]path=(panel|terminal)(?:&|$)/.exec(location.search);
+  try {
+    if (m) { p = m[1]; localStorage.setItem("workshop-path", p); }
+    else { p = localStorage.getItem("workshop-path"); }
+  } catch (e) {
+    console.warn("workshop: localStorage unavailable, the path choice is not remembered:", e);
+    if (m) p = m[1];
+  }
+  if (p !== "panel" && p !== "terminal") p = null;
+  d.setAttribute("data-path-mode", p || "panel");
+  if (p) d.setAttribute("data-path-chosen", "");
+})();
+</script>
+<link rel="stylesheet" href="assets/fonts.css?v=471d416a0c">
+<link rel="stylesheet" href="assets/site.css?v=84305200bf">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23632CA6'/%3E%3Cpath d='M8 21h4v-6H8zm6 0h4V10h-4zm6 0h4v-9h-4z' fill='white'/%3E%3C/svg%3E">
+</head>
+<body data-connect-href="setup.html#connect-box">
+<a class="skip" href="#content">Skip to content</a>
+<header class="topbar">
+  <button type="button" class="toc-toggle" aria-controls="toc" aria-expanded="false">
+    <span class="burger" aria-hidden="true"></span><span class="sr-only">Table of contents</span>
+  </button>
+  <a class="brand" href="intro.html" title="Start of the workshop"><span class="brand-mark" aria-hidden="true"></span><span>Observable inventory streaming</span></a>
+  <div class="path-switch" role="group" aria-label="Lab path">
+    <span class="path-switch-label" aria-hidden="true">Path</span>
+    <button type="button" data-set-path="panel" aria-pressed="true" title="Show the control panel steps">Panel</button>
+    <button type="button" data-set-path="terminal" aria-pressed="false" title="Show the terminal (make) steps">Terminal</button>
+  </div>
+  <a class="stack-badge" id="stack-badge" href="setup.html#connect-box" hidden title="Your stack is connected to this guide. Open the Connect box."><span class="stack-dot" aria-hidden="true"></span><span class="stack-badge-text">Connected<span class="stack-badge-name"></span></span></a>
+  <nav class="topbar-links" aria-label="Site">
+    <a class="topbar-home" href="index.html">Home</a>
+    <a class="topbar-current" href="intro.html" aria-current="page">Workshop</a><a class="topbar-extra" href="workshop.html">One-page guide</a>
+    <a class="topbar-extra topbar-md" href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/workshop/README.md" target="_blank" rel="noopener">Markdown source</a>
+    <a class="topbar-extra" href="https://github.com/gianlucanatali/observable-inventory-streaming" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+</header>
+<div class="layout">
+  <nav id="toc" class="toc" aria-label="Table of contents">
+    <p class="toc-title">Workshop</p><ol class="chapter-list"><li><a href="intro.html">Intro</a></li><li><a href="setup.html"><span class="cl-n">0</span>Setup</a></li><li><a href="chapter-1.html"><span class="cl-n">1</span>One honest number</a></li><li><a href="chapter-2.html"><span class="cl-n">2</span>Unknown is not zero</a></li><li><a href="chapter-3.html"><span class="cl-n">3</span>The incident</a></li><li><a href="chapter-4.html"><span class="cl-n">4</span>Canary the fix</a></li><li><a href="chapter-5.html"><span class="cl-n">5</span>The AI offer</a></li><li><a href="chapter-6.html"><span class="cl-n">6</span>Datadog on top</a></li></ol><p class="toc-title">Help and reference</p><ol class="chapter-list chapter-list-help"><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="teardown.html">Teardown</a></li><li><a href="recap.html">Recap</a></li><li><a href="reference.html" aria-current="page">Reference</a></li><li><a class="guide-link" href="workshop.html">One-page guide</a></li></ol><p class="toc-title toc-title-page">On this page</p><ol class="toc-list">
+<li class="toc-h2"><a href="#reference">Reference</a>
+<ol class="toc-sub">
+<li class="toc-h3"><a href="#a-glossary">A. Glossary</a></li>
+<li class="toc-h3"><a href="#b-components-and-data-flow">B. Components and data flow</a></li>
+<li class="toc-h3"><a href="#c-datadog-signals">C. Datadog signals</a></li>
+<li class="toc-h3"><a href="#d-cost-details">D. Cost details</a></li>
+<li class="toc-h3"><a href="#e-command-reference">E. Command reference</a></li>
+<li class="toc-h3"><a href="#f-remove-the-account-wide-pieces">F. Remove the account-wide pieces</a></li>
+<li class="toc-h3"><a href="#g-other-datadog-sites">G. Other Datadog sites</a></li>
+<li class="toc-h3"><a href="#h-the-control-panel-button-by-button">H. The control panel, button by button</a></li>
+<li class="toc-h3"><a href="#i-what-demo-does-step-by-step">I. What ./demo does, step by step</a></li>
+</ol></li>
+</ol>
+  </nav>
+  <div class="scrim" hidden></div>
+  <main id="content" class="content" tabindex="-1">
+    <article id="top" class="doc">
+<nav class="chapter-progress" aria-label="Chapters"><ol><li class="cp-step cp-extra"><a href="intro.html"><span class="cp-dot" aria-hidden="true">&middot;</span><span class="cp-label">Intro</span></a></li><li class="cp-step cp-extra"><a href="setup.html"><span class="cp-dot" aria-hidden="true">0</span><span class="cp-label">Setup</span></a></li><li class="cp-step"><a href="chapter-1.html"><span class="cp-dot" aria-hidden="true">1</span><span class="cp-label">One honest number</span></a></li><li class="cp-step"><a href="chapter-2.html"><span class="cp-dot" aria-hidden="true">2</span><span class="cp-label">Unknown is not zero</span></a></li><li class="cp-step"><a href="chapter-3.html"><span class="cp-dot" aria-hidden="true">3</span><span class="cp-label">The incident</span></a></li><li class="cp-step"><a href="chapter-4.html"><span class="cp-dot" aria-hidden="true">4</span><span class="cp-label">Canary the fix</span></a></li><li class="cp-step"><a href="chapter-5.html"><span class="cp-dot" aria-hidden="true">5</span><span class="cp-label">The AI offer</span></a></li><li class="cp-step"><a href="chapter-6.html"><span class="cp-dot" aria-hidden="true">6</span><span class="cp-label">Datadog on top</span></a></li></ol></nav>
+<p class="chapter-kicker">Reference</p>
+<h2 id="reference">Reference <a class="header-anchor" href="#reference">#</a></h2>
+<p>Use this part to look things up. You do not need to read it in order.</p>
+<h3 id="a-glossary">A. Glossary <a class="header-anchor" href="#a-glossary">#</a></h3>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Meaning in this workshop</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ALB</td>
+<td>Application Load Balancer, the single public entry point on AWS</td>
+</tr>
+<tr>
+<td>APM</td>
+<td>Application Performance Monitoring: Datadog's traces of requests through services</td>
+</tr>
+<tr>
+<td>Canary</td>
+<td>Sending a small share of traffic to a new release next to the old one, and comparing the two by version. You run the gate (<code>canary-check</code>) before each wider step</td>
+</tr>
+<tr>
+<td>CDC</td>
+<td>Change data capture: turning committed database changes into events</td>
+</tr>
+<tr>
+<td>Change event</td>
+<td>The record that one stock position changed at a Source, with its new quantity and revision</td>
+</tr>
+<tr>
+<td>Change stream</td>
+<td>The ordered sequence of change events. Every consumer reads it independently</td>
+</tr>
+<tr>
+<td>Cart at risk</td>
+<td>An active cart that holds a product whose sellable stock has just reached zero</td>
+</tr>
+<tr>
+<td>DSM</td>
+<td>Data Streams Monitoring: Datadog's map of services and the Kafka topics between them</td>
+</tr>
+<tr>
+<td>Demand rate</td>
+<td>The number of units of one product that one store sells per hour, learned from recent sales</td>
+</tr>
+<tr>
+<td>Eligible alternative</td>
+<td>An in-stock product of the same category and size, with a price inside the agreed range</td>
+</tr>
+<tr>
+<td>Flink statement</td>
+<td>A Flink SQL query in Confluent Cloud that runs continuously</td>
+</tr>
+<tr>
+<td>Freshness</td>
+<td>How long a stock change takes to travel from the Source to the serving view</td>
+</tr>
+<tr>
+<td>Inventory position</td>
+<td>Stock on hand plus stock on order</td>
+</tr>
+<tr>
+<td>Layer</td>
+<td>A part of the demo that you can switch on or off by itself</td>
+</tr>
+<tr>
+<td>p95</td>
+<td>The latency that 95% of requests stay under</td>
+</tr>
+<tr>
+<td>Probe</td>
+<td>A synthetic stock position that changes on a schedule, so that a stopped feed shows up even when nothing sells</td>
+</tr>
+<tr>
+<td>Purchase order</td>
+<td>A restock request that the procurement system accepted. It stays open until the goods arrive</td>
+</tr>
+<tr>
+<td>Release</td>
+<td>One deployed build of the stock lookup service: 1.0.0, 1.1.0 or 1.2.0</td>
+</tr>
+<tr>
+<td>Reorder point</td>
+<td>Demand rate × expected supplier lead time × safety factor</td>
+</tr>
+<tr>
+<td>Restock request</td>
+<td>The automatic request a store creates when its inventory position falls to the reorder point</td>
+</tr>
+<tr>
+<td>Revision</td>
+<td>A number that a Source increases on every change to a stock position. The higher number wins</td>
+</tr>
+<tr>
+<td>Rule default</td>
+<td>The offer that the policy picks by itself when the AI choice is missing, unsure, invalid, late or switched off</td>
+</tr>
+<tr>
+<td>Sellable stock</td>
+<td>The sum of a product's stock positions across all stores</td>
+</tr>
+<tr>
+<td>Serving view</td>
+<td>The copy of stock positions that the Online shop reads (ElastiCache Redis). It can be rebuilt from the change stream</td>
+</tr>
+<tr>
+<td>SKU</td>
+<td>One model in one colour and one size, such as P0042. It is the unit in which stock is tracked, from the stores to the API. The shop groups SKUs into models for display</td>
+</tr>
+<tr>
+<td>Sources</td>
+<td>The five store PostgreSQL databases</td>
+</tr>
+<tr>
+<td>SSM</td>
+<td>AWS Systems Manager Parameter Store, where the Fargate tasks read their secrets</td>
+</tr>
+<tr>
+<td>Stack</td>
+<td>One complete, isolated deployment with its own Confluent environment, VM, AWS services and Datadog <code>env</code></td>
+</tr>
+<tr>
+<td>Stock position</td>
+<td>The quantity of one product at one store</td>
+</tr>
+<tr>
+<td>Unknown stock</td>
+<td>The answer when the serving view cannot confirm a position. It is never shown as zero</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="b-components-and-data-flow">B. Components and data flow <a class="header-anchor" href="#b-components-and-data-flow">#</a></h3>
+<p><strong>Kafka Connect, self-managed next to the Sources.</strong> Debezium runs as a Kafka Connect source connector. It runs on a Connect worker in a container on the VM (built from <code>connect/Dockerfile</code>). The worker opens outbound TLS connections to Confluent Cloud, and its internal topics are stored there too. The store databases are never exposed to the internet.</p>
+<p>The cost of this design is that you run the worker yourself, and its connectors do not appear on the managed Connectors page of Confluent Cloud. You see their state in <code>make status</code> and in the Datadog metric <code>stock.connect.task_running</code>, which feeds one monitor per connector. Teams that already run Kafka on-premises would copy topics with Cluster Linking instead. This workshop does not need it.</p>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>Connector</th>
+<th>Type</th>
+<th>From → to</th>
+<th>Layer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>inventory-s01</code> … <code>inventory-s05</code></td>
+<td>Debezium PostgreSQL source (<code>pgoutput</code>)</td>
+<td>each store's <code>stock_position</code> table → <code>inventory.cdc</code></td>
+<td>core</td>
+</tr>
+<tr>
+<td><code>sellable-redis</code></td>
+<td>Redis sink</td>
+<td><code>stock.sellable</code> → <code>sellable:&lt;product&gt;</code> in ElastiCache</td>
+<td>core</td>
+</tr>
+<tr>
+<td><code>procurement-orders</code></td>
+<td>Debezium PostgreSQL source</td>
+<td>procurement <code>purchase_order</code> → <code>procurement.orders</code></td>
+<td>restock</td>
+</tr>
+<tr>
+<td><code>restock-procurement</code></td>
+<td>Confluent JDBC sink</td>
+<td><code>restock.requests</code> → procurement <code>purchase_order</code></td>
+<td>restock</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Who writes and who reads the serving view.</strong></p>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Writes</th>
+<th>Reads</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>stock-projector</code> (Fargate)</td>
+<td>Per-store positions <code>stock:&lt;namespace&gt;:&lt;store&gt;:&lt;product&gt;</code>, readiness metadata</td>
+<td>Its own keys, for compare-and-set</td>
+</tr>
+<tr>
+<td>Redis sink connector (VM)</td>
+<td>Sellable stock <code>sellable:&lt;product&gt;</code></td>
+<td>none</td>
+</tr>
+<tr>
+<td><code>freshness-probe</code> (VM)</td>
+<td>Feed status <code>feed:status:&lt;store&gt;</code></td>
+<td>Probe positions, <code>sellable:__probe__</code></td>
+</tr>
+<tr>
+<td><code>inventory-api</code> (Fargate)</td>
+<td>none</td>
+<td><code>sellable:*</code>, <code>stock:*</code>, <code>feed:status:*</code></td>
+</tr>
+<tr>
+<td><code>demo-control</code> (Fargate)</td>
+<td>Demo settings <code>demo:config</code>, the routing and last-load notes it keeps for the Checks card</td>
+<td>Demo settings, live routing</td>
+</tr>
+<tr>
+<td><code>scenario</code> tool (VM)</td>
+<td>The current scenario id during reset</td>
+<td>Everything, to verify against the Sources</td>
+</tr>
+<tr>
+<td><code>scenario-api</code> (VM)</td>
+<td>The load summary and the verify result, as the make targets do</td>
+<td>Same as the <code>scenario</code> tool</td>
+</tr>
+<tr>
+<td>Restock and offers layers</td>
+<td><code>supplier-sim</code> writes <code>restock:eta:&lt;product&gt;</code></td>
+<td><code>offer-worker</code> reads stock of alternatives</td>
+</tr>
+</tbody>
+</table></div>
+<p>Nothing on the shopper's path reads the Sources. Only Debezium (which reads the database log), the sales and <code>scenario</code> tools, the probe and the supplier simulator access them.</p>
+<p><strong>The load balancer.</strong> The ALB listener on port 80 sends <code>/control</code> to the control panel and everything else to the Online shop (<code>storefront</code>), except <code>/api/availability/*</code>. It sends those requests to the lookup service as a weighted forward to three target groups, one per release. Its security group accepts traffic only from <code>allowed_cidr</code>, from the VM and, with <code>dd-synthetics</code>, from Datadog's Synthetics IP ranges.</p>
+<p><strong>What the control panel can reach.</strong> <code>demo-control</code> runs with its own task role and its own security group, separate from the other tasks. The role can change only this stack's inventory listener rule (<code>elasticloadbalancing:ModifyRule</code>, limited to that rule) and read rules (<code>elasticloadbalancing:DescribeRules</code>, which AWS cannot limit to one resource). The VM's security group accepts traffic to Kafka Connect's REST port 8083 only from the <code>demo-control</code> security group, and the Connect container publishes port 8083 on the VM for this purpose. The Connect REST API has no authentication, so this port must stay private: never add it to <code>allowed_cidr</code>.</p>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>Piece</th>
+<th>Purpose</th>
+<th>Who may use it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>demo-control</code> task role</td>
+<td><code>ModifyRule</code> on the inventory rule only; <code>DescribeRules</code> read-only</td>
+<td><code>demo-control</code> task only</td>
+</tr>
+<tr>
+<td><code>demo-control</code> security group</td>
+<td>Identifies the task to the VM</td>
+<td><code>demo-control</code> task only</td>
+</tr>
+<tr>
+<td>VM rule for port 8083</td>
+<td>Connect REST for <strong>Pause feed</strong> and <strong>Resume feed</strong></td>
+<td>Source: the <code>demo-control</code> security group only</td>
+</tr>
+<tr>
+<td>VM rule for port 8090</td>
+<td>The <code>scenario-api</code> for <strong>Run load</strong>, <strong>Verify</strong> and <strong>Check canary</strong></td>
+<td>Source: the <code>demo-control</code> security group only</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>The scenario API.</strong> <code>scenario-api</code> is another service on the VM. It runs the same scenario package as the <code>scenario</code> tool (load, verify and canary gate) inside its own process, with no shell and no Docker socket. It can therefore run only those three things, with limited parameters and one run at a time. Every path except <code>/healthz</code> needs the bearer token <code>SCENARIO_API_TOKEN</code>. <code>make secrets</code> generates the token into <code>.env.secrets</code>, and <code>stack-up</code> passes it to both the VM and the control panel. Port 8090 is published on the VM and must stay private, like 8083: never add it to <code>allowed_cidr</code>. On a stack built before this card existed, run <code>make secrets</code> once (it adds the token and does not change your passwords) and then <code>./demo create</code>.</p>
+<p><strong>Release sizing.</strong> All three releases run with 0.5 vCPU and 1 GB (each including the Agent sidecar). The slow release does not get a larger task to absorb its CPU-bound regression. It is shipped like any other release and stopped when its canary gate fails (Lab 3.1). Because the sizes are equal, p95 and CPU by version compare the code, not the task size.</p>
+<p><strong>Datadog wiring.</strong> Each Fargate task runs the app, a Datadog Agent sidecar and a FireLens log router that sends JSON logs to Datadog and CloudWatch Logs. The Python services run <code>ddtrace</code> with unified service tags, log injection and DSM. On the VM, the Agent collects host and container metrics, logs, PostgreSQL checks and the <code>freshness-probe</code> freshness metrics.</p>
+<h3 id="c-datadog-signals">C. Datadog signals <a class="header-anchor" href="#c-datadog-signals">#</a></h3>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>Question</th>
+<th>Signal</th>
+<th>Source</th>
+<th>Lab</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Is the feed moving, per store?</td>
+<td><code>stock.probe.age</code>, <code>stock.feed.state</code>, <code>stock.sellable.age</code></td>
+<td><code>freshness-probe</code> via the VM Agent</td>
+<td>1, 2</td>
+</tr>
+<tr>
+<td>How long do changes take to reach Redis?</td>
+<td><code>stock.freshness.apply_delay</code> (p95)</td>
+<td><code>stock-projector</code></td>
+<td>1, 5</td>
+</tr>
+<tr>
+<td>Which Kafka edges are healthy?</td>
+<td>DSM map</td>
+<td><code>ddtrace</code> in projector, storefront, inventory-api, offer-worker</td>
+<td>1, 7</td>
+</tr>
+<tr>
+<td>Which release is slow, and where?</td>
+<td>APM latency by <code>version</code>, the <code>catalogue.prepare</code> span</td>
+<td><code>ddtrace</code> in inventory-api</td>
+<td>3, 4</td>
+</tr>
+<tr>
+<td>Are the connectors running?</td>
+<td><code>stock.connect.task_running</code></td>
+<td><code>freshness-probe</code> polling the Connect REST API</td>
+<td>1, 7</td>
+</tr>
+<tr>
+<td>Is consumer lag growing?</td>
+<td><code>confluent_cloud.kafka.consumer_lag_offsets</code></td>
+<td>Confluent Cloud integration</td>
+<td>7</td>
+</tr>
+<tr>
+<td>Are ECS, ElastiCache and the ALB healthy?</td>
+<td>AWS-native online dashboard</td>
+<td>AWS integration</td>
+<td>7</td>
+</tr>
+<tr>
+<td>Why did the AI pick that offer?</td>
+<td>LLM span input and output, <code>offer.decision</code></td>
+<td>offer-worker</td>
+<td>6</td>
+</tr>
+<tr>
+<td>Can a shopper load the page from outside?</td>
+<td>Synthetics API and browser tests</td>
+<td>Datadog location <code>aws:eu-central-1</code></td>
+<td>7</td>
+</tr>
+<tr>
+<td>When did a release change or a feed pause happen?</td>
+<td>Events <code>demo action: &lt;name&gt; started/succeeded/failed</code></td>
+<td><code>demo-control</code></td>
+<td>2, 3, 4, 7</td>
+</tr>
+<tr>
+<td>What is this costing?</td>
+<td><code>dd_demo.cost.*</code>, account cost dashboard, Cloud Cost Management</td>
+<td><code>cost-meter</code>, AWS Cost and Usage Report</td>
+<td>7</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="d-cost-details">D. Cost details <a class="header-anchor" href="#d-cost-details">#</a></h3>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Size</th>
+<th>Price used for the estimate</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>EC2 VM</td>
+<td>1 × <code>t4g.xlarge</code>, 40 GB gp3, CPU credits <code>unlimited</code></td>
+<td>$0.1472/h</td>
+<td>AWS Pricing API, <code>eu-west-1</code>, read 2026-10-04</td>
+</tr>
+<tr>
+<td>ECS Fargate (ARM64)</td>
+<td>8 services, 3.5 vCPU and 7 GB in total</td>
+<td>$0.0324 per vCPU-hour, $0.0036 per GB-hour, about $0.14/h</td>
+<td>AWS Pricing API, <code>eu-west-1</code>, read 2026-10-04</td>
+</tr>
+<tr>
+<td>ElastiCache</td>
+<td>1 × <code>cache.t4g.small</code></td>
+<td>$0.034/h</td>
+<td>AWS Pricing API, <code>eu-west-1</code>, read 2026-10-04</td>
+</tr>
+<tr>
+<td>ALB, public IPv4, EBS, CloudWatch Logs, data transfer</td>
+<td>1 ALB, 9 public IPs</td>
+<td>Not itemised</td>
+<td><a href="https://aws.amazon.com/elasticloadbalancing/pricing/" rel="noopener" target="_blank">ELB pricing</a>, <a href="https://aws.amazon.com/vpc/pricing/" rel="noopener" target="_blank">VPC pricing</a></td>
+</tr>
+<tr>
+<td>Confluent Cloud</td>
+<td>Basic cluster, Schema Registry Essentials, Flink pool capped at 5 CFU</td>
+<td>About $1.00/h</td>
+<td><a href="https://www.confluent.io/confluent-cloud/pricing/" rel="noopener" target="_blank">Confluent pricing</a>; check yours with <code>confluent billing price list</code></td>
+</tr>
+<tr>
+<td>Datadog</td>
+<td>Trial</td>
+<td>Check your trial terms</td>
+<td><a href="https://www.datadoghq.com/pricing/" rel="noopener" target="_blank">Datadog pricing</a></td>
+</tr>
+</tbody>
+</table></div>
+<p>Which layer adds which billed pieces (we have no measured cost per layer, so there are no per-layer prices here):</p>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Adds to the bill</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>core</code></td>
+<td>Everything in the table above except what the layers below add</td>
+</tr>
+<tr>
+<td><code>releases</code></td>
+<td>Two more Fargate services of 0.5 vCPU and 1 GB each. At the Fargate prices above, about $0.02 per hour each (calculated from those prices, not measured)</td>
+</tr>
+<tr>
+<td><code>restock</code></td>
+<td>Three more running Flink statements (demand, procurement and restock) and a procurement database container on the VM, which has no billed instance of its own</td>
+</tr>
+<tr>
+<td><code>offers</code></td>
+<td>One more Flink statement and a Fargate service for <code>offer-worker</code></td>
+</tr>
+<tr>
+<td><code>dd-streams</code>, <code>dd-synthetics</code>, <code>dd-rum</code></td>
+<td>Datadog usage on your trial (integration metrics, Synthetics runs, RUM sessions)</td>
+</tr>
+</tbody>
+</table></div>
+<p>Trial credits: when we wrote this, a new Confluent Cloud account came with $400 of promotional credit valid for 30 days (shown by <code>confluent billing promo list</code>), and Datadog ran on a time-limited trial. AWS bills from the first hour unless your account has credits. Offers change, so check your own accounts. What we observed: during one session of about 11 hours, the Confluent credit went down by about $24 (about $2 per hour, Flink statements included; Confluent billing is delayed by up to 72 hours), and AWS billed about $6.30 for the busiest day of our testing.</p>
+<p>We have two numbers from our runs: an estimate from list prices of about $1.40 to $1.50 per hour (2026-10-04), and about $1.72 per hour from the stack's own cost meter (2026-10-05). Neither one is a bill. Together with the Confluent usage we saw (about $2 per hour), this guide plans with $1.50 to $2.50 per hour. Both numbers were taken when release 1.1.0 still ran on 2 vCPU / 4 GB. With the equal 0.5 vCPU / 1 GB sizing, the cost is about $0.06 per hour lower at the same list prices, but we have not yet measured it on a run. <em>CFU</em> is a Confluent Flink compute unit. Billed cost can take up to 72 hours to appear in the Confluent and AWS consoles.</p>
+<h3 id="e-command-reference">E. Command reference <a class="header-anchor" href="#e-command-reference">#</a></h3>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th><code>./demo</code></th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>./demo create [--dry-run] [--yes]</code></td>
+<td>Validates <code>demo.yaml</code>, writes <code>.env</code>, runs the preflight, asks for confirmation, builds the stack (billed)</td>
+</tr>
+<tr>
+<td><code>./demo status</code></td>
+<td>Shop and control URLs, dashboards, ECS cluster, Confluent IDs</td>
+</tr>
+<tr>
+<td><code>./demo links</code></td>
+<td>Datadog dashboards, APM and DSM links</td>
+</tr>
+<tr>
+<td><code>./demo reset</code></td>
+<td>Same as <code>make ... reset</code></td>
+</tr>
+<tr>
+<td><code>./demo destroy [--yes]</code></td>
+<td>Asks for confirmation, then destroys the stack and runs a leftover check</td>
+</tr>
+</tbody>
+</table></div>
+<p>Every make target below reads the stack name and settings from <code>demo.yaml</code> (<a href="setup.html#the-stack-name">the stack name in 0.2.1</a>); a value on the command line, such as <code>STACK=&lt;name&gt;</code>, wins. <code>make help</code> lists all of them.</p>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>Make target</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>reset</code>, <code>verify</code>, <code>smoke</code></td>
+<td>Baseline data and 100/0/0 routing; compare the Sources with Redis; end-to-end smoke test</td>
+</tr>
+<tr>
+<td><code>sales-on</code>, <code>sales-off</code></td>
+<td>Start or stop background sales in all five stores (never P0042). The panel's <strong>Sales on</strong> and <strong>Sales off</strong> change the rate instead</td>
+</tr>
+<tr>
+<td><code>sell-out PRODUCT=P0042 GAP=1.5</code></td>
+<td>Sells all the stock of a product, one store after another</td>
+</tr>
+<tr>
+<td><code>store-pause STORE=S03</code>, <code>store-resume STORE=S03</code></td>
+<td>Pause or resume one store's Debezium connector</td>
+</tr>
+<tr>
+<td><code>canary-110-10</code>, <code>canary-10</code>, <code>canary-50</code>, <code>canary-100</code>, <code>incident</code>, <code>rollback</code>, <code>route-baseline</code></td>
+<td>Set the ALB weights for 1.0.0/1.1.0/1.2.0</td>
+</tr>
+<tr>
+<td><code>route-check</code>, <code>route-show</code></td>
+<td>Read the live ALB weights (and the recorded current and previous split)</td>
+</tr>
+<tr>
+<td><code>load LOAD_DURATION=120 LOAD_RPS=5</code></td>
+<td>Fixed-rate load on the availability API, counted per release</td>
+</tr>
+<tr>
+<td><code>canary-check [CHECK_ARGS=...]</code></td>
+<td>Run the gate on the results of the last load and verify</td>
+</tr>
+<tr>
+<td><code>lead-time SECONDS=&lt;n&gt;</code></td>
+<td>Set the supplier lead time in business seconds</td>
+</tr>
+<tr>
+<td><code>status</code>, <code>layers-status</code></td>
+<td>VM containers, routing, layers, connector status</td>
+</tr>
+<tr>
+<td><code>control</code></td>
+<td>Control panel URL and where to find its password</td>
+</tr>
+<tr>
+<td><code>links-publish</code></td>
+<td>Write this stack's links to Redis for the panel's <strong>Links</strong> card (<code>./demo create</code> runs it)</td>
+</tr>
+<tr>
+<td><code>layer-on L=&lt;layer&gt; CONFIRM=yes</code>, <code>layer-off L=&lt;layer&gt; CONFIRM=yes</code></td>
+<td>Switch one layer on or off on an existing stack (billed Terraform changes)</td>
+</tr>
+<tr>
+<td><code>stack-preflight</code>, <code>stack-up</code>, <code>stack-status</code>, <code>stack-down</code></td>
+<td>The lifecycle targets that <code>./demo</code> runs (<a href="#i-what-demo-does-step-by-step">Reference I</a>)</td>
+</tr>
+<tr>
+<td><code>stack-leftovers</code></td>
+<td>Read-only leftover check, the last step of <code>stack-down</code> (<a href="teardown.html#teardown">Teardown</a>)</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="f-remove-the-account-wide-pieces">F. Remove the account-wide pieces <a class="header-anchor" href="#f-remove-the-account-wide-pieces">#</a></h3>
+<p>The build also creates account-wide resources that are kept across stacks: the Cost and Usage Report export and its S3 bucket, the Datadog AWS integration and its IAM role, a read-only Confluent service account with its key and the Datadog Confluent integration, and the account cost dashboard. They have no hourly cost. Remove them only when you no longer want cost history:</p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span><span class="nv">MODE</span><span class="o">=</span>cloud<span class="w"> </span><span class="nv">STACK</span><span class="o">=</span>account<span class="w"> </span>account-down<span class="w"> </span><span class="nv">CONFIRM</span><span class="o">=</span>yes<span class="w"> </span><span class="nv">ACCOUNT_DOWN_DESTROY</span><span class="o">=</span>yes
+</code></pre></div>
+<p><code>ACCOUNT_DOWN_DESTROY=yes</code> is a second switch that you must set on purpose. Only with it does the script remove Terraform's <code>prevent_destroy</code> protection and empty the report bucket, after you review the plan. Unverified: this path has not been tested end to end.</p>
+<h3 id="g-other-datadog-sites">G. Other Datadog sites <a class="header-anchor" href="#g-other-datadog-sites">#</a></h3>
+<p>This guide supports only the Datadog EU site. <code>./demo</code> accepts other site names, but the Terraform providers, the FireLens log host, the Synthetics IP-range lookup and the link helper still point to <code>datadoghq.eu</code>. Changing them is untested.</p>
+<h3 id="h-the-control-panel-button-by-button">H. The control panel, button by button <a class="header-anchor" href="#h-the-control-panel-button-by-button">#</a></h3>
+<p>The labs tell you which button to press. This section describes every card and button in one place. Sign in as in <a href="setup.html#2-open-the-control-panel">Open the control panel</a>. Five action cards sit at the top; below them are the demo's settings by layer, which Labs 5.1 and 5.2 use. Each button does the same job as a make command:</p>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>Card</th>
+<th>Buttons</th>
+<th>Replaces</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Actions</strong> (Source data actions)</td>
+<td><strong>Sell out product</strong>, <strong>Reset demo data</strong></td>
+<td><code>sell-out</code>, the data part of <code>reset</code></td>
+</tr>
+<tr>
+<td>Release routing</td>
+<td><strong>Canary 1.1.0 (10%)</strong>, <strong>Canary 1.2.0 (10%)</strong> / <strong>(50%)</strong> / <strong>(100%)</strong>, <strong>Incident</strong>, <strong>Baseline</strong>, <strong>Rollback</strong>, <strong>Refresh weights</strong></td>
+<td><code>canary-110-10</code>, <code>canary-*</code>, <code>incident</code>, <code>route-baseline</code>, <code>rollback</code>, <code>route-show</code></td>
+</tr>
+<tr>
+<td>Store feed</td>
+<td><strong>Pause feed</strong>, <strong>Resume feed</strong>, <strong>Refresh state</strong></td>
+<td><code>store-pause</code>, <code>store-resume</code></td>
+</tr>
+<tr>
+<td>Checks</td>
+<td><strong>Run load (120 s, 5 rps)</strong>, <strong>Verify</strong>, <strong>Check canary</strong>, <strong>Refresh</strong></td>
+<td><code>load</code>, <code>verify</code>, <code>canary-check</code></td>
+</tr>
+<tr>
+<td>Background sales</td>
+<td><strong>Sales off</strong>, <strong>Sales on</strong>, <strong>Full reset</strong></td>
+<td><code>sales-off</code>, <code>sales-on</code>, <code>reset</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>The <strong>Actions</strong> card (Source data actions) runs two steps of the labs:</p>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>Control</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Product field (default <code>P0042</code>)</td>
+<td>The product to sell out, written as <code>P</code> and four digits</td>
+</tr>
+<tr>
+<td><strong>Sell out product</strong></td>
+<td>Like <code>sell-out</code>: sells all of the product's stock in each of the five stores, one store at a time, and waits <code>sell_out_gap_s</code> seconds (1.5 by default) between stores</td>
+</tr>
+<tr>
+<td><strong>Reset demo data</strong></td>
+<td>Like the data part of <code>reset</code>: writes the seeded stock back into the five Sources. Background sales must be off first, or it refuses to start (see below)</td>
+</tr>
+</tbody>
+</table></div>
+<p>Both buttons ask you to confirm, and only one action runs at a time. The card shows a progress line such as <code>running: Sold out S01 (1/5); source verified</code> and ends with <code>succeeded: Source and Redis verification completed</code>: before it reports success, the panel reads the Sources back and checks that Redis has the same values.</p>
+<p>The actions change only PostgreSQL; the change travels through Debezium and Confluent Cloud as in Lab 1.1. <strong>Reset demo data</strong> refuses to run while background sales are on: press <strong>Sales off</strong> first, or use <strong>Full reset</strong> on the <strong>Background sales</strong> card.</p>
+<details>
+<summary>Why Reset demo data refuses while sales are on</summary>
+<p>Background sales keep changing the stock, so a reset could never match the baseline. <strong>Reset demo data</strong> does not stop background sales, does not change the load balancer routing and does not cancel restock purchase orders. <strong>Full reset</strong> does all of that: it turns sales off, sets routing to 100 / 0 / 0, cancels open purchase orders and then resets the data. <code>make reset</code> does the same from the terminal.</p>
+</details>
+<p>The <strong>Release routing</strong> card moves the inventory API traffic between the three releases, like the <code>canary-110-10</code>, <code>canary-*</code>, <code>incident</code>, <code>route-baseline</code> and <code>rollback</code> make commands:</p>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>Button</th>
+<th>Weights 1.0.0 / 1.1.0 / 1.2.0 (%)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Canary 1.1.0 (10%)</strong></td>
+<td>90 / 10 / 0 (Lab 3.1)</td>
+</tr>
+<tr>
+<td><strong>Canary 1.2.0 (10%)</strong></td>
+<td>90 / 0 / 10 (Lab 4.1)</td>
+</tr>
+<tr>
+<td><strong>Canary 1.2.0 (50%)</strong></td>
+<td>50 / 0 / 50</td>
+</tr>
+<tr>
+<td><strong>Canary 1.2.0 (100%)</strong></td>
+<td>0 / 0 / 100</td>
+</tr>
+<tr>
+<td><strong>Baseline (all to 1.0.0)</strong></td>
+<td>100 / 0 / 0</td>
+</tr>
+<tr>
+<td><strong>Incident (all to 1.1.0)</strong></td>
+<td>0 / 100 / 0 (optional step at the end of Lab 3.1)</td>
+</tr>
+<tr>
+<td><strong>Rollback</strong></td>
+<td>The split that was in place before the last routing change</td>
+</tr>
+<tr>
+<td><strong>Refresh weights</strong></td>
+<td>Changes nothing. Reads the load balancer again</td>
+</tr>
+</tbody>
+</table></div>
+<p>Each change asks you to confirm. The weight tiles show the live weights of the load balancer rule, and the line under them shows the live split and the previous one, for example <code>Live 90/10/0 · previous (for Rollback): 100/0/0</code>. The card reports success only after it has read the rule back and found the weights you asked for. The panel changes the rule from AWS itself, so routing from the panel needs no AWS login on your computer.</p>
+<p>The <strong>Store feed</strong> card pauses or resumes the Debezium connector of one store, like <code>store-pause</code> and <code>store-resume</code>. Pick a store, <code>S01</code> to <code>S05</code>, and press <strong>Pause feed</strong> or <strong>Resume feed</strong>. After a pause or resume, the card waits up to 20 seconds for the connector to report <code>PAUSED</code> or <code>RUNNING</code>, and shows an error if it does not. <strong>Refresh state</strong> reads the connector and task states again. The panel reaches Kafka Connect over the VPC's private network; port 8083 is never open to the internet (see <a href="#b-components-and-data-flow">Reference B</a>).</p>
+<p>The <strong>Checks</strong> card runs three tools on the VM through the <code>scenario-api</code> service: the load generator, the comparison of the Sources with Redis, and the <abbr title="A pass or fail check of the canary's samples, errors, p95 latency and data correctness. You run it; it never runs by itself.">canary gate</abbr>. They work exactly like <code>load</code>, <code>verify</code> and <code>canary-check</code>, with the same files, output lines and results.</p>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>Button</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Run load (120 s, 5 rps)</strong></td>
+<td>Sends steady load to the Online shop for 2 minutes. The card shows live progress lines, for example <code>Load 40/120 s, last window: ...</code> with the requests, p95 and errors per release</td>
+</tr>
+<tr>
+<td><strong>Verify</strong></td>
+<td>Compares the Source of every store with Redis and ends with <code>VERIFY PASSED</code> or <code>VERIFY FAILED</code></td>
+</tr>
+<tr>
+<td><strong>Check canary</strong></td>
+<td>Checks the last load and verify results against the gates and ends with <code>CANARY GATES PASSED</code> or <code>CANARY GATES FAILED</code> (with the failed gates and <code>roll back</code>). It prints one <code>PASS</code> or <code>FAIL</code> line per gate, the samples per release and the p95</td>
+</tr>
+<tr>
+<td><strong>Refresh</strong></td>
+<td>Changes nothing. Reads the live routing and the last run again</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Check canary</strong> picks the gate from the live routing and shows it below the buttons. At 90 / 10 / 0 (Lab 3.1) it checks 1.1.0 against 1.0.0. At 90 / 0 / 10 and 50 / 0 / 50 (Lab 4.1) it checks 1.2.0 against 1.0.0. At 0 / 0 / 100 it checks 1.2.0 alone. At 100 / 0 / 0 there is nothing to check, so it refuses. It also refuses if the routing changed since the last load you ran in the panel, because that load measured a different split. <strong>Run load</strong> blocks the cards for about 2 minutes.</p>
+<details>
+<summary>How the panel's gate matches the make commands</summary>
+<p>The canary is the newer release that receives traffic, and the baseline is the older one. When the canary has less than 50% of the traffic, the gate lowers the minimum number of samples from 100 to 30. These are the same gates as the <code>canary-check CHECK_ARGS=...</code> commands in Labs 3 and 4.</p>
+</details>
+<p>The <strong>Background sales</strong> card controls the sales generator, so you do not need a terminal. The rate tile shows the sales per minute per store (24 by default), or <code>OFF</code> with <code>rate 0 · Sales on restores 24/min</code> when sales are off.</p>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>Button</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Sales off</strong></td>
+<td>Sets the sales rate to 0 in every store, remembers the old rate and checks that sales stop</td>
+</tr>
+<tr>
+<td><strong>Sales on</strong></td>
+<td>Sets the remembered rate again, then waits for a real sale before it reports success</td>
+</tr>
+<tr>
+<td><strong>Full reset</strong></td>
+<td>Like <code>make ... reset</code>: <strong>Sales off</strong>, then <strong>Baseline</strong> (100 / 0 / 0), then <strong>Reset demo data</strong>. When the restock layer runs, it also cancels open purchase orders before the data reset and clears the restock ETA keys after it. Otherwise its progress line says it did not change them. It needs the hybrid stack, which has the load balancer routing</td>
+</tr>
+</tbody>
+</table></div>
+<p>The panel turns sales on and off by changing the rate, while the sales containers keep running.</p>
+<p>Every action also sends a Datadog event named <code>demo action: &lt;name&gt; started</code>, then <code>succeeded</code> or <code>failed</code> (see <a href="chapter-6.html#5-monitors">Lab 6.1</a>).</p>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Actions card with the product field P0042, the Sell out product and Reset demo data buttons, and the status line succeeded: Source and Redis verification completed"><img src="img/build-04-control-actions.png" alt="Actions card with the product field P0042, the Sell out product and Reset demo data buttons, and the status line succeeded: Source and Redis verification completed" width="2328" height="569" loading="lazy" decoding="async"></button><figcaption>Actions card with the product field P0042, the Sell out product and Reset demo data buttons, and the status line succeeded: Source and Redis verification completed</figcaption></figure>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Release routing and Store feed cards"><img src="img/build-05-routing-store-feed.png" alt="Release routing and Store feed cards" width="2328" height="1801" loading="lazy" decoding="async"></button><figcaption>Release routing and Store feed cards</figcaption></figure>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Checks and Background sales cards"><img src="img/build-06-checks-sales.png" alt="Checks and Background sales cards" width="2328" height="1938" loading="lazy" decoding="async"></button><figcaption>Checks and Background sales cards</figcaption></figure>
+<details>
+<summary>Why one path?</summary>
+<p>The panel stores the demo settings (key <code>demo:config</code>) and its <strong>Rollback</strong> memory (key <code>demo:routing-state</code>) in Redis, in the same ElastiCache instance that holds the serving view, under separate keys. <code>make rollback</code> keeps its memory in a local file on your computer, <code>.state/routing-&lt;stack&gt;</code>. So a <strong>Rollback</strong> in one does not know about a change made in the other: it restores what was live before the last change made by <em>that same</em> path.</p>
+<p>Background sales differ too. The panel turns sales on and off by changing the rate; <code>make sales-on</code> and <code>make sales-off</code> start and stop the containers. After the panel's <strong>Sales off</strong>, <code>make sales-on</code> starts containers that sell nothing until you press <strong>Sales on</strong>.</p>
+</details>
+<h3 id="i-what-demo-does-step-by-step">I. What <code>./demo</code> does, step by step <a class="header-anchor" href="#i-what-demo-does-step-by-step">#</a></h3>
+<p>You do not need to run anything in this section. Read it to understand the build or to debug a failed step.</p>
+<h4 id="i1-the-commands-underneath">I.1 The commands underneath <a class="header-anchor" href="#i1-the-commands-underneath">#</a></h4>
+<p><code>./demo</code> is a small script that checks your input and then runs make targets. Each action maps to one of them:</p>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th><code>./demo</code> action</th>
+<th>Runs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>create</code></td>
+<td><code>make secrets</code>, <code>make stack-preflight</code>, the cost question, then <code>make stack-up CONFIRM=yes</code></td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td><code>make stack-status</code></td>
+</tr>
+<tr>
+<td><code>links</code></td>
+<td><code>make links</code></td>
+</tr>
+<tr>
+<td><code>reset</code></td>
+<td><code>make reset</code></td>
+</tr>
+<tr>
+<td><code>destroy</code></td>
+<td>A confirmation question, then <code>make stack-down CONFIRM=yes</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>Every call adds <code>MODE=cloud TOPOLOGY=hybrid STACK=&lt;stack&gt;</code> and the profile, region and layers from <code>demo.yaml</code>. <code>./demo create --dry-run</code> prints the exact commands, with secrets masked. When you run <code>make &lt;target&gt;</code> yourself, the Makefile reads the same values from <code>demo.yaml</code>, so you do not need to add them.</p>
+<h4 id="i2-where-each-secret-goes">I.2 Where each secret goes <a class="header-anchor" href="#i2-where-each-secret-goes">#</a></h4>
+<p>You enter credentials for three accounts (AWS, Confluent Cloud, Datadog) and, optionally, the Jev key. The build generates everything else. Your AWS credentials stay in your AWS CLI profile. The others go in <code>demo.yaml</code>.</p>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>File or store</th>
+<th>Contents</th>
+<th>Created by</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>demo.yaml</code> (repository root, mode 600, ignored by git)</td>
+<td>Your Datadog, Confluent Cloud and optional Jev keys</td>
+<td>You</td>
+</tr>
+<tr>
+<td><code>.env</code> (repository root, mode 600, ignored by git)</td>
+<td>The same keys as environment variables</td>
+<td><code>./demo create</code>, from <code>demo.yaml</code></td>
+</tr>
+<tr>
+<td><code>.env.secrets</code> (mode 600)</td>
+<td>Random database and control panel passwords, and <code>SCENARIO_API_TOKEN</code>, the token the control panel uses for the Checks card</td>
+<td><code>make secrets</code></td>
+</tr>
+<tr>
+<td><code>.env.cloud-hybrid</code> (mode 600)</td>
+<td>Kafka and Schema Registry keys for each service, endpoints, ALB and Redis addresses</td>
+<td><code>stack-up</code>, from Terraform outputs</td>
+</tr>
+<tr>
+<td>AWS <abbr title="The AWS service that stores configuration values and secrets for the Fargate tasks.">SSM Parameter Store</abbr>, <code>/dd-demo/hybrid/</code></td>
+<td>The secrets that the Fargate tasks need, as encrypted SecureStrings, taken from an allowlist</td>
+<td><code>stack-up</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><code>.gitignore</code> excludes all <code>.env*</code> files and <code>demo.yaml</code>, so <code>git add .</code> cannot add them.</p>
+<h4 id="i3-the-build-steps">I.3 The build steps <a class="header-anchor" href="#i3-the-build-steps">#</a></h4>
+<p><code>stack-up</code> runs these steps in order. The table groups them; the log prints one <code>== [stage]</code> line per step, for example <code>== [terraform vm (EC2 host)]</code>. Each <code>terraform</code> step applies one of the six Terraform configurations.</p>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>#</th>
+<th>Steps</th>
+<th>What they do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>preflight</td>
+<td>The checks from <a href="setup.html#022-run-the-preflight-no-cloud-costs-yet">0.2.2 Run the preflight</a></td>
+</tr>
+<tr>
+<td>2</td>
+<td>terraform account, terraform images</td>
+<td>Resources for the whole account, kept across stacks: Cost and Usage Report export, Datadog AWS integration, read-only Confluent identity for cost data, account cost dashboard. Then the stack's <abbr title="The AWS registry that stores the container images.">ECR</abbr> repositories, one per image, which keep the 5 newest images each</td>
+</tr>
+<tr>
+<td>3</td>
+<td>terraform cloud</td>
+<td>Confluent environment <code>dd-demo-hybrid</code>, Basic cluster, Schema Registry, topics, keys and Flink pool. The Flink statements wait until step 9</td>
+</tr>
+<tr>
+<td>4</td>
+<td>terraform vm, RUM application</td>
+<td>The EC2 VM, its security group (<code>allowed_cidr</code> only) and key pair. With <code>dd-rum</code>, the Datadog RUM application, so that the Online shop starts with its RUM settings</td>
+</tr>
+<tr>
+<td>5</td>
+<td>env file, docker context, secrets</td>
+<td>Writes <code>.env.cloud-hybrid</code>, waits for SSH, creates the <abbr title="Tells your local docker CLI to run commands on the VM over SSH.">Docker context</abbr> <code>dd-demo-hybrid</code>, generates <code>.env.secrets</code></td>
+</tr>
+<tr>
+<td>6</td>
+<td>image tags, SSM, images and terraform aws</td>
+<td>Tags each image with a hash of its source files. Copies the allowlisted secrets to SSM. Then, at the same time: the image job checks ECR for each tag, prints <code>skipped: image unchanged</code> for the ones it finds and builds only the others on the ARM64 VM; Terraform creates ElastiCache, the ECS services, the ALB and target groups</td>
+</tr>
+<tr>
+<td>7</td>
+<td>roll-out</td>
+<td>Restarts only the ECS services whose image was just pushed, then waits until every ECS service is stable</td>
+</tr>
+<tr>
+<td>8</td>
+<td>VM services</td>
+<td>Starts the on-premises services, seeds the five stores with data, registers the connectors and waits until they run</td>
+</tr>
+<tr>
+<td>9</td>
+<td>schema priming and Flink</td>
+<td>Writes a first record to each input topic, waits for its schema, then starts the Flink statements</td>
+</tr>
+<tr>
+<td>10</td>
+<td>first data</td>
+<td>Waits until Redis holds sellable stock for all 200 products, resets, verifies, turns sales on</td>
+</tr>
+<tr>
+<td>11</td>
+<td>terraform datadog</td>
+<td>Dashboards, monitors, Synthetics, Confluent integration (the RUM application already exists from step 4)</td>
+</tr>
+<tr>
+<td>12</td>
+<td>smoke</td>
+<td>The end-to-end smoke test, then the status summary</td>
+</tr>
+</tbody>
+</table></div>
+<p>The step times quoted in this guide come from builds before images were reused and built in parallel with step 6; the new times are not measured yet. A rebuild only skips building an image when ECR still has it: after <code>./demo destroy</code> that is the case only with <code>keep_images: true</code>. <code>make stack-up REBUILD_IMAGES=1</code> builds every image again.</p>
+<details>
+<summary>Why the Flink statements wait until step 9</summary>
+<p>Confluent Cloud Flink reads a table's columns from the topic's Schema Registry subject (<code>&lt;topic&gt;-value</code>), and that subject exists only after the first record arrives. A statement created earlier fails. So the script first writes a record to each input topic (&quot;priming&quot;), waits up to 300 s for the subjects, and only then creates the statements.</p>
+</details>
+<p>Every lifecycle command writes a log under <code>.state/logs/</code> (mode 600). Logs can contain operational details such as hostnames, so do not share them publicly.</p>
+
+<nav class="pager" aria-label="Previous and next"><a class="pager-btn pager-prev" href="recap.html"><span class="pager-dir">Previous</span><span class="pager-title">Recap</span></a><span class="pager-gap"></span></nav>
+    </article>
+    <footer class="doc-footer">
+      <p>Generated from <a href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/workshop/README.md" target="_blank" rel="noopener"><code>workshop/README.md</code></a>. Every product, store, sale and shopper in this workshop is synthetic.</p>
+      <p>Educational demo, not for production workloads. <a href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/LICENSE" target="_blank" rel="noopener">Apache License 2.0</a>, provided as is; trademarks and third-party notices in <a href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/NOTICE" target="_blank" rel="noopener">NOTICE</a>.</p>
+      <p><a href="#top">Back to top</a> &middot; <a href="workshop.html">One-page guide</a></p>
+    </footer>
+  </main>
+</div>
+<dialog class="lightbox" aria-label="Enlarged image">
+  <form method="dialog"><button class="lightbox-close" aria-label="Close">&times;</button></form>
+  <img alt="">
+  <p class="lightbox-caption"></p>
+</dialog>
+<dialog class="path-dialog" aria-labelledby="path-dialog-title" aria-describedby="path-dialog-text">
+  <h2 id="path-dialog-title">Switch to the <span class="path-dialog-other">terminal</span> path?</h2>
+  <p id="path-dialog-text">Pick one path and use it from start to finish. The control panel and the terminal each remember their own last routing for Rollback, so mixing them in one run can roll back to the wrong state. Switch only if you are starting a lab from a reset.</p>
+  <div class="path-dialog-buttons">
+    <button type="button" class="path-keep" autofocus>Keep control panel</button>
+    <button type="button" class="path-switch-confirm">Switch to terminal</button>
+  </div>
+</dialog>
+<div class="sr-only" aria-live="polite" id="live"></div>
+<script src="assets/stack.js?v=ec6a04c228"></script>
+<script src="assets/site.js?v=1de1666aca" defer></script>
+</body>
+</html>

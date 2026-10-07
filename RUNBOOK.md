@@ -4,7 +4,7 @@ The cloud build, the labs, troubleshooting and teardown are in the workshop guid
 
 ## Local development without cloud cost
 
-A local variant runs the same services in a Lima VM named `dd-demo`, with a local Kafka and Schema Registry instead of Confluent Cloud, `sellable-dev` standing in for Confluent Cloud Flink, local Redis instead of ElastiCache, and nginx instead of the ALB. It is for development only; the workshop guide describes the cloud stack. See [LOCAL.md](LOCAL.md) for the reader-facing summary. Add `MODE=dev` to every command: when a `demo.yaml` exists in the folder, make otherwise targets the cloud stack named there (`up-dev` and `down-dev` always run locally).
+A local variant runs the same services in a Lima VM named `dd-demo`, with a local Kafka and Schema Registry instead of Confluent Cloud, `sellable-dev` standing in for Confluent Cloud Flink, local Redis instead of ElastiCache, and nginx instead of the ALB. It is for development only; the workshop guide describes the cloud stack. See [LOCAL.md](LOCAL.md) for the reader-facing summary. With `mode: local` in `demo.yaml` (or no `demo.yaml`), plain `make` is local and `./demo create|status|links|reset|destroy` drive the local stack (LOCAL.md). With `mode: cloud`, add `MODE=dev` to every local command: make otherwise targets the cloud stack named there (`up-dev` and `down-dev` always run locally).
 
 1. Create `.env` in the repository root with `DD_API_KEY` and `DD_SITE=datadoghq.eu`. Never paste the key anywhere.
 2. `make secrets` creates `.env.secrets` with random passwords (mode 600, never printed).

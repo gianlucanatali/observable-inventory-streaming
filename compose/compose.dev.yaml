@@ -137,6 +137,31 @@ services:
     depends_on:
       kafka-init: {condition: service_completed_successfully}
       schema-registry: {condition: service_healthy}
+    # Release routing card and Full reset in local mode: the panel reads routing.conf and drops weight
+    # requests into the nginx-routing volume; nginx's routing-watch.sh applies them (render, nginx -t, reload).
+    environment:
+      NGINX_ROUTING_DIR: /routing
+    volumes:
+      - nginx-routing:/routing
+
+  # Same start as the base file, plus the routing watcher for the control panel (local mode only). requests/ is
+  # writable by the panel's user (uid 10001, demo-control/Dockerfile); routing.conf itself stays nginx's (root).
+  nginx:
+    command:
+      - sh
+      - -c
+      - |
+        R=/etc/nginx/routing
+        [ -f "$$R/routing.conf" ] || cp /etc/nginx/routing-default.conf "$$R/routing.conf"
+        mkdir -p "$$R/requests" && chown 10001 "$$R/requests" && chmod 0755 "$$R/requests"
+        rm -f "$$R/requests/request" "$$R/requests/processing"
+        sh /etc/nginx/routing-watch.sh &
+        exec nginx -g "daemon off;"
+    configs:
+      - source: nginx_render_routing
+        target: /etc/nginx/render-routing.sh
+      - source: nginx_routing_watch
+        target: /etc/nginx/routing-watch.sh
 
   # The Lima `template:docker` VM runs rootless Docker: socket and container logs live under the VM user, not /var.
   # Compose merges volumes by container path, so these replace the base file's two host paths (interpolated in the VM).
@@ -144,6 +169,12 @@ services:
     volumes:
       - ${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR unset (run through make MODE=dev)}/docker.sock:/var/run/docker.sock:ro
       - ${HOME:?}/.local/share/docker/containers:/var/lib/docker/containers:ro
+
+configs:
+  nginx_render_routing:
+    file: ../nginx/render-routing.sh
+  nginx_routing_watch:
+    file: ../nginx/routing-watch.sh
 
 volumes:
   kafkadata:

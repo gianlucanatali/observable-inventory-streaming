@@ -223,8 +223,10 @@ locals {
     # CREATE TABLE over an existing topic: verify that DeveloperManage is sufficient during the first apply.
     flink-manage-sellable   = { sa = "flink", role = "DeveloperManage", crn = "${local.kafka_crn}/topic=stock.sellable" }
     flink-sr-write-sellable = { sa = "flink", role = "DeveloperWrite", crn = "${local.sr_crn}/subject=stock.sellable-*" }
-    flink-sr-read           = { sa = "flink", role = "DeveloperRead", crn = "${local.sr_crn}/subject=*" }
-    flink-assigner          = { sa = "flink", role = "Assigner", crn = "${data.confluent_organization.main.resource_name}/service-account=${confluent_service_account.app["flink"].id}" }
+    # carts.at-risk-value is registered on every stack (flink_statements.tf), so this binding is core, not offers.
+    flink-sr-write-at-risk = { sa = "flink", role = "DeveloperWrite", crn = "${local.sr_crn}/subject=carts.at-risk-*" }
+    flink-sr-read          = { sa = "flink", role = "DeveloperRead", crn = "${local.sr_crn}/subject=*" }
+    flink-assigner         = { sa = "flink", role = "Assigner", crn = "${data.confluent_organization.main.resource_name}/service-account=${confluent_service_account.app["flink"].id}" }
   }
 }
 
@@ -240,10 +242,9 @@ locals {
     offers-sr-read-offers  = { sa = "offers", role = "DeveloperRead", crn = "${local.sr_crn}/subject=offers-*" }
     offers-sr-write-offers = { sa = "offers", role = "DeveloperWrite", crn = "${local.sr_crn}/subject=offers-*" }
     # sa-flink statements of cart_at_risk.sql
-    flink-read-carts       = { sa = "flink", role = "DeveloperRead", crn = "${local.kafka_crn}/topic=carts.events" }
-    flink-manage-at-risk   = { sa = "flink", role = "DeveloperManage", crn = "${local.kafka_crn}/topic=carts.at-risk" }
-    flink-write-at-risk    = { sa = "flink", role = "DeveloperWrite", crn = "${local.kafka_crn}/topic=carts.at-risk" }
-    flink-sr-write-at-risk = { sa = "flink", role = "DeveloperWrite", crn = "${local.sr_crn}/subject=carts.at-risk-*" }
+    flink-read-carts     = { sa = "flink", role = "DeveloperRead", crn = "${local.kafka_crn}/topic=carts.events" }
+    flink-manage-at-risk = { sa = "flink", role = "DeveloperManage", crn = "${local.kafka_crn}/topic=carts.at-risk" }
+    flink-write-at-risk  = { sa = "flink", role = "DeveloperWrite", crn = "${local.kafka_crn}/topic=carts.at-risk" }
   }
 
   # Layer restock (contracts section 10): Flink writes restock.requests; the JDBC sink connector

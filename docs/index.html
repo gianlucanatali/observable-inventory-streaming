@@ -33,7 +33,7 @@
 			<h2>Menu</h2>
 			<ul class="links">
 				<li><a href="index.html">Home</a></li>
-				<li><a href="workshop.html">Workshop guide</a></li>
+				<li><a href="intro.html">Workshop</a></li>
 				<li><a href="#stock">The story</a></li>
 				<li><a href="#build">What you build</a></li>
 				<li><a href="https://github.com/gianlucanatali/observable-inventory-streaming" rel="noopener" target="_blank">Code on GitHub</a></li>
@@ -47,7 +47,7 @@
 			<h2>Observable inventory streaming with Confluent and Datadog</h2>
 			<p>Stream stock changes from the stores to the online shop. Then use Datadog to find and fix a slow release.</p>
 			<ul class="actions hero-actions">
-				<li><a href="workshop.html" class="button primary icon solid fa-play">Start the workshop</a></li>
+				<li><a href="intro.html" class="button primary icon solid fa-play">Start the workshop</a></li>
 				<li><a href="https://github.com/gianlucanatali/observable-inventory-streaming" class="button icon brands fa-github" rel="noopener" target="_blank">View on GitHub</a></li>
 			</ul>
 		</div>
@@ -57,44 +57,44 @@
 
 		<section id="stock" class="wrapper spotlight style1">
 			<div class="inner">
-				<a href="workshop.html#lab-1-one-product-five-stores-one-online-number" class="image photo" tabindex="-1" aria-hidden="true"><img src="images/spot-stock.jpg" alt="" width="1200" height="900" loading="lazy" decoding="async"></a>
+				<a href="chapter-1.html#lab-11-one-product-five-stores-one-online-number" class="image photo" tabindex="-1" aria-hidden="true"><img src="images/spot-stock.jpg" alt="" width="1200" height="900" loading="lazy" decoding="async"></a>
 				<div class="content">
 					<h2 class="major">The same stock number online and in the stores</h2>
 					<p>Five store databases, left unchanged, send every stock change to one copy that the online shop reads. The online shop shows how many items the stores really have.</p>
-					<a href="workshop.html#lab-1-one-product-five-stores-one-online-number" class="special">Lab 1: one online number</a>
+					<a href="chapter-1.html#lab-11-one-product-five-stores-one-online-number" class="special">Lab 1.1: one online number</a>
 				</div>
 			</div>
 		</section>
 
 		<section id="release" class="wrapper alt spotlight style2">
 			<div class="inner">
-				<a href="workshop.html#lab-3-the-incident" class="image photo" tabindex="-1" aria-hidden="true"><img src="images/spot-canary.jpg" alt="" width="1200" height="900" loading="lazy" decoding="async"></a>
+				<a href="chapter-3.html#lab-31-the-incident" class="image photo" tabindex="-1" aria-hidden="true"><img src="images/spot-canary.jpg" alt="" width="1200" height="900" loading="lazy" decoding="async"></a>
 				<div class="content">
 					<h2 class="major">Ship a release safely</h2>
 					<p>A new release is slow. It goes to only 10% of shoppers first (a canary), and a check stops it there. Datadog traces show why it is slow, and you roll out the fix the same way.</p>
-					<a href="workshop.html#lab-3-the-incident" class="special">Lab 3: the incident</a>
+					<a href="chapter-3.html#lab-31-the-incident" class="special">Lab 3.1: the incident</a>
 				</div>
 			</div>
 		</section>
 
 		<section id="restock" class="wrapper spotlight style3">
 			<div class="inner">
-				<a href="workshop.html#lab-5-restock-that-learns" class="image photo" tabindex="-1" aria-hidden="true"><img src="images/spot-shelves.jpg" alt="" width="1200" height="900" loading="lazy" decoding="async"></a>
+				<a href="chapter-5.html#lab-52-restock-that-learns" class="image photo" tabindex="-1" aria-hidden="true"><img src="images/spot-shelves.jpg" alt="" width="1200" height="900" loading="lazy" decoding="async"></a>
 				<div class="content">
 					<h2 class="major">Restock orders and offers</h2>
 					<p>The same stream of stock changes also creates restock orders and offers for shoppers. Each one has a safe default.</p>
-					<a href="workshop.html#lab-5-restock-that-learns" class="special">Lab 5: restock that learns</a>
+					<a href="chapter-5.html#lab-52-restock-that-learns" class="special">Lab 5.2: restock that learns</a>
 				</div>
 			</div>
 		</section>
 
 		<section id="observe" class="wrapper alt spotlight style4">
 			<div class="inner">
-				<a href="workshop.html#lab-7-datadog-on-top-of-the-solution" class="image photo" tabindex="-1" aria-hidden="true"><img src="images/spot-dashboard.jpg" alt="" width="1200" height="900" loading="lazy" decoding="async"></a>
+				<a href="chapter-6.html#lab-61-datadog-on-top-of-the-solution" class="image photo" tabindex="-1" aria-hidden="true"><img src="images/spot-dashboard.jpg" alt="" width="1200" height="900" loading="lazy" decoding="async"></a>
 				<div class="content">
 					<h2 class="major">Everything in Datadog</h2>
 					<p>One place for traces, data streams, freshness (how long a change takes to reach the online shop), monitors and cost, across the stores, Confluent Cloud and AWS.</p>
-					<a href="workshop.html#lab-7-datadog-on-top-of-the-solution" class="special">Lab 7: Datadog on top</a>
+					<a href="chapter-6.html#lab-61-datadog-on-top-of-the-solution" class="special">Lab 6.1: Datadog on top</a>
 				</div>
 			</div>
 		</section>
@@ -116,10 +116,10 @@
 		<section id="start" class="wrapper alt style6 cta">
 			<div class="inner">
 				<h2>Start the workshop</h2>
-				<p>About 3 hours &middot; While the stack runs, you pay for the cloud resources it creates: roughly $0.50 per hour on AWS and $1 to $2 per hour on Confluent Cloud. This estimate comes from list prices and our own usage; it is not a bill. Datadog runs on its trial. Trial or promotional credits on your accounts can cover part or all of the cost. <a href="workshop.html#d-cost-details">Cost details</a></p>
+				<p>About 3 hours &middot; While the stack runs, you pay for the cloud resources it creates: roughly $0.50 per hour on AWS and $1 to $2 per hour on Confluent Cloud. This estimate comes from list prices and our own usage; it is not a bill. Datadog runs on its trial. Trial or promotional credits on your accounts can cover part or all of the cost. <a href="reference.html#d-cost-details">Cost details</a></p>
 				<p>Run the labs from a control panel in your browser, or with <code>make</code> commands in a terminal. You choose once at the start of the guide.</p>
 				<ul class="actions">
-					<li><a href="workshop.html" class="button primary icon solid fa-play">Start the workshop</a></li>
+					<li><a href="intro.html" class="button primary icon solid fa-play">Start the workshop</a></li>
 				</ul>
 			</div>
 		</section>

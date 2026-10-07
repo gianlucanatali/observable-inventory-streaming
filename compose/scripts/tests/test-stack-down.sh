@@ -75,7 +75,7 @@ SH
 chmod +x "$BIN"/*
 
 setup() { # fresh overlay, env dir and local state files for each case
-  rm -rf "$TMP/ov" "$TMP/env"; mkdir -p "$TMP/ov/terraform"/{aws,vm,cloud,datadog}/.terraform "$TMP/ov/.state" "$TMP/env"
+  rm -rf "$TMP/ov" "$TMP/env"; mkdir -p "$TMP/ov/terraform"/{aws,vm,cloud,datadog,images}/.terraform "$TMP/ov/.state" "$TMP/env"
   printf '_down:\n\t@echo "fake compose down" >>"$$CALLS"\n' >"$TMP/ov/Makefile"
   printf 'CONFLUENT_CLOUD_API_KEY=test\nCONFLUENT_CLOUD_API_SECRET=test\nDD_API_KEY=test\nDD_APP_KEY=test\n' >"$TMP/env/.env"
   printf 'RUM=test\n' >"$TMP/env/.env.cloud-hybrid"
@@ -134,11 +134,15 @@ out="$(run STATE_LAYERS="aws vm")" || fail "(b3) resume failed: $out"
 [ "$(destroys)" = 2 ] || fail "(b3) expected aws+vm destroys only: $(cat "$TMP/calls")"
 grep -q 'curl confluent' "$TMP/calls" && fail "(b3) Confluent API key checked without cloud state"
 
-# (c) everything succeeds: four destroys in order, cleanup, leftover check.
+# (c) everything succeeds: datadog first, then aws, vm, images in turn with cloud in parallel; cleanup, leftover check.
 setup
-out="$(run DOCKER_CTX=1)" || fail "(c) clean teardown failed: $out"
+out="$(run DOCKER_CTX=1 STATE_LAYERS="datadog aws vm cloud images")" || fail "(c) clean teardown failed: $out"
 order="$(grep -o '^terraform [a-z]* apply' "$TMP/calls" | awk '{print $2}' | tr '\n' ' ')"
-[ "$order" = "datadog aws vm cloud " ] || fail "(c) destroy order: $order"
+case "$order" in "datadog "*) ;; *) fail "(c) datadog is not destroyed first: $order";; esac
+seq="$(printf '%s' "$order" | tr ' ' '\n' | grep -v '^cloud$' | tr '\n' ' ')"
+[ "$seq" = "datadog aws vm images " ] || fail "(c) sequential destroy order: $seq (all: $order)"
+case " $order " in *" cloud "*) ;; *) fail "(c) cloud not destroyed: $order";; esac
+case "$out" in *"[destroy cloud] started in the background"*"[destroy cloud] background output:"*"[destroy cloud] took"*) ;; *) fail "(c) background cloud output not copied: $out";; esac
 grep -q 'ecr delete-repository --repository-name dd-demo-hybrid-storefront --force' "$TMP/calls" || fail "(c) ECR not emptied"
 grep -q 'state rm confluent_schema.orders' "$TMP/calls" || fail "(c) schema not detached"
 grep -q 'ssh-keygen -R 203.0.113.9' "$TMP/calls" || fail "(c) known_hosts not cleaned"
@@ -147,6 +151,22 @@ grep -q 'fake compose down' "$TMP/calls" || fail "(c) compose down not run"
 [ ! -e "$TMP/env/.env.cloud-hybrid" ] && [ ! -e "$TMP/ov/.state/stack-hybrid.layers" ] && [ ! -e "$TMP/ov/.state/routing-hybrid" ] \
   || fail "(c) local files not removed"
 case "$out" in *"no billable AWS leftovers"*"== stack hybrid destroyed"*) ;; *) fail "(c) leftover check/final line: $out";; esac
+
+# (c2) keep_images true: the images layer is kept, everything else destroyed; an invalid value stops before any destroy.
+setup
+out="$(run KEEP_IMAGES=true STATE_LAYERS="datadog aws vm cloud images")" || fail "(c2) keep_images teardown failed: $out"
+grep -q '^terraform images apply' "$TMP/calls" && fail "(c2) images destroyed although keep_images is true"
+case "$out" in *"[destroy images] KEPT: keep_images is true"*) ;; *) fail "(c2) kept line: $out";; esac
+setup
+out="$(run KEEP_IMAGES=maybe STATE_LAYERS="datadog aws vm cloud images")" && fail "(c2) invalid KEEP_IMAGES passed: $out"
+case "$out" in *"KEEP_IMAGES must be true or false"*) ;; *) fail "(c2) invalid KEEP_IMAGES message: $out";; esac
+grep -Eq '^terraform [a-z]+ (plan|apply)' "$TMP/calls" && fail "(c2) terraform ran with an invalid KEEP_IMAGES"
+
+# (c3) cloud fails in the background: reported in the summary, files kept.
+setup
+out="$(run TF_FAIL_APPLY=cloud)" && fail "(c3) failed cloud layer passed: $out"
+case "$out" in *"FAILED: cloud;"*) ;; *) fail "(c3) summary: $out";; esac
+kept || fail "(c3) local files removed"
 
 # (d) ECR access error: the aws layer fails loudly with the AWS text, aws destroy not run, files kept.
 setup

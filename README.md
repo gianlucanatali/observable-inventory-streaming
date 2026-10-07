@@ -7,9 +7,9 @@ This is a hands-on demo built around UrbanStreet, a fictional retailer. Stock ch
 
 [![Architecture: five store databases on an on-prem VM stream through Debezium and Confluent Cloud into a Redis serving view on AWS; three releases sit behind a load balancer; Datadog observes every layer](workshop/img/arch-5-datadog.png)](workshop/img/arch-5-datadog.png)
 
-*Full architecture (click to enlarge). The [workshop guide](workshop/README.md#2-the-architecture-at-a-glance) builds it up layer by layer.*
+*Full architecture (click to enlarge). The [workshop guide](workshop/README.md#the-architecture-at-a-glance) builds it up layer by layer.*
 
-**Start here: [the workshop website](https://gianlucanatali.github.io/observable-inventory-streaming/)** (best way to follow it), or read [the workshop guide](workshop/README.md) on GitHub. It covers the architecture, prerequisites, build, seven labs, troubleshooting and teardown. To run it on your own machine with no cloud cost, see [Run locally](LOCAL.md).
+**Start here: [the workshop website](https://gianlucanatali.github.io/observable-inventory-streaming/)** (best way to follow it), or read [the workshop guide](workshop/README.md) as a Markdown file. It covers the architecture, prerequisites, build, seven labs, troubleshooting and teardown. To run it on your own machine with no cloud cost, see [Run locally](LOCAL.md).
 
 What is in this repository:
 
@@ -22,7 +22,7 @@ What is in this repository:
 
 Never commit keys. Put provider credentials in `demo.yaml` in the repository root. Git ignores that file. See [Where each secret goes](workshop/README.md#i2-where-each-secret-goes).
 
-For local development with no cloud cost, see [LOCAL.md](LOCAL.md) and [RUNBOOK.md](RUNBOOK.md).
+For local development without AWS or Confluent Cloud, see [LOCAL.md](LOCAL.md) and [RUNBOOK.md](RUNBOOK.md).
 
 ## Repository layout
 
@@ -40,7 +40,7 @@ As a learner, you mostly need `./demo` and the [workshop guide](workshop/README.
 | `inventory-api/` | Stock lookup API; its three releases (healthy, slow, fix) are one image with different settings |
 | `stock-projector/` | Turns the Debezium change stream into the Redis serving view and the `inventory.state` topic |
 | `storefront/` | UrbanStreet online shop: React frontend and Flask backend, with product photos |
-| `watchdog/` | Freshness probes that decide whether the stock feed can be trusted |
+| `freshness-probe/` | Freshness probe that decide whether the stock feed can be trusted |
 | `offer-worker/` | Offers for carts at risk (optional layer), AI choice with a rule default |
 | `supplier-sim/` | Simulated supplier for the restock layer |
 | `demo-control/` | Control panel (`/control/`) and JSON API for the labs: sales, routing, checks |

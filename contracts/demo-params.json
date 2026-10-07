@@ -91,7 +91,7 @@
    "max": 60,
    "store": "redis",
    "consumers": [
-    "watchdog"
+    "freshness-probe"
    ],
    "apply": "live",
    "layer": "core",
@@ -106,7 +106,7 @@
    "max": 600,
    "store": "redis",
    "consumers": [
-    "watchdog"
+    "freshness-probe"
    ],
    "apply": "live",
    "layer": "core",

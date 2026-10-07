@@ -45,11 +45,6 @@ locals {
         queries = [["q1", "max:stock.probe.age{${local.dscope}} by {store}"]]
         formula = "q1"
       }
-      feed_state = {
-        title   = "stock.feed.state per store (1 ok, 0 stale, -1 unknown)"
-        queries = [["q1", "min:stock.feed.state{${local.dscope}} by {store}"]]
-        formula = "q1"
-      }
       sellable_age = {
         title   = "stock.sellable.age (s): Flink + Redis sink path behind the newest probe write"
         queries = [["q1", "max:stock.sellable.age{${local.dscope}}"]]
@@ -163,7 +158,67 @@ locals {
   demo_config_query = "project:dd-demo stack:${var.stack} demo_event:config"
   demo_panel_query  = "project:dd-demo stack:${var.stack} (demo_event:config OR demo_event:action)"
 
+  # One row per store, latest feed state, coloured: the timeseries above overlaps when all stores sit at 1.
+  # Query table widget and conditional formats (comparator, value, palette):
+  # https://docs.datadoghq.com/dashboards/widgets/table/ and the dashboard widget API schema (TableWidgetDefinition).
+  # The doc mentions text formatting (value-to-text alias) for tables, but it is a UI setting with no field confirmed
+  # in the API schema, so the numbers 1 / 0 / -1 stay as they are and only the colour carries the meaning.
+  feed_state_table = {
+    definition = {
+      type  = "query_table"
+      title = "Feed state per store now (green 1 ok, red 0 stale, grey -1 unknown)"
+      requests = [{
+        response_format = "scalar"
+        queries = [{
+          data_source = "metrics"
+          name        = "q1"
+          query       = "min:stock.feed.state{${local.dscope}} by {store}"
+          aggregator  = "last"
+        }]
+        formulas = [{
+          formula = "q1"
+          alias   = "feed state"
+          conditional_formats = [
+            { comparator = "=", value = 1, palette = "white_on_green" },
+            { comparator = "=", value = 0, palette = "white_on_red" },
+            { comparator = "=", value = -1, palette = "white_on_gray" },
+          ]
+        }]
+        sort = {
+          count    = 50
+          order_by = [{ type = "group", name = "store", order = "asc" }]
+        }
+      }]
+    }
+  }
+
+  # History next to the table: "store not live" (1 when the feed state is 0 stale or -1 unknown, else 0), stacked red
+  # bars per store, so it is flat 0 when all is fine and the paused store shows as a bar of its own colour.
+  # clamp_min(<metric query>, 0) maps -1 to 0 (https://docs.datadoghq.com/dashboards/functions/exclusion/, applies to
+  # metric queries); the formula 1 - q1 then gives 0 for state 1 and 1 for states 0 and -1. Stacked bars:
+  # display_type bars (https://docs.datadoghq.com/dashboards/widgets/timeseries/).
+  feed_not_live = {
+    definition = {
+      type  = "timeseries"
+      title = "Stores not live over time (1 = feed stale or unknown, stacked by store)"
+      requests = [{
+        display_type    = "bars"
+        response_format = "timeseries"
+        formulas        = [{ formula = "1 - q1" }]
+        queries = [{
+          data_source = "metrics"
+          name        = "q1"
+          query       = "clamp_min(min:stock.feed.state{${local.dscope}} by {store}, 0)"
+        }]
+        style = { palette = "warm" }
+      }]
+      yaxis = { min = "0", include_zero = true }
+    }
+  }
+
   widgets = merge(local.ts, {
+    feed_state_table = local.feed_state_table
+    feed_not_live    = local.feed_not_live
     # same chart as ts.restock_open with the config changes overlaid as event markers
     restock_open = {
       definition = merge(local.ts.restock_open.definition, {
@@ -184,7 +239,7 @@ locals {
   groups = concat(
     [
       { title = "Service objective", widgets = ["latency", "error_rate", "hits"] },
-      { title = "Freshness", widgets = ["apply_delay", "probe_age", "feed_state", "sellable_age", "display_delay"] },
+      { title = "Freshness", widgets = ["apply_delay", "probe_age", "feed_state_table", "feed_not_live", "sellable_age", "display_delay"] },
       { title = "Pipeline", widgets = concat(["records", "errors", "connect"], var.enable_dd_streams ? ["lag"] : []) },
       { title = "ElastiCache and VM host", widgets = ["elasticache_memory", "elasticache_cpu", "cpu", "host_cpu", "fargate_cpu"] },
     ],
@@ -242,7 +297,7 @@ resource "datadog_dashboard_json" "stock" {
 }
 
 # ---------------------------------------------------------------------------------------------
-# Monitors. All tagged project:dd-demo, stack:<stack>, env:dd-demo-<stack>, layer:<layer>. "Missing data is not healthy": the watchdog gauges alert on
+# Monitors. All tagged project:dd-demo, stack:<stack>, env:dd-demo-<stack>, layer:<layer>. "Missing data is not healthy": the freshness-probe gauges alert on
 # no-data, not only on bad values.
 # ---------------------------------------------------------------------------------------------
 resource "datadog_monitor" "p95_latency" {
@@ -280,7 +335,7 @@ resource "datadog_monitor" "probe_age" {
 resource "datadog_monitor" "probe_no_data" {
   name    = "[${local.env}] stock.probe.age: no data for 2 minutes"
   type    = "query alert"
-  message = "No stock.probe.age data. Missing data is not healthy: the watchdog or the Agent may be down.${local.notify}"
+  message = "No stock.probe.age data. Missing data is not healthy: the freshness probe or the Agent may be down.${local.notify}"
   # The threshold can never be crossed by a real value (age is >= 0): this monitor fires on no-data only.
   query = "avg(last_2m):avg:stock.probe.age{${local.scope}} < 0"
 

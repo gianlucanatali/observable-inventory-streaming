@@ -7,7 +7,7 @@
 #   HYBRID_ONLINE_URL=https://<alb-host> (the ALB base URL for VM tools)
 #
 # Services kept in this file are deliberate: five source stores, optional
-# procurement/supplier, Connect, watchdog, jr sales and scenario/smoke tools.
+# procurement/supplier, Connect, freshness probe, jr sales and scenario/smoke tools.
 # The cloud-online profile is not activated by Make, so cloud services from the
 # base file do not accidentally run on the VM.
 # Database ports below are the private VM ingress used by the ECS demo-control
@@ -77,6 +77,9 @@ services:
 
   # Control Center (Legacy) 7.9 is a hybrid-only optional UI. It uses the
   # Cloud cluster for storage; do not add a local Kafka broker, Replicator, or C3 2.x.
+  # Its keys exist in .env.cloud only with the control-center layer on, and compose interpolates every service,
+  # profile or not: a ':?' here would fail every compose call of a stack without the layer. layer.sh checks the
+  # keys before it starts this service (require_control_center_keys).
   control-center:
     profiles: ["control-center"]
     image: confluentinc/cp-enterprise-control-center:7.9.0
@@ -89,7 +92,7 @@ services:
       CONTROL_CENTER_REPLICATION_FACTOR: "3"
       CONTROL_CENTER_STREAMS_SECURITY_PROTOCOL: SASL_SSL
       CONTROL_CENTER_STREAMS_SASL_MECHANISM: PLAIN
-      CONTROL_CENTER_STREAMS_SASL_JAAS_CONFIG: 'org.apache.kafka.common.security.plain.PlainLoginModule required username="${CONTROL_CENTER_KAFKA_API_KEY:?CONTROL_CENTER_KAFKA_API_KEY missing (.env.cloud)}" password="${CONTROL_CENTER_KAFKA_API_SECRET:?CONTROL_CENTER_KAFKA_API_SECRET missing}";'
+      CONTROL_CENTER_STREAMS_SASL_JAAS_CONFIG: 'org.apache.kafka.common.security.plain.PlainLoginModule required username="${CONTROL_CENTER_KAFKA_API_KEY:-}" password="${CONTROL_CENTER_KAFKA_API_SECRET:-}";'
       CONTROL_CENTER_STREAMS_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: https
       CONTROL_CENTER_METRICS_TOPIC_MAX_MESSAGE_BYTES: "8388608"
       CONTROL_CENTER_CONNECT_connect_CLUSTER: http://connect:8083
@@ -98,7 +101,7 @@ services:
       CONTROL_CENTER_CONNECT_HEALTHCHECK_ENDPOINT: /connectors
       CONTROL_CENTER_SCHEMA_REGISTRY_URL: ${SR_URL:?SR_URL missing (.env.cloud)}:443
       CONTROL_CENTER_SCHEMA_REGISTRY_BASIC_AUTH_CREDENTIALS_SOURCE: USER_INFO
-      CONTROL_CENTER_SCHEMA_REGISTRY_BASIC_AUTH_USER_INFO: ${CONTROL_CENTER_SR_API_KEY:?CONTROL_CENTER_SR_API_KEY missing (.env.cloud)}:${CONTROL_CENTER_SR_API_SECRET:?CONTROL_CENTER_SR_API_SECRET missing}
+      CONTROL_CENTER_SCHEMA_REGISTRY_BASIC_AUTH_USER_INFO: ${CONTROL_CENTER_SR_API_KEY:-}:${CONTROL_CENTER_SR_API_SECRET:-}
       # Blank selects Confluent's documented 30-day trial; a live entitlement remains a deploy-time check.
       CONTROL_CENTER_LICENSE: ${CONTROL_CENTER_LICENSE:-}
       KAFKA_HEAP_OPTS: -Xms1g -Xmx4g
@@ -118,7 +121,7 @@ services:
       com.datadoghq.tags.service: control-center
       com.datadoghq.tags.version: "7.9.0"
 
-  watchdog:
+  freshness-probe:
     depends_on: !override
       store-s01: {condition: service_healthy}
       store-s02: {condition: service_healthy}

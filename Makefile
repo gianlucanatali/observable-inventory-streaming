@@ -13,17 +13,25 @@
 # demo.yaml (the file ./demo reads, next to this Makefile; DEMO_YAML overrides the path) makes `make <target>` act on
 # the configured cloud stack with the values ./demo passes: MODE=cloud TOPOLOGY=hybrid STACK=<stack>, ENV_DIR=<its folder>
 # (unless ENV_DIR is already set),
-# PRESENTER_CIDR from allowed_cidr, and for the stack-* targets AWS_PROFILE/AWS_REGION (stack-up also LAYERS).
+# PRESENTER_CIDR from allowed_cidr, KEEP_IMAGES from keep_images, and for the stack-* targets AWS_PROFILE/AWS_REGION
+# (stack-up also LAYERS).
 # Values given on the command line win. MODE=dev, up-dev and down-dev ignore demo.yaml. Without demo.yaml nothing changes.
+# mode: local in demo.yaml sets none of the cloud values: plain `make <target>` then acts on the local stack
+# (MODE=dev STACK=dev, the Lima VM), exactly as without demo.yaml, and local-up takes LOCAL_LAYERS from its layers.
 DEMO_YAML ?= $(CURDIR)/demo.yaml
 DEMO_DEFAULTS :=
+DEMO_YAML_LAYERS :=
 ifneq ($(wildcard $(DEMO_YAML)),)
 ifneq ($(MODE),dev)
 ifeq ($(filter up-dev down-dev,$(MAKECMDGOALS)),)
-DEMO_DEFAULTS := $(shell python3 $(CURDIR)/compose/scripts/demo-yaml.py '$(DEMO_YAML)')
-ifneq ($(words $(DEMO_DEFAULTS)),5)
+DEMO_YAML_VALUES := $(shell python3 $(CURDIR)/compose/scripts/demo-yaml.py '$(DEMO_YAML)')
+ifneq ($(words $(DEMO_YAML_VALUES)),8)
 $(error $(DEMO_YAML) is not usable (see the message above); fix it, or run local targets with MODE=dev)
 endif
+ifeq ($(word 7,$(DEMO_YAML_VALUES)),local)
+DEMO_YAML_LAYERS := $(word 4,$(DEMO_YAML_VALUES))
+else
+DEMO_DEFAULTS := $(DEMO_YAML_VALUES)
 MODE := cloud
 TOPOLOGY := hybrid
 STACK := $(word 1,$(DEMO_DEFAULTS))
@@ -35,10 +43,22 @@ PRESENTER_CIDR := $(word 5,$(DEMO_DEFAULTS))
 TF_VAR_presenter_cidr := $(PRESENTER_CIDR)
 export PRESENTER_CIDR TF_VAR_presenter_cidr
 endif
+KEEP_IMAGES := $(word 6,$(DEMO_DEFAULTS))
+# owner (demo.yaml): the owner tag value. An OWNER in the environment or on the command line wins; stack.sh falls back to id -un.
+ifneq ($(word 8,$(DEMO_DEFAULTS)),-)
+ifeq ($(origin OWNER),undefined)
+OWNER := $(word 8,$(DEMO_DEFAULTS))
+export OWNER
+endif
+endif
+endif
 endif
 endif
 endif
 MODE ?= dev
+# keep_images (demo.yaml): stack-down keeps the stack's ECR repositories when true. stack.sh validates it.
+KEEP_IMAGES ?= false
+export KEEP_IMAGES
 ifeq ($(MODE),cloud)
 ifeq ($(origin STACK),undefined)
 $(error STACK is required in MODE=cloud: make MODE=cloud STACK=<name> <target>, or set stack in demo.yaml)
@@ -142,7 +162,7 @@ CHECK_ARGS ?=
 .PHONY: help links-publish links-json secrets build config config-all up-dev down-dev up-cloud down-cloud register-connector seed reset \
         sell-out verify load route-baseline canary-110-10 incident canary-10 canary-50 canary-100 rollback route-check route-show status \
         sales-on sales-off canary-check offers-on offers-off layer-on layer-off layers-status lead-time control \
-        store-pause store-resume smoke links stack-preflight stack-up stack-down stack-leftovers stack-status account-up account-down
+        store-pause store-resume smoke links local-preflight local-up local-down stack-preflight stack-up stack-down stack-leftovers stack-status account-up account-down
 
 help:
 	 @echo "targets: secrets build config config-all up-dev down-dev up-cloud down-cloud register-connector seed reset"
@@ -154,9 +174,11 @@ help:
 	 @echo "         smoke [SMOKE_ARGS=--offers]   (browser + API + Connect + control panel; exit 1 on any FAIL)"
 
 	 @echo "         links   (MODE=cloud STACK=<s>; print state-derived Datadog dashboard, APM and DSM URLs)"
-	 @echo "  cloud:  stack-preflight | stack-up [LAYERS=all|core|<comma list>] | stack-status | stack-down | stack-leftovers   (MODE=cloud STACK=<s>; up/down need CONFIRM=yes)"
+	 @echo "  local:  local-preflight | local-up [LOCAL_LAYERS=core (default)|all|<comma list>] | local-down [PURGE=1]   (MODE=dev, or mode: local in demo.yaml)"
+	 @echo "  cloud:  stack-preflight | stack-up [LAYERS=core (default)|all|<comma list>] | stack-status | stack-down | stack-leftovers   (MODE=cloud STACK=<s>; up/down need CONFIRM=yes)"
 	 @echo "  account-down: MODE=cloud STACK=account CONFIRM=yes ACCOUNT_DOWN_DESTROY=yes (permanently deletes account CCM resources after plan review)"
-	 @echo "  with demo.yaml (as ./demo): MODE=cloud TOPOLOGY=hybrid STACK=<stack from demo.yaml> unless given on the command line; MODE=dev ignores it"
+	 @echo "  with demo.yaml (as ./demo): mode: cloud = MODE=cloud TOPOLOGY=hybrid STACK=<stack from demo.yaml> unless given on the command line;"
+	 @echo "                              mode: local = MODE=dev STACK=dev (as without demo.yaml); MODE=dev ignores demo.yaml"
 	 @echo "MODE=$(MODE) STACK=$(STACK)  docker='$(DOCKER)'"
 
 secrets:
@@ -177,7 +199,7 @@ config-all:
 	 $(MAKE) --no-print-directory MODE=cloud config
 
 up-dev:
-	 @echo "WARNING: this STARTS containers in the local VM '$(LIMA)' (local only, no cloud cost). Run it yourself."
+	 @echo "WARNING: this STARTS containers in the local VM '$(LIMA)' (local only, no AWS or Confluent Cloud). Run it yourself."
 	 $(MAKE) --no-print-directory MODE=dev _up
 down-dev:
 	 @echo "WARNING: this STOPS and removes the dev containers. Volumes are kept; add PURGE=1 to delete data too."
@@ -194,8 +216,11 @@ down-cloud:
 _up:
 	$(DC) up -d
 	@if [ "$(TOPOLOGY)" != hybrid ]; then \
-	  echo "== recreate all inventory-api releases so the shared $(IMAGE_TAG) image tag adopts the latest build"; \
-	  $(DC) up -d --force-recreate --no-deps inventory-api-100 inventory-api-110 inventory-api-120; \
+	  rel="inventory-api-100"; \
+	  case ",$$($(LAYER) running)," in *,releases,*) rel="$$rel inventory-api-110 inventory-api-120";; esac; \
+	  echo "== recreate the running inventory-api releases ($$rel) so the shared $(IMAGE_TAG) image tag adopts the latest build"; \
+	  echo "   (1.1.0/1.2.0 start only with the releases layer: make layer-on L=releases)"; \
+	  $(DC) up -d --force-recreate --no-deps $$rel; \
 	else echo "== hybrid online releases run on ECS; no release containers started on the VM"; fi
 	@echo "== publish running layers and routing to redis for the control panel"
 	 $(LAYER) sync
@@ -250,14 +275,16 @@ smoke:
 	 $(DC) --profile tools run --rm -T smoke $(SMOKE_ARGS)
 
 # Read-only demo links. This never loads env files or prints secret outputs.
+# MODE=dev (local mode): http://localhost:<INGRESS_PORT> for shop and panel, APM/DSM by env, dashboards only when
+# terraform/datadog has state for the stack (links.sh says so otherwise).
+DEV_INGRESS_PORT := $(shell sed -n 's/^INGRESS_PORT=//p' $(COMPOSE_DIR)/dev.env)
+LOCAL_BASE_URL ?= http://localhost:$(DEV_INGRESS_PORT)
+export LOCAL_BASE_URL
 links:
-	 @test "$(MODE)" = cloud || { echo "links: run with MODE=cloud STACK=<name>" >&2; exit 2; }
 	 $(CURDIR)/compose/scripts/links.sh
-links-publish:  ## write the stack's links to Redis demo:links for the control panel's Links card (hybrid)
-	 @test "$(MODE)" = cloud || { echo "links-publish: run with MODE=cloud STACK=<name>" >&2; exit 2; }
+links-publish:  ## write the stack's links to Redis demo:links for the control panel's Links card (hybrid and local)
 	 DC='$(DC)' STACK=$(STACK) TOPOLOGY=$(TOPOLOGY) AWS_REGION=$(AWS_REGION) $(CURDIR)/compose/scripts/publish-links.sh
-links-json:  ## print the guide JSON (stack ids + every link) for the workshop guide, section 4.4; read-only (hybrid)
-	 @test "$(MODE)" = cloud || { echo "links-json: run with MODE=cloud STACK=<name>" >&2; exit 2; }
+links-json:  ## print the guide JSON (stack ids + every link) for the workshop guide, 0.2.4; read-only
 	 @STACK=$(STACK) TOPOLOGY=$(TOPOLOGY) AWS_REGION=$(AWS_REGION) $(CURDIR)/compose/scripts/publish-links.sh --print
 canary-check:
 ifneq ($(strip $(CHECK_ARGS)),)
@@ -293,8 +320,9 @@ canary-100:
 rollback:
 	 @echo "== restore the previous routing from .state/routing-$(STACK)"
 	 $(ROUTE) --rollback
+# route-check: read the live routing back and republish demo:routing: the ALB rule (hybrid) or nginx's routing.conf (MODE=dev).
 route-check:
-	 @test "$(MODE)" = cloud && test "$(TOPOLOGY)" = hybrid || { echo "route-check: run with MODE=cloud TOPOLOGY=hybrid STACK=<name>" >&2; exit 2; }
+	 @echo "== live routing read-back ($(if $(filter hybrid,$(TOPOLOGY)),ALB rule,nginx routing.conf); MODE=$(MODE) TOPOLOGY=$(TOPOLOGY))"
 	 @$(ROUTE) --sync
 route-show:
 	 @$(ROUTE) --sync
@@ -315,11 +343,11 @@ status:
 layer-on:
 	 @test -n "$(L)" || { echo "usage: make layer-on L=<releases|restock|offers|dd-synthetics|dd-streams|dd-rum> [STACK=<s>] [MODE=cloud CONFIRM=yes]" >&2; exit 2; }
 	 @if [ "$(MODE)" = cloud ]; then echo "WARNING: MODE=cloud: layer '$(L)' runs terraform apply and COSTS MONEY (Confluent/AWS bill hourly). Needs a cost note and explicit approval; add CONFIRM=yes to proceed."; fi
-	 $(LAYER) on $(L)
+	 LAYER_STACK_ENV='$(strip $(DEMO_STACK_ENV))' $(LAYER) on $(L)
 layer-off:
 	 @test -n "$(L)" || { echo "usage: make layer-off L=<layer> [STACK=<s>] [MODE=cloud CONFIRM=yes]" >&2; exit 2; }
 	 @if [ "$(MODE)" = cloud ]; then echo "WARNING: MODE=cloud: layer '$(L)' off runs terraform apply (enable_*=false). Needs explicit approval; add CONFIRM=yes to proceed."; fi
-	 $(LAYER) off $(L)
+	 LAYER_STACK_ENV='$(strip $(DEMO_STACK_ENV))' $(LAYER) off $(L)
 layers-status:
 	 @$(LAYER) status
 
@@ -348,8 +376,51 @@ store-pause store-resume:
 	 @echo "== $(subst store-,,$@) the Debezium connector of store $(STORE) (Connect REST)"
 	 $(DC) exec -T connect python3 -c "import urllib.request,sys; n='inventory-'+'$(STORE)'.lower(); a='$(subst store-,,$@)'; r=urllib.request.urlopen(urllib.request.Request('http://localhost:8083/connectors/'+n+'/'+a, method='PUT'), timeout=10); print(n, a, r.status)"
 
+# --- local lifecycle (mode: local in demo.yaml, or MODE=dev): the Lima VM, no AWS or Confluent Cloud ---
+# local-up is the LOCAL.md sequence in one target; ./demo create runs it with LOCAL_LAYERS from demo.yaml's layers.
+# all = releases, restock, offers; the Datadog/Confluent-only layers are skipped locally (LOCAL.md says what differs).
+comma := ,
+LOCAL_LAYERS ?= $(if $(DEMO_YAML_LAYERS),$(DEMO_YAML_LAYERS),core)
+LOCAL_LAYER_WORDS := $(subst $(comma), ,$(LOCAL_LAYERS))
+LOCAL_LAYERS_ON := $(if $(filter all,$(LOCAL_LAYER_WORDS)),releases restock offers,$(filter releases restock offers,$(LOCAL_LAYER_WORDS)))
+LOCAL_LAYERS_SKIPPED := $(filter dd-streams dd-synthetics dd-rum control-center,$(LOCAL_LAYER_WORDS))
+LOCAL_LAYERS_BAD := $(filter-out core all releases restock offers dd-streams dd-synthetics dd-rum control-center,$(LOCAL_LAYER_WORDS))
+LOCAL_SUB := $(MAKE) --no-print-directory MODE=dev STACK=$(STACK)
+local-preflight:
+	 @test "$(MODE)" = dev || { echo "local-preflight: local mode only (MODE=dev, or mode: local in demo.yaml)" >&2; exit 2; }
+	 @command -v limactl >/dev/null || { echo "local-preflight: limactl not found: install Lima and create the VM '$(LIMA)' (LOCAL.md, Prerequisites)" >&2; exit 1; }
+	 @command -v docker >/dev/null || { echo "local-preflight: docker CLI not found on this computer (LOCAL.md, Prerequisites)" >&2; exit 1; }
+	 @st="$$(limactl list --format '{{.Status}}' $(LIMA) 2>/dev/null)"; \
+	  [ -n "$$st" ] || { echo "local-preflight: Lima VM '$(LIMA)' does not exist: create it first (LOCAL.md, Prerequisites)" >&2; exit 1; }; \
+	  [ "$$st" = Running ] || { echo "local-preflight: Lima VM '$(LIMA)' is $$st: start it with  limactl start $(LIMA)" >&2; exit 1; }
+	 @grep -q '^DD_API_KEY=.' "$(ENV_DIR)/.env" 2>/dev/null || { echo "local-preflight: $(ENV_DIR)/.env has no DD_API_KEY (./demo create writes it from demo.yaml; with plain make, create it yourself)" >&2; exit 1; }
+	 @echo "local-preflight: OK: Lima VM $(LIMA) running, docker CLI present, $(ENV_DIR)/.env has DD_API_KEY (not printed)"
+local-up:
+	 @test "$(MODE)" = dev || { echo "local-up: local mode only (MODE=dev, or mode: local in demo.yaml); the cloud uses stack-up" >&2; exit 2; }
+	 @test -z "$(LOCAL_LAYERS_BAD)" || { echo "local-up: unknown layer(s) '$(LOCAL_LAYERS_BAD)' in LOCAL_LAYERS=$(LOCAL_LAYERS)" >&2; exit 2; }
+	 @echo "== local stack $(STACK) in the Lima VM '$(LIMA)': no AWS or Confluent Cloud resources. Layers: core $(LOCAL_LAYERS_ON)"
+	 @$(if $(LOCAL_LAYERS_SKIPPED),echo "== cloud-only layer(s) skipped locally: $(LOCAL_LAYERS_SKIPPED) (LOCAL.md, What is different locally)",true)
+	 +$(LOCAL_SUB) local-preflight
+	 +$(LOCAL_SUB) secrets
+	 +$(LOCAL_SUB) config
+	 +$(LOCAL_SUB) build
+	 +$(LOCAL_SUB) up-dev
+	 +$(LOCAL_SUB) seed
+	 +$(LOCAL_SUB) register-connector
+	 +@for l in $(LOCAL_LAYERS_ON); do $(LOCAL_SUB) layer-on L=$$l || exit 1; done
+	 +$(LOCAL_SUB) links-publish
+	 +$(LOCAL_SUB) verify
+	 +$(LOCAL_SUB) smoke
+	 @echo "== local stack ready: shop $(LOCAL_BASE_URL)/  panel $(LOCAL_BASE_URL)/control/ (user demo, CONTROL_PASSWORD in $(ENV_DIR)/.env.secrets)"
+	 +$(LOCAL_SUB) links
+local-down:
+	 @test "$(MODE)" = dev || { echo "local-down: local mode only (MODE=dev, or mode: local in demo.yaml); the cloud uses stack-down" >&2; exit 2; }
+	 +$(LOCAL_SUB) down-dev $(if $(PURGE),PURGE=1,)
+	 @echo "== local containers stopped$(if $(PURGE), and data volumes deleted,; data volumes kept (PURGE=1 deletes them)). The VM keeps running: limactl stop $(LIMA) frees its memory."
+
 # --- cloud stack lifecycle: compose/scripts/stack.sh. Terraform plans are shown and confirmed step by step. ---
-# demo.yaml: the AWS profile and region reach stack.sh only. alb-routing.sh (route-*, reset, layer sync) must keep
+# demo.yaml: the AWS profile and region reach stack.sh only (layer-on/off pass them as LAYER_STACK_ENV, which
+# layer.sh hands to stack.sh only). alb-routing.sh (route-*, reset, layer sync) must keep
 # its default refresh profile dd-demo-auto, which a global AWS_PROFILE=<source profile> would replace.
 DEMO_STACK_ENV := $(if $(DEMO_DEFAULTS),$(if $(filter command line,$(origin AWS_PROFILE)),,AWS_PROFILE=$(word 2,$(DEMO_DEFAULTS))) $(if $(filter command line,$(origin AWS_REGION)),,AWS_REGION=$(word 3,$(DEMO_DEFAULTS))))
 STACK_SH := $(if $(strip $(DEMO_STACK_ENV)),env $(strip $(DEMO_STACK_ENV)) )$(COMPOSE_DIR)/scripts/stack.sh

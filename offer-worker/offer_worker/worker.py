@@ -16,6 +16,7 @@ from .jev import JevClient, JevError
 from .live import LiveConfig
 from .metrics import Metrics
 from .policy import Candidate, build_candidates, rule_default, template_text
+from .stock import ConfirmedStock, MalformedStock
 
 log = logging.getLogger("offer_worker")
 
@@ -59,23 +60,32 @@ class OfferWorker:
         self._m, self._jev, self._text, self._clock = metrics, jev, text_writer, clock
         self._seen = LruSet(cfg.dedup_size)
         self._live = LiveConfig(redis_client)
+        self._stock = ConfirmedStock(redis_client, cfg.store_ids, clock)
 
     # --- helpers -------------------------------------------------------------------------------------------------
-    def _sellable(self, product_id: str) -> int | None:
-        """Sellable from the Redis hash written by the sink. Missing or unreadable is None, never available."""
+    def _confirmed_min(self, product_id: str) -> int | None:
+        """Confirmed minimum with the API's rule: only live stores count, so a quiet store's last known
+        stock never makes an alternative eligible. None when it cannot be computed (namespace not ready, Flink total
+        missing, Redis error, malformed hash): logged and counted, never treated as available."""
+        ctx = {"product_id": product_id}
         try:
-            raw = self._r.hget(f"sellable:{product_id}", "sellable")
-        except Exception:  # noqa: BLE001 - logged with traceback; the caller treats None as not available
-            log.exception("sellable lookup failed; treating as unavailable", extra={"ctx": {"product_id": product_id}})
+            a = self._stock.read(product_id)
+        except MalformedStock as e:
+            log.error("stock hash malformed; alternative not eligible", extra={"ctx": {**ctx, "error": str(e)}})
+            self._m.stock_unconfirmed("malformed")
             return None
-        if raw is None:
+        except Exception as e:  # noqa: BLE001 - logged with traceback and counted; the caller treats None as not eligible
+            log.exception("stock lookup failed; alternative not eligible",
+                          extra={"ctx": {**ctx, "error": f"{type(e).__name__}: {e}"}})
+            self._m.stock_unconfirmed("redis_error")
             return None
-        try:
-            return int(raw)
-        except ValueError:
-            log.error("sellable value is not an integer; treating as unavailable",
-                      extra={"ctx": {"product_id": product_id, "value": raw.decode() if isinstance(raw, bytes) else raw}})
-            return None
+        if a.unknown_reason is not None:
+            level = logging.WARNING if a.unknown_reason == "not_ready" else logging.INFO
+            log.log(level, "stock not confirmed; alternative not eligible",
+                    extra={"ctx": {**ctx, "reason": a.unknown_reason, "sellable": a.sellable,
+                                   "confirmed_min": a.confirmed_min}})
+            self._m.stock_unconfirmed(a.unknown_reason)
+        return a.confirmed_min
 
     def _kill_switch(self) -> bool:
         if self._cfg.kill_switch:
@@ -208,12 +218,13 @@ class OfferWorker:
                 log.error("product is not in the catalogue; no offer", extra={"ctx": ctx})
                 return "unknown_product"
 
-            cands = build_candidates(original, self._cat, self._sellable, self._cfg.discount_pct)
+            cands = build_candidates(original, self._cat, self._confirmed_min, self._cfg.discount_pct)
             min_confidence = self._live.get("jev_min_confidence", self._cfg.jev_min_confidence, 0.0, 1.0)
             rule_choice = rule_default(cands).id
             chosen, route, reason, jev_confidence, jev_choice = self._decide(risk, original, cands, min_confidence)
-            # Revalidate right before publishing: stock may have come back or been taken since the candidates were built.
-            if chosen.product_id is not None and not ((self._sellable(chosen.product_id) or 0) > 0):
+            # Revalidate right before publishing, with the same confirmed-minimum rule: stock may have been taken, or its
+            # only store may have gone quiet, since the candidates were built. Jev and the rule default both pass here.
+            if chosen.product_id is not None and not ((self._confirmed_min(chosen.product_id) or 0) > 0):
                 log.warning("alternative no longer available; notify-me", extra={"ctx": {**ctx, "alt": chosen.product_id}})
                 chosen = cands[-1]
                 route, reason = "RULE_DEFAULT", "invalid_choice"

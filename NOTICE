@@ -37,7 +37,7 @@ Third-party material included in this repository
    The logos identify the products shown; their use implies no endorsement (see Trademarks).
 
 4. Screenshots (workshop/img/*.png other than arch-*, and their copies in docs/img/)
-   Screenshots of this demo and of the Datadog, Confluent Cloud, Confluent Control Center and
+   Screenshots of this demo and of the Datadog, Confluent Cloud and
    AWS consoles, taken by the author on trial accounts, shown to describe the steps.
 
 5. Product photographs (storefront/backend/app/product-images/, storefront/assets-src/keys/)
@@ -93,7 +93,7 @@ accept when you download it. Examples:
 - Confluent JDBC connector, cp-kafka-connect and cp-schema-registry images (Confluent
   Community License).
 - Confluent Control Center image cp-enterprise-control-center (Confluent Enterprise License,
-  optional `control-center` profile; check Confluent's license terms before you use it).
+  optional `control-center` profile, off by default; check Confluent's license terms before you use it).
 - Redis 8 image (RSALv2, SSPLv1 or AGPLv3, at your choice), PostgreSQL, nginx, Apache Kafka,
   Datadog Agent, AWS for Fluent Bit, Python, Node.js, Go, Debian and Playwright images.
 - Python and npm packages pinned in uv.lock and package-lock.json files.

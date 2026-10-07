@@ -11,11 +11,19 @@ export const STORES = [
 
 const UNKNOWN_TITLE = "Availability can't be confirmed right now";
 
+// A store counts towards the "at least" number only when it is live: its feed is ok and its position is known.
+// The API says so in `live`; an answer without it falls back to the same rule on feed and status.
+export function isLiveStore(entry) {
+  if (typeof entry.live === 'boolean') return entry.live;
+  return entry.feed === 'ok' && entry.status !== 'unknown';
+}
+
 // One entry of the "By store" line: the number is shown only when the store's position is known.
+// A store that is not live keeps its last seen number, marked so it is not read as confirmed.
 export function describeStore(entry) {
   const store = STORES.find((s) => s.id === entry.store_id);
   const name = store ? store.short : entry.store_id;
-  const notLive = entry.feed !== 'ok';
+  const notLive = !isLiveStore(entry);
   let value;
   switch (entry.status) {
     case 'available':
@@ -33,7 +41,7 @@ export function describeStore(entry) {
     name,
     value,
     tone: entry.status === 'unknown' ? 'unknown' : notLive ? 'stale' : 'ok',
-    text: `${name} ${value}${notLive && entry.status !== 'unknown' ? ' (not live)' : ''}`,
+    text: `${name} ${value}${notLive && entry.status !== 'unknown' ? ' (last seen, not live)' : ''}`,
   };
 }
 
@@ -84,12 +92,22 @@ export function describeStock(answer, fetchError, compression = null) {
     return { tone: 'loading', title: 'Checking availability…', detail: null, qualifier: null, stores: [] };
   }
   const sourceStores = Array.isArray(answer.stores) ? answer.stores : [];
-  const perStoreSum = sourceStores.reduce(
-    (sum, store) => sum + (Number.isFinite(store.quantity) ? store.quantity : 0), 0);
-  const storesMatchAggregate = sourceStores.length === 0 || perStoreSum === answer.sellable;
-  const displayedSellable = storesMatchAggregate ? answer.sellable : Math.min(answer.sellable, perStoreSum);
+  // With "at least", only live stores count: a quiet store's last seen number is detail, never promised.
+  const countedSum = sourceStores
+    .filter((store) => !answer.at_least || isLiveStore(store))
+    .reduce((sum, store) => sum + (Number.isFinite(store.quantity) ? store.quantity : 0), 0);
+  // confirmed_min is the API's answer. Without it (an older API), derive the same safe value here.
+  const confirmed = Number.isFinite(answer.confirmed_min)
+    ? answer.confirmed_min
+    : answer.at_least && Number.isFinite(answer.sellable) ? Math.min(answer.sellable, countedSum) : answer.sellable;
+  const storesMatchAggregate = sourceStores.length === 0 || countedSum === confirmed;
+  const displayedSellable = storesMatchAggregate ? confirmed : Math.min(confirmed, countedSum);
   const stores = storesMatchAggregate ? sourceStores.map(describeStore) : [];
-  const displayStatus = answer.status === 'available' && displayedSellable === 0 ? 'out_of_stock' : answer.status;
+  // A displayed zero is out of stock only when every store is live; with any store not live it is unknown.
+  let displayStatus = answer.status;
+  if (answer.status === 'available' && displayedSellable === 0) {
+    displayStatus = answer.at_least ? 'unknown' : 'out_of_stock';
+  }
   switch (displayStatus) {
     case 'available':
       return {
@@ -97,7 +115,7 @@ export function describeStock(answer, fetchError, compression = null) {
         warning: answer.at_least,
         title: answer.at_least ? `At least ${displayedSellable} available online` : `${displayedSellable} available online`,
         detail: null,
-        qualifier: answer.at_least ? 'Some stores are not reporting live, so the real number may be higher' : null,
+        qualifier: answer.at_least ? 'Only stores reporting live are counted, so the real number may be higher' : null,
         stores,
       };
     case 'out_of_stock':
@@ -106,7 +124,7 @@ export function describeStock(answer, fetchError, compression = null) {
       return {
         tone: 'unknown',
         title: UNKNOWN_TITLE,
-        detail: answer.unknown_reason ? `Reason: ${answer.unknown_reason}` : null,
+        detail: answer.unknown_reason ? `Reason: ${answer.unknown_reason}` : answer.at_least ? 'Reason: stores_unknown' : null,
         qualifier: null,
         stores,
       };

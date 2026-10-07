@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Observable inventory streaming: intro</title>
+<meta name="description" content="Hands-on workshop: stream stock changes from five PostgreSQL store databases through Debezium and Confluent Cloud into Redis on AWS, then find and fix a slow release with Datadog.">
+<meta name="color-scheme" content="light dark">
+<!-- Generated from workshop/README.md by workshop/site/build.py. Do not edit by hand. -->
+<script>
+// Set the lab path before the first paint, so the page never shows both paths and then hides one.
+(function () {
+  var d = document.documentElement, p = null;
+  d.classList.add("js");
+  var m = /[?&]path=(panel|terminal)(?:&|$)/.exec(location.search);
+  try {
+    if (m) { p = m[1]; localStorage.setItem("workshop-path", p); }
+    else { p = localStorage.getItem("workshop-path"); }
+  } catch (e) {
+    console.warn("workshop: localStorage unavailable, the path choice is not remembered:", e);
+    if (m) p = m[1];
+  }
+  if (p !== "panel" && p !== "terminal") p = null;
+  d.setAttribute("data-path-mode", p || "panel");
+  if (p) d.setAttribute("data-path-chosen", "");
+})();
+</script>
+<link rel="stylesheet" href="assets/fonts.css?v=471d416a0c">
+<link rel="stylesheet" href="assets/site.css?v=84305200bf">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23632CA6'/%3E%3Cpath d='M8 21h4v-6H8zm6 0h4V10h-4zm6 0h4v-9h-4z' fill='white'/%3E%3C/svg%3E">
+</head>
+<body data-connect-href="setup.html#connect-box">
+<a class="skip" href="#content">Skip to content</a>
+<header class="topbar">
+  <button type="button" class="toc-toggle" aria-controls="toc" aria-expanded="false">
+    <span class="burger" aria-hidden="true"></span><span class="sr-only">Table of contents</span>
+  </button>
+  <a class="brand" href="intro.html" title="Start of the workshop"><span class="brand-mark" aria-hidden="true"></span><span>Observable inventory streaming</span></a>
+  <div class="path-switch" role="group" aria-label="Lab path">
+    <span class="path-switch-label" aria-hidden="true">Path</span>
+    <button type="button" data-set-path="panel" aria-pressed="true" title="Show the control panel steps">Panel</button>
+    <button type="button" data-set-path="terminal" aria-pressed="false" title="Show the terminal (make) steps">Terminal</button>
+  </div>
+  <a class="stack-badge" id="stack-badge" href="setup.html#connect-box" hidden title="Your stack is connected to this guide. Open the Connect box."><span class="stack-dot" aria-hidden="true"></span><span class="stack-badge-text">Connected<span class="stack-badge-name"></span></span></a>
+  <nav class="topbar-links" aria-label="Site">
+    <a class="topbar-home" href="index.html">Home</a>
+    <a class="topbar-current" href="intro.html" aria-current="page">Workshop</a><a class="topbar-extra" href="workshop.html">One-page guide</a>
+    <a class="topbar-extra topbar-md" href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/workshop/README.md" target="_blank" rel="noopener">Markdown source</a>
+    <a class="topbar-extra" href="https://github.com/gianlucanatali/observable-inventory-streaming" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+</header>
+<div class="layout">
+  <nav id="toc" class="toc" aria-label="Table of contents">
+    <p class="toc-title">Workshop</p><ol class="chapter-list"><li><a href="intro.html" aria-current="page">Intro</a></li><li><a href="setup.html"><span class="cl-n">0</span>Setup</a></li><li><a href="chapter-1.html"><span class="cl-n">1</span>One honest number</a></li><li><a href="chapter-2.html"><span class="cl-n">2</span>Unknown is not zero</a></li><li><a href="chapter-3.html"><span class="cl-n">3</span>The incident</a></li><li><a href="chapter-4.html"><span class="cl-n">4</span>Canary the fix</a></li><li><a href="chapter-5.html"><span class="cl-n">5</span>The AI offer</a></li><li><a href="chapter-6.html"><span class="cl-n">6</span>Datadog on top</a></li></ol><p class="toc-title">Help and reference</p><ol class="chapter-list chapter-list-help"><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="teardown.html">Teardown</a></li><li><a href="recap.html">Recap</a></li><li><a href="reference.html">Reference</a></li><li><a class="guide-link" href="workshop.html">One-page guide</a></li></ol><p class="toc-title toc-title-page">On this page</p><ol class="toc-list">
+<li class="toc-h2"><a href="#which-layers-each-chapter-needs">Which layers each Chapter needs</a>
+</li>
+<li class="toc-h2"><a href="#the-whole-picture-for-later">The whole picture, for later</a>
+</li>
+<li class="toc-h2"><a href="#why-change-events">Why change events</a>
+</li>
+<li class="toc-h2"><a href="#the-architecture-at-a-glance">The architecture at a glance</a>
+</li>
+<li class="toc-h2"><a href="#labs">Labs</a>
+</li>
+</ol>
+  </nav>
+  <div class="scrim" hidden></div>
+  <main id="content" class="content" tabindex="-1">
+    <article id="top" class="doc">
+<nav class="chapter-progress" aria-label="Chapters"><ol><li class="cp-step cp-extra cp-current"><a href="intro.html" aria-current="page"><span class="cp-dot" aria-hidden="true">&middot;</span><span class="cp-label">Intro</span></a></li><li class="cp-step cp-extra"><a href="setup.html"><span class="cp-dot" aria-hidden="true">0</span><span class="cp-label">Setup</span></a></li><li class="cp-step"><a href="chapter-1.html"><span class="cp-dot" aria-hidden="true">1</span><span class="cp-label">One honest number</span></a></li><li class="cp-step"><a href="chapter-2.html"><span class="cp-dot" aria-hidden="true">2</span><span class="cp-label">Unknown is not zero</span></a></li><li class="cp-step"><a href="chapter-3.html"><span class="cp-dot" aria-hidden="true">3</span><span class="cp-label">The incident</span></a></li><li class="cp-step"><a href="chapter-4.html"><span class="cp-dot" aria-hidden="true">4</span><span class="cp-label">Canary the fix</span></a></li><li class="cp-step"><a href="chapter-5.html"><span class="cp-dot" aria-hidden="true">5</span><span class="cp-label">The AI offer</span></a></li><li class="cp-step"><a href="chapter-6.html"><span class="cp-dot" aria-hidden="true">6</span><span class="cp-label">Datadog on top</span></a></li></ol></nav>
+<h1 id="observable-inventory-streaming-with-confluent-and-datadog">Observable inventory streaming with Confluent and Datadog <a class="header-anchor" href="#observable-inventory-streaming-with-confluent-and-datadog">#</a></h1>
+<div class="gh-only">
+<blockquote>
+<p><strong>Follow this workshop on its website:</strong> <a href="https://gianlucanatali.github.io/observable-inventory-streaming/workshop.html" rel="noopener" target="_blank">https://gianlucanatali.github.io/observable-inventory-streaming/workshop.html</a>. There you choose the control panel or the terminal once and see only the steps for your choice, with copy buttons and term explanations. This Markdown file is the source of that page and shows both paths.</p>
+</blockquote>
+</div>
+<p>UrbanStreet, a fictional outdoor retailer, has five shoe stores in Italy and an Online shop. The Online shop must show how many pairs are left across all five stores. Then a new release makes it slow. In this workshop you build the whole path yourself, with PostgreSQL, Debezium, Confluent Cloud and Redis on AWS. Then you use Datadog to find the cause of the slowdown and roll out a fix safely.</p>
+<p>Every product, store, sale and shopper in this workshop is synthetic.</p>
+<aside class="admonition admonition-important" role="note"><p class="admonition-title"><span class="admonition-icon" aria-hidden="true"></span>Important</p>
+<p>This is an educational demo. Do not use it for production workloads. It is provided as is, without warranty (see <a href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/LICENSE" rel="noopener" target="_blank">LICENSE</a>). It creates cloud resources that you pay for, and you are responsible for the costs and for deleting them. It uses synthetic data only. It is not an official Datadog, Confluent or AWS project. Product names and logos are trademarks of their owners and are used only to identify the products (see <a href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/NOTICE" rel="noopener" target="_blank">NOTICE</a>).</p>
+</aside>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>Time</th>
+<th>Cost while the stack is up</th>
+<th>You need</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>About 3 hours: 30 to 60 min of setup, about 30 to 36 min of build, about 2 hours of labs, 15 to 20 min of teardown</td>
+<td>About $1.50 to $2.50 per hour in total with every layer on (less with core only, see <a href="#which-layers-each-chapter-needs">Which layers each Chapter needs</a>): roughly $0.50 on AWS and $1 to $2 on Confluent Cloud; Datadog on its trial. This is an estimate, not a bill. Trial credits can cover part or all of it (<a href="reference.html#d-cost-details">details</a>)</td>
+<td>AWS, Confluent Cloud and Datadog trial accounts, and a macOS or Linux terminal</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>The idea in three boxes</strong></p>
+<figure class="diagram"><svg aria-roledescription="flowchart-v2" role="graphics-document document" viewBox="0 0 288.04296875 512.2155151367188" style="max-width: 288.04296875px;" class="flowchart" xmlns="http://www.w3.org/2000/svg" width="100%" id="mmd-34136269b1cd6bf0"><style>#mmd-34136269b1cd6bf0{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;fill:#1d1a24;}#mmd-34136269b1cd6bf0 .error-icon{fill:#FAF8FD;}#mmd-34136269b1cd6bf0 .error-text{fill:#050702;stroke:#050702;}#mmd-34136269b1cd6bf0 .edge-thickness-normal{stroke-width:1px;}#mmd-34136269b1cd6bf0 .edge-thickness-thick{stroke-width:3.5px;}#mmd-34136269b1cd6bf0 .edge-pattern-solid{stroke-dasharray:0;}#mmd-34136269b1cd6bf0 .edge-thickness-invisible{stroke-width:0;fill:none;}#mmd-34136269b1cd6bf0 .edge-pattern-dashed{stroke-dasharray:3;}#mmd-34136269b1cd6bf0 .edge-pattern-dotted{stroke-dasharray:2;}#mmd-34136269b1cd6bf0 .marker{fill:#7B4FB8;stroke:#7B4FB8;}#mmd-34136269b1cd6bf0 .marker.cross{stroke:#7B4FB8;}#mmd-34136269b1cd6bf0 svg{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;}#mmd-34136269b1cd6bf0 p{margin:0;}#mmd-34136269b1cd6bf0 .label{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1d1a24;}#mmd-34136269b1cd6bf0 .cluster-label text{fill:#050702;}#mmd-34136269b1cd6bf0 .cluster-label span{color:#050702;}#mmd-34136269b1cd6bf0 .cluster-label span p{background-color:transparent;}#mmd-34136269b1cd6bf0 .label text,#mmd-34136269b1cd6bf0 span{fill:#1d1a24;color:#1d1a24;}#mmd-34136269b1cd6bf0 .node rect,#mmd-34136269b1cd6bf0 .node circle,#mmd-34136269b1cd6bf0 .node ellipse,#mmd-34136269b1cd6bf0 .node polygon,#mmd-34136269b1cd6bf0 .node path{fill:#F3EDFB;stroke:#632CA6;stroke-width:1px;}#mmd-34136269b1cd6bf0 .rough-node .label text,#mmd-34136269b1cd6bf0 .node .label text,#mmd-34136269b1cd6bf0 .image-shape .label,#mmd-34136269b1cd6bf0 .icon-shape .label{text-anchor:middle;}#mmd-34136269b1cd6bf0 .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#mmd-34136269b1cd6bf0 .rough-node .label,#mmd-34136269b1cd6bf0 .node .label,#mmd-34136269b1cd6bf0 .image-shape .label,#mmd-34136269b1cd6bf0 .icon-shape .label{text-align:center;}#mmd-34136269b1cd6bf0 .node.clickable{cursor:pointer;}#mmd-34136269b1cd6bf0 .root .anchor path{fill:#7B4FB8!important;stroke-width:0;stroke:#7B4FB8;}#mmd-34136269b1cd6bf0 .arrowheadPath{fill:#0b0b0b;}#mmd-34136269b1cd6bf0 .edgePath .path{stroke:#7B4FB8;stroke-width:2.0px;}#mmd-34136269b1cd6bf0 .flowchart-link{stroke:#7B4FB8;fill:none;}#mmd-34136269b1cd6bf0 .edgeLabel{background-color:#FFFFFF;text-align:center;}#mmd-34136269b1cd6bf0 .edgeLabel p{background-color:#FFFFFF;}#mmd-34136269b1cd6bf0 .edgeLabel rect{opacity:0.5;background-color:#FFFFFF;fill:#FFFFFF;}#mmd-34136269b1cd6bf0 .labelBkg{background-color:rgba(255, 255, 255, 0.5);}#mmd-34136269b1cd6bf0 .cluster rect{fill:#FAF8FD;stroke:#C9B6E4;stroke-width:1px;}#mmd-34136269b1cd6bf0 .cluster text{fill:#050702;}#mmd-34136269b1cd6bf0 .cluster span{color:#050702;}#mmd-34136269b1cd6bf0 div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;background:#FAF8FD;border:1px solid hsl(264, 15.5555555556%, 88.2352941176%);border-radius:2px;pointer-events:none;z-index:100;}#mmd-34136269b1cd6bf0 .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#1d1a24;}#mmd-34136269b1cd6bf0 rect.text{fill:none;stroke-width:0;}#mmd-34136269b1cd6bf0 .icon-shape,#mmd-34136269b1cd6bf0 .image-shape{background-color:#FFFFFF;text-align:center;}#mmd-34136269b1cd6bf0 .icon-shape p,#mmd-34136269b1cd6bf0 .image-shape p{background-color:#FFFFFF;padding:2px;}#mmd-34136269b1cd6bf0 .icon-shape rect,#mmd-34136269b1cd6bf0 .image-shape rect{opacity:0.5;background-color:#FFFFFF;fill:#FFFFFF;}#mmd-34136269b1cd6bf0 :root{--mermaid-font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;}</style><g><marker orient="auto" markerHeight="8" markerWidth="8" markerUnits="userSpaceOnUse" refY="5" refX="5" viewBox="0 0 10 10" class="marker flowchart-v2" id="mmd-34136269b1cd6bf0_flowchart-v2-pointEnd"><path style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 0 0 L 10 5 L 0 10 z"></path></marker><marker orient="auto" markerHeight="8" markerWidth="8" markerUnits="userSpaceOnUse" refY="5" refX="4.5" viewBox="0 0 10 10" class="marker flowchart-v2" id="mmd-34136269b1cd6bf0_flowchart-v2-pointStart"><path style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 0 5 L 10 10 L 10 0 z"></path></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5" refX="11" viewBox="0 0 10 10" class="marker flowchart-v2" id="mmd-34136269b1cd6bf0_flowchart-v2-circleEnd"><circle style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" r="5" cy="5" cx="5"></circle></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5" refX="-1" viewBox="0 0 10 10" class="marker flowchart-v2" id="mmd-34136269b1cd6bf0_flowchart-v2-circleStart"><circle style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" r="5" cy="5" cx="5"></circle></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5.2" refX="12" viewBox="0 0 11 11" class="marker cross flowchart-v2" id="mmd-34136269b1cd6bf0_flowchart-v2-crossEnd"><path style="stroke-width: 2; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9"></path></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5.2" refX="-1" viewBox="0 0 11 11" class="marker cross flowchart-v2" id="mmd-34136269b1cd6bf0_flowchart-v2-crossStart"><path style="stroke-width: 2; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path marker-end="url(#mmd-34136269b1cd6bf0_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_src_k_0" d="M74.688,188.216L74.688,196.132C74.688,204.049,74.688,219.882,79.695,235.246C84.703,250.609,94.718,265.503,99.725,272.949L104.733,280.396"></path><path marker-end="url(#mmd-34136269b1cd6bf0_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_k_shop_1" d="M126.031,340.716L125.948,348.549C125.865,356.382,125.698,372.049,131.907,387.291C138.116,402.533,150.7,417.35,156.992,424.758L163.285,432.167"></path><path marker-end="url(#mmd-34136269b1cd6bf0_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-dotted edge-thickness-normal edge-pattern-solid flowchart-link" id="L_dd_src_2" d="M140.065,42.5L129.169,46.667C118.273,50.833,96.48,59.167,85.584,66.833C74.688,74.5,74.688,81.5,74.688,85L74.688,88.5"></path><path marker-end="url(#mmd-34136269b1cd6bf0_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-dotted edge-thickness-normal edge-pattern-solid flowchart-link" id="L_dd_k_3" d="M185.176,42.5L185.176,46.667C185.176,50.833,185.176,59.167,185.176,75.476C185.176,91.786,185.176,116.072,185.176,144.108C185.176,172.144,185.176,203.93,179.452,227.293C173.727,250.657,162.279,265.599,156.555,273.07L150.831,280.54"></path><path marker-end="url(#mmd-34136269b1cd6bf0_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-dotted edge-thickness-normal edge-pattern-solid flowchart-link" id="L_dd_shop_4" d="M217.693,42.5L225.548,46.667C233.402,50.833,249.111,59.167,256.966,75.476C264.82,91.786,264.82,116.072,264.82,144.108C264.82,172.144,264.82,203.93,264.82,232.489C264.82,261.049,264.82,286.382,264.82,311.716C264.82,337.049,264.82,362.382,258.528,382.457C252.236,402.533,239.651,417.35,233.359,424.758L227.067,432.167"></path></g><g class="edgeLabels"><g transform="translate(74.6875, 235.71552276611328)" class="edgeLabel"><g transform="translate(-48.171875, -22.5)" class="label"><foreignObject height="45" width="96.34375"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"><p>every change,<br>as it happens</p></span></div></foreignObject></g></g><g transform="translate(125.53125, 387.7155227661133)" class="edgeLabel"><g transform="translate(-59.7109375, -22.5)" class="label"><foreignObject height="45" width="119.421875"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"><p>a copy that is<br>always up to date</p></span></div></foreignObject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignObject height="0" width="0"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignObject height="0" width="0"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignObject height="0" width="0"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"></span></div></foreignObject></g></g></g><g class="nodes"><g transform="translate(74.6875, 140.35776138305664)" id="flowchart-src-0" class="node default"><path transform="translate(-66.6875, -47.8577648766328)" style="" class="basic label-container" d="M0,12.905176584421866 a66.6875,12.905176584421866 0,0,0 133.375,0 a66.6875,12.905176584421866 0,0,0 -133.375,0 l0,69.90517658442187 a66.6875,12.905176584421866 0,0,0 133.375,0 l0,-69.90517658442187"></path><g transform="translate(-60.6875, -14.5)" style="" class="label"><rect></rect><foreignObject height="45" width="121.375"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Store databases<br>(five PostgreSQL)</p></span></div></foreignObject></g></g><g transform="translate(125.53125, 311.7155227661133)" id="flowchart-k-1" class="node default"><polygon transform="translate(-96.2890625,28.5)" class="label-container" points="0,0 192.578125,0 192.578125,-57 0,-57 0,0 -8,0 200.578125,0 200.578125,-57 -8,-57 -8,0"></polygon><g transform="translate(-90.2890625, -22.5)" style="" class="label"><rect></rect><foreignObject height="45" width="180.578125"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Change stream<br>(Kafka in Confluent Cloud)</p></span></div></foreignObject></g></g><g transform="translate(195.17578125, 469.7155227661133)" id="flowchart-shop-3" class="node default"><rect height="69" width="129.484375" y="-34.5" x="-64.7421875" style="" class="basic label-container"></rect><g transform="translate(-40.7421875, -22.5)" style="" class="label"><rect></rect><foreignObject height="45" width="81.484375"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Online shop<br>(on AWS)</p></span></div></foreignObject></g></g><g transform="translate(185.17578125, 25.25)" id="flowchart-dd-4" class="node default"><rect height="34.5" width="189.734375" y="-17.25" x="-94.8671875" ry="17.25" rx="17.25" style="" class="basic label-container"></rect><g transform="translate(-84.5546875, -11.25)" style="" class="label"><rect></rect><foreignObject height="22.5" width="169.109375"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Datadog watches all of it</p></span></div></foreignObject></g></g></g></g></g></svg></figure>
+<p>The store databases keep selling as they always did. Their changes flow through Confluent Cloud, and the Online shop reads only the copy. Datadog shows whether each part is healthy. Everything else in this workshop is a closer look at one of these boxes.</p>
+<h2 id="which-layers-each-chapter-needs">Which layers each Chapter needs <a class="header-anchor" href="#which-layers-each-chapter-needs">#</a></h2>
+<p>You choose one of two ways. Both build the same stack. The difference is when the optional layers start billing.</p>
+<ul>
+<li><strong>Step by step (default, cheaper).</strong> Write <code>layers: core</code> in <code>demo.yaml</code>, or leave the <code>layers:</code> key out: no key means core only. Each Lab that needs a new layer begins with a &quot;Turn on&quot; step, so you pay only for the layers you run. Chapters 1 and 2 are enough to see the main idea.</li>
+<li><strong>Everything at once.</strong> Write <code>layers: all</code> in <code>demo.yaml</code>. Every layer comes up together, so you can look around freely. It bills the full rate from the first minute, about $1.50 to $2.50 per hour (<a href="reference.html#d-cost-details">Reference D</a>). Skip every &quot;Turn on&quot; step.</li>
+</ul>
+<details><summary>More about layers and their cost</summary>
+<p><strong>Which Chapter needs which layer, what each one bills, and how to add one.</strong></p>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>Chapter</th>
+<th>Labs</th>
+<th>Layers needed</th>
+<th>What the layers add</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1. One honest number</td>
+<td><a href="chapter-1.html#lab-11-one-product-five-stores-one-online-number">1.1</a>, <a href="chapter-1.html#lab-12-optional-look-inside-confluent">1.2</a> (optional)</td>
+<td><code>core</code></td>
+<td>The five stores, Debezium, Confluent Cloud, Flink, Redis, the stock API and the Online shop, with Datadog on top.</td>
+</tr>
+<tr>
+<td>2. Unknown is not zero</td>
+<td><a href="chapter-2.html#lab-21-unknown-is-not-zero">2.1</a></td>
+<td><code>core</code></td>
+<td>Nothing new.</td>
+</tr>
+<tr>
+<td>3. The incident</td>
+<td><a href="chapter-3.html#lab-31-the-incident">3.1</a></td>
+<td><code>core,releases</code></td>
+<td>Releases 1.1.0 (slow) and 1.2.0 (fix), the traffic split and the p95-by-version monitor</td>
+</tr>
+<tr>
+<td>4. Canary the fix</td>
+<td><a href="chapter-4.html#lab-41-canary-the-fix">4.1</a></td>
+<td><code>core,releases</code></td>
+<td>Nothing new: <code>releases</code> is already on from Chapter 3.</td>
+</tr>
+<tr>
+<td>5. The AI offer</td>
+<td><a href="chapter-5.html#lab-51-offers-with-a-safe-default">5.1</a>, <a href="chapter-5.html#lab-52-restock-that-learns">5.2</a> (optional)</td>
+<td><code>offers</code> for 5.1, <code>restock</code> for 5.2, each turned on by its Lab</td>
+<td><code>offers</code>: offers for carts. <code>restock</code>: automatic reordering</td>
+</tr>
+<tr>
+<td>6. Datadog on top</td>
+<td><a href="chapter-6.html#lab-61-datadog-on-top-of-the-solution">6.1</a></td>
+<td><code>dd-streams</code>, <code>dd-synthetics</code>, <code>dd-rum</code> (keep only the ones you want)</td>
+<td>Datadog integrations and tests</td>
+</tr>
+</tbody>
+</table></div>
+<p>A stack with every layer is <code>layers: core,releases,restock,offers,dd-streams,dd-synthetics,dd-rum</code>. What each group of layers bills:</p>
+<ul>
+<li><strong><code>core</code>:</strong> the base of every stack. On AWS that is the VM, the Fargate services, ElastiCache and the load balancer. On Confluent Cloud it is the cluster and one Flink statement.</li>
+<li><strong><code>releases</code>:</strong> two more small Fargate services, 0.5 vCPU and 1 GB each.</li>
+<li><strong><code>restock</code> and <code>offers</code>:</strong> <code>restock</code> adds three running Flink statements and a procurement database container on the VM. <code>offers</code> adds one Flink statement and a Fargate service.</li>
+<li><strong><code>dd-streams</code>, <code>dd-synthetics</code>, <code>dd-rum</code>:</strong> Datadog usage on your trial, plus a small amount of AWS and Confluent for the Confluent integration and the Synthetics private location.</li>
+</ul>
+<p>How to add a layer when you build step by step:</p>
+<ol>
+<li>In <code>demo.yaml</code>, add the layer to the <code>layers:</code> line. Do this first: <code>make layer-on</code> changes the running stack but not the file, and a later <code>./demo create</code> applies the file again, which would switch the layer off.</li>
+<li>Run <code>make layer-on L=&lt;layer&gt; CONFIRM=yes</code>. Each Lab that needs a layer starts with a &quot;Turn on&quot; step that gives the exact command and what it creates.</li>
+</ol>
+<p><strong>What one layer costs.</strong> We have no measured cost per layer. The estimate at the top of this page is for a stack with every layer on. A core-only stack costs less, and <a href="reference.html#d-cost-details">Reference D</a> lists the billed pieces and their prices, so you can add up your own total. Confluent bills a partial hour as a full hour, so turning a layer on and off within one hour still costs that hour.</p>
+</details>
+<h2 id="the-whole-picture-for-later">The whole picture, for later <a class="header-anchor" href="#the-whole-picture-for-later">#</a></h2>
+<p>This is the full architecture. You do not need to understand it now: each Chapter shows the part it adds, and Figure 1 is where they all end up.</p>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: The full architecture: five store databases on a VM, Confluent Cloud in the middle, the online side on AWS, Datadog underneath"><img src="img/arch-5-datadog.png" alt="The full architecture: five store databases on a VM, Confluent Cloud in the middle, the online side on AWS, Datadog underneath" width="3820" height="1620" loading="lazy" decoding="async"></button>
+<figcaption>Figure 1: what you will build. The store databases (left) stream their changes into Confluent Cloud (top). The online side on AWS (right) serves the Online shop. Datadog (bottom) monitors all of it.</figcaption></figure>
+<details><summary>What you will build</summary>
+<ul>
+<li>Five PostgreSQL store databases, left unchanged. Debezium sends every stock change from them to Confluent Cloud.</li>
+<li>An online side on AWS that reads stock from Redis and never queries a store. A check compares Redis with the stores.</li>
+<li>Three releases of the stock lookup service behind a load balancer, plus optional layers for restocking and AI-chosen offers. Datadog monitors all of it.</li>
+</ul>
+</details>
+<p><strong>What you will learn</strong></p>
+<ul>
+<li>Why streaming the changes out of existing databases lets you avoid replacing those databases, and how to make sure the copy matches them.</li>
+<li>How a <abbr title="A new release that gets a small share of traffic next to the current one, so you can compare the two before going further.">canary</abbr> catches a slow release while it gets only 10% of traffic, how version tags in Datadog APM show where the slowdown comes from, and how to roll out the fix the same way.</li>
+<li>How to keep an AI decision optional and explainable.</li>
+</ul>
+<p><strong>Conventions.</strong> Once you have the code (<a href="setup.html#014-get-the-code">0.1.4 Get the code</a>), run every command from the root of the repository. Values you must replace look like <code>&lt;this&gt;</code>. Output blocks show what you should see. In an output, <code>&lt;...&gt;</code> is a value that is different on your run, and <code>...</code> marks lines that were left out.</p>
+<p><strong>Two ways to run the labs.</strong> You can run every lab step from the <em>control panel</em>, a web page with one button per step, or from the <em>terminal</em> with <code>make</code> commands. Both change the stack in the same way. Pick one path and use it from start to finish: the control panel and the terminal each remember their own last routing for <strong>Rollback</strong>, so mixing them in one run can roll back to the wrong state. <span class="gh-only">In the Markdown file you see both: steps that differ appear twice, once under <strong>With the control panel</strong> and once under <strong>With the terminal</strong>. The <a href="https://gianlucanatali.github.io/observable-inventory-streaming/workshop.html" rel="noopener" target="_blank">workshop website</a> shows only the path you choose.</span></p>
+<aside class="see-box start-cta"><p class="see-title">Two ways through this workshop</p><ul><li><b>Step by step.</b> One page per Chapter: Setup, then six Chapters of one or two labs each, with a summary and a checkpoint. Choose your path below, then press Start.</li><li><b>Everything on one page.</b> The <a href="workshop.html">one-page guide</a> holds the same content, handy to search or print.</li></ul><p class="see-actions"><a class="pager-btn pager-next" href="setup.html"><span class="pager-dir">Start</span><span class="pager-title">Setup: build the stack</span></a></p></aside>
+<div class="path-chooser" role="group" aria-labelledby="path-chooser-title">
+<p class="path-chooser-title" id="path-chooser-title">Choose your path</p>
+<div class="path-cards">
+<button type="button" class="path-card" data-set-path="panel" aria-pressed="true">
+<span class="path-card-icon path-card-icon-panel" aria-hidden="true"></span>
+<span class="path-card-title">Control panel</span>
+<span class="path-card-text">Guided: click buttons in a web page. Easier if you rarely use a terminal.</span>
+<span class="path-card-state" aria-hidden="true">Selected</span>
+</button>
+<button type="button" class="path-card" data-set-path="terminal" aria-pressed="false">
+<span class="path-card-icon path-card-icon-terminal" aria-hidden="true"></span>
+<span class="path-card-title">Terminal</span>
+<span class="path-card-text"><code>make</code> commands, for people at home in a shell.</span>
+<span class="path-card-state" aria-hidden="true">Selected</span>
+</button>
+</div>
+<p class="path-chooser-note">The guide then shows only the steps for your path. The <b>Path</b> switch at the top of the page changes it later.</p>
+</div>
+<div class="path-both" markdown="1">
+</div>
+<details><summary>More about this step</summary>
+<p><strong>Try it on your own machine instead?</strong> To try the core path on your own machine without any cloud cost, see <a href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/LOCAL.md" rel="noopener" target="_blank">Run locally</a>.</p>
+<p><strong>Terminal you need in both paths.</strong> The terminal is the command-line app on your computer: Terminal on macOS, or a shell on Linux. You type each command from the folder that holds the code (<a href="setup.html#012-local-tools">0.1.2 Local tools</a> lists the tools, <a href="setup.html#014-get-the-code">0.1.4 Get the code</a> shows how to get the code). Even on the control panel path you use it for these few steps:</p>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>Command</th>
+<th>What it is for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>aws login --profile dd-demo</code></td>
+<td>Sign in to AWS before you build or tear down the stack, and again after 12 hours</td>
+</tr>
+<tr>
+<td><code>./demo create</code></td>
+<td>Check your setup, then build the stack (<a href="setup.html#022-run-the-preflight-no-cloud-costs-yet">0.2.2 Run the preflight</a>, <a href="setup.html#023-create-the-stack">0.2.3 Create the stack</a>)</td>
+</tr>
+<tr>
+<td><code>./demo status</code>, <code>./demo links</code></td>
+<td>Print the addresses of the Online shop, the control panel and the Datadog pages (<a href="setup.html#025-open-the-shop-the-control-panel-and-datadog">0.2.5 Open the shop, the control panel and Datadog</a>)</td>
+</tr>
+<tr>
+<td><code>grep '^CONTROL_PASSWORD=' .env.secrets | cut -d= -f2-</code></td>
+<td>Print the control panel password (<a href="setup.html#2-open-the-control-panel">Open the control panel</a>)</td>
+</tr>
+<tr>
+<td><code>./demo destroy</code></td>
+<td>Delete the stack at the end, then check that nothing is left (<a href="teardown.html#teardown">Teardown</a>)</td>
+</tr>
+</tbody>
+</table></div>
+</details>
+<hr />
+<h2 id="why-change-events">Why change events <a class="header-anchor" href="#why-change-events">#</a></h2>
+<p>So the stores publish each change as it happens. A <em>change event</em> says that one <abbr title="The quantity of one product at one store.">stock position</abbr> changed at a Source: which store, which product, the new quantity and its <em>revision</em>, a number that goes up with every change. For example, when the Bologna store sells one pair of the Trailrunner GTX (in the box below).</p>
+<figure class="diagram"><svg aria-roledescription="flowchart-v2" role="graphics-document document" viewBox="0 0 953.640625 667.0631713867188" style="max-width: 953.640625px;" class="flowchart" xmlns="http://www.w3.org/2000/svg" width="100%" id="mmd-575d540cdcb97864"><style>#mmd-575d540cdcb97864{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;fill:#1d1a24;}#mmd-575d540cdcb97864 .error-icon{fill:#FAF8FD;}#mmd-575d540cdcb97864 .error-text{fill:#050702;stroke:#050702;}#mmd-575d540cdcb97864 .edge-thickness-normal{stroke-width:1px;}#mmd-575d540cdcb97864 .edge-thickness-thick{stroke-width:3.5px;}#mmd-575d540cdcb97864 .edge-pattern-solid{stroke-dasharray:0;}#mmd-575d540cdcb97864 .edge-thickness-invisible{stroke-width:0;fill:none;}#mmd-575d540cdcb97864 .edge-pattern-dashed{stroke-dasharray:3;}#mmd-575d540cdcb97864 .edge-pattern-dotted{stroke-dasharray:2;}#mmd-575d540cdcb97864 .marker{fill:#7B4FB8;stroke:#7B4FB8;}#mmd-575d540cdcb97864 .marker.cross{stroke:#7B4FB8;}#mmd-575d540cdcb97864 svg{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;}#mmd-575d540cdcb97864 p{margin:0;}#mmd-575d540cdcb97864 .label{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1d1a24;}#mmd-575d540cdcb97864 .cluster-label text{fill:#050702;}#mmd-575d540cdcb97864 .cluster-label span{color:#050702;}#mmd-575d540cdcb97864 .cluster-label span p{background-color:transparent;}#mmd-575d540cdcb97864 .label text,#mmd-575d540cdcb97864 span{fill:#1d1a24;color:#1d1a24;}#mmd-575d540cdcb97864 .node rect,#mmd-575d540cdcb97864 .node circle,#mmd-575d540cdcb97864 .node ellipse,#mmd-575d540cdcb97864 .node polygon,#mmd-575d540cdcb97864 .node path{fill:#F3EDFB;stroke:#632CA6;stroke-width:1px;}#mmd-575d540cdcb97864 .rough-node .label text,#mmd-575d540cdcb97864 .node .label text,#mmd-575d540cdcb97864 .image-shape .label,#mmd-575d540cdcb97864 .icon-shape .label{text-anchor:middle;}#mmd-575d540cdcb97864 .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#mmd-575d540cdcb97864 .rough-node .label,#mmd-575d540cdcb97864 .node .label,#mmd-575d540cdcb97864 .image-shape .label,#mmd-575d540cdcb97864 .icon-shape .label{text-align:center;}#mmd-575d540cdcb97864 .node.clickable{cursor:pointer;}#mmd-575d540cdcb97864 .root .anchor path{fill:#7B4FB8!important;stroke-width:0;stroke:#7B4FB8;}#mmd-575d540cdcb97864 .arrowheadPath{fill:#0b0b0b;}#mmd-575d540cdcb97864 .edgePath .path{stroke:#7B4FB8;stroke-width:2.0px;}#mmd-575d540cdcb97864 .flowchart-link{stroke:#7B4FB8;fill:none;}#mmd-575d540cdcb97864 .edgeLabel{background-color:#FFFFFF;text-align:center;}#mmd-575d540cdcb97864 .edgeLabel p{background-color:#FFFFFF;}#mmd-575d540cdcb97864 .edgeLabel rect{opacity:0.5;background-color:#FFFFFF;fill:#FFFFFF;}#mmd-575d540cdcb97864 .labelBkg{background-color:rgba(255, 255, 255, 0.5);}#mmd-575d540cdcb97864 .cluster rect{fill:#FAF8FD;stroke:#C9B6E4;stroke-width:1px;}#mmd-575d540cdcb97864 .cluster text{fill:#050702;}#mmd-575d540cdcb97864 .cluster span{color:#050702;}#mmd-575d540cdcb97864 div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;background:#FAF8FD;border:1px solid hsl(264, 15.5555555556%, 88.2352941176%);border-radius:2px;pointer-events:none;z-index:100;}#mmd-575d540cdcb97864 .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#1d1a24;}#mmd-575d540cdcb97864 rect.text{fill:none;stroke-width:0;}#mmd-575d540cdcb97864 .icon-shape,#mmd-575d540cdcb97864 .image-shape{background-color:#FFFFFF;text-align:center;}#mmd-575d540cdcb97864 .icon-shape p,#mmd-575d540cdcb97864 .image-shape p{background-color:#FFFFFF;padding:2px;}#mmd-575d540cdcb97864 .icon-shape rect,#mmd-575d540cdcb97864 .image-shape rect{opacity:0.5;background-color:#FFFFFF;fill:#FFFFFF;}#mmd-575d540cdcb97864 :root{--mermaid-font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;}</style><g><marker orient="auto" markerHeight="8" markerWidth="8" markerUnits="userSpaceOnUse" refY="5" refX="5" viewBox="0 0 10 10" class="marker flowchart-v2" id="mmd-575d540cdcb97864_flowchart-v2-pointEnd"><path style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 0 0 L 10 5 L 0 10 z"></path></marker><marker orient="auto" markerHeight="8" markerWidth="8" markerUnits="userSpaceOnUse" refY="5" refX="4.5" viewBox="0 0 10 10" class="marker flowchart-v2" id="mmd-575d540cdcb97864_flowchart-v2-pointStart"><path style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 0 5 L 10 10 L 10 0 z"></path></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5" refX="11" viewBox="0 0 10 10" class="marker flowchart-v2" id="mmd-575d540cdcb97864_flowchart-v2-circleEnd"><circle style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" r="5" cy="5" cx="5"></circle></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5" refX="-1" viewBox="0 0 10 10" class="marker flowchart-v2" id="mmd-575d540cdcb97864_flowchart-v2-circleStart"><circle style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" r="5" cy="5" cx="5"></circle></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5.2" refX="12" viewBox="0 0 11 11" class="marker cross flowchart-v2" id="mmd-575d540cdcb97864_flowchart-v2-crossEnd"><path style="stroke-width: 2; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9"></path></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5.2" refX="-1" viewBox="0 0 11 11" class="marker cross flowchart-v2" id="mmd-575d540cdcb97864_flowchart-v2-crossStart"><path style="stroke-width: 2; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path style="" class="edge-thickness-invisible edge-pattern-solid" id="L_BEFORE_AFTER_12" d="M488.781,333.532L492.615,333.532C496.448,333.532,504.115,333.532,511.781,333.532C519.448,333.532,527.115,333.532,530.948,333.532L534.781,333.532"></path></g><g class="edgeLabels"><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignObject height="0" width="0"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"></span></div></foreignObject></g></g></g><g class="nodes"><g transform="translate(526.78125, 0)" class="root"><g class="clusters"><g data-look="classic" id="AFTER" class="cluster"><rect height="651.0631713867188" width="410.859375" y="8" x="8" style=""></rect><g transform="translate(196.546875, 8)" class="cluster-label"><foreignObject height="22.5" width="33.765625"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>After</p></span></div></foreignObject></g></g></g><g class="edgePaths"><path marker-end="url(#mmd-575d540cdcb97864_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_a1_k_5" d="M57.086,102.961L57.086,110.992C57.086,119.024,57.086,135.088,70.67,150.671C84.253,166.253,111.42,181.356,125.004,188.907L138.588,196.458"></path><path marker-end="url(#mmd-575d540cdcb97864_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_a2_k_6" d="M135.258,102.593L135.258,110.686C135.258,118.779,135.258,134.965,141.935,150.439C148.613,165.913,161.968,180.674,168.646,188.054L175.323,195.435"></path><path marker-end="url(#mmd-575d540cdcb97864_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_a3_k_7" d="M213.43,104.401L213.43,112.193C213.43,119.985,213.43,135.568,213.506,150.568C213.582,165.568,213.735,179.985,213.811,187.193L213.887,194.401"></path><path marker-end="url(#mmd-575d540cdcb97864_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_a4_k_8" d="M291.602,102.043L291.602,110.228C291.602,118.413,291.602,134.782,285.085,150.342C278.568,165.902,265.535,180.653,259.018,188.028L252.501,195.404"></path><path marker-end="url(#mmd-575d540cdcb97864_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_a5_k_9" d="M369.773,103.621L369.773,111.543C369.773,119.465,369.773,135.308,356.355,150.778C342.936,166.248,316.099,181.344,302.68,188.892L289.262,196.44"></path><path marker-end="url(#mmd-575d540cdcb97864_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_k_view_10" d="M213.93,277.901L213.846,285.61C213.763,293.318,213.596,308.735,213.513,323.568C213.43,338.401,213.43,352.651,213.43,359.776L213.43,366.901"></path><path marker-end="url(#mmd-575d540cdcb97864_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_view_web2_11" d="M213.43,461.063L213.43,470.73C213.43,480.397,213.43,499.73,213.43,518.397C213.43,537.063,213.43,555.063,213.43,564.063L213.43,573.063"></path></g><g class="edgeLabels"><g transform="translate(57.0859375, 151.1512680053711)" class="edgeLabel"><g transform="translate(-29.0859375, -11.25)" class="label"><foreignObject height="22.5" width="58.171875"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"><p>changes</p></span></div></foreignObject></g></g><g transform="translate(135.2578125, 151.1512680053711)" class="edgeLabel"><g transform="translate(-29.0859375, -11.25)" class="label"><foreignObject height="22.5" width="58.171875"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"><p>changes</p></span></div></foreignObject></g></g><g transform="translate(213.4296875, 151.1512680053711)" class="edgeLabel"><g transform="translate(-29.0859375, -11.25)" class="label"><foreignObject height="22.5" width="58.171875"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"><p>changes</p></span></div></foreignObject></g></g><g transform="translate(291.6015625, 151.1512680053711)" class="edgeLabel"><g transform="translate(-29.0859375, -11.25)" class="label"><foreignObject height="22.5" width="58.171875"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"><p>changes</p></span></div></foreignObject></g></g><g transform="translate(369.7734375, 151.1512680053711)" class="edgeLabel"><g transform="translate(-29.0859375, -11.25)" class="label"><foreignObject height="22.5" width="58.171875"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"><p>changes</p></span></div></foreignObject></g></g><g transform="translate(213.4296875, 324.1512680053711)" class="edgeLabel"><g transform="translate(-63.9296875, -11.25)" class="label"><foreignObject height="22.5" width="127.859375"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"><p>applied by revision</p></span></div></foreignObject></g></g><g transform="translate(213.4296875, 519.0631713867188)" class="edgeLabel"><g transform="translate(-81.0546875, -22.5)" class="label"><foreignObject height="45" width="162.109375"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"><p>reads only the view,<br>no queries to the stores</p></span></div></foreignObject></g></g></g><g class="nodes"><g transform="translate(57.0859375, 73.95063400268555)" id="flowchart-a1-11" class="node default"><path transform="translate(-28.5546875, -29.009974259974257)" style="" class="basic label-container" d="M0,7.83998283998284 a28.5546875,7.83998283998284 0,0,0 57.109375,0 a28.5546875,7.83998283998284 0,0,0 -57.109375,0 l0,42.33998283998284 a28.5546875,7.83998283998284 0,0,0 57.109375,0 l0,-42.33998283998284"></path><g transform="translate(-22.5546875, -3.25)" style="" class="label"><rect></rect><foreignObject height="22.5" width="45.109375"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Milano</p></span></div></foreignObject></g></g><g transform="translate(213.4296875, 237.6512680053711)" id="flowchart-k-21" class="node default"><polygon transform="translate(-90.828125,39.75)" class="label-container" points="0,0 181.65625,0 181.65625,-79.5 0,-79.5 0,0 -8,0 189.65625,0 189.65625,-79.5 -8,-79.5 -8,0"></polygon><g transform="translate(-84.828125, -33.75)" style="" class="label"><rect></rect><foreignObject height="67.5" width="169.65625"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Kafka topic<br>in Confluent Cloud<br>(ordered log of changes)</p></span></div></foreignObject></g></g><g transform="translate(135.2578125, 73.95063400268555)" id="flowchart-a2-12" class="node default"><path transform="translate(-27.2734375, -28.64261160908537)" style="" class="basic label-container" d="M0,7.595074406056915 a27.2734375,7.595074406056915 0,0,0 54.546875,0 a27.2734375,7.595074406056915 0,0,0 -54.546875,0 l0,42.095074406056916 a27.2734375,7.595074406056915 0,0,0 54.546875,0 l0,-42.095074406056916"></path><g transform="translate(-21.2734375, -3.25)" style="" class="label"><rect></rect><foreignObject height="22.5" width="42.546875"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Torino</p></span></div></foreignObject></g></g><g transform="translate(213.4296875, 73.95063400268555)" id="flowchart-a3-13" class="node default"><path transform="translate(-33.953125, -30.450631783573627)" style="" class="basic label-container" d="M0,8.800421189049084 a33.953125,8.800421189049084 0,0,0 67.90625,0 a33.953125,8.800421189049084 0,0,0 -67.90625,0 l0,43.30042118904908 a33.953125,8.800421189049084 0,0,0 67.90625,0 l0,-43.30042118904908"></path><g transform="translate(-27.953125, -3.25)" style="" class="label"><rect></rect><foreignObject height="22.5" width="55.90625"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Bologna</p></span></div></foreignObject></g></g><g transform="translate(291.6015625, 73.95063400268555)" id="flowchart-a4-14" class="node default"><path transform="translate(-25.421875, -28.09281144481962)" style="" class="basic label-container" d="M0,7.228540963213081 a25.421875,7.228540963213081 0,0,0 50.84375,0 a25.421875,7.228540963213081 0,0,0 -50.84375,0 l0,41.72854096321308 a25.421875,7.228540963213081 0,0,0 50.84375,0 l0,-41.72854096321308"></path><g transform="translate(-19.421875, -3.25)" style="" class="label"><rect></rect><foreignObject height="22.5" width="38.84375"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Roma</p></span></div></foreignObject></g></g><g transform="translate(369.7734375, 73.95063400268555)" id="flowchart-a5-15" class="node default"><path transform="translate(-30.953125, -29.670581842501253)" style="" class="basic label-container" d="M0,8.280387895000835 a30.953125,8.280387895000835 0,0,0 61.90625,0 a30.953125,8.280387895000835 0,0,0 -61.90625,0 l0,42.780387895000835 a30.953125,8.280387895000835 0,0,0 61.90625,0 l0,-42.780387895000835"></path><g transform="translate(-24.953125, -3.25)" style="" class="label"><rect></rect><foreignObject height="22.5" width="49.90625"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Firenze</p></span></div></foreignObject></g></g><g transform="translate(213.4296875, 415.9822196960449)" id="flowchart-view-23" class="node default"><path transform="translate(-49.5390625, -45.08095669758036)" style="" class="basic label-container" d="M0,11.053971131720242 a49.5390625,11.053971131720242 0,0,0 99.078125,0 a49.5390625,11.053971131720242 0,0,0 -99.078125,0 l0,68.05397113172025 a49.5390625,11.053971131720242 0,0,0 99.078125,0 l0,-68.05397113172025"></path><g transform="translate(-43.5390625, -14.5)" style="" class="label"><rect></rect><foreignObject height="45" width="87.078125"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Serving view<br>in Redis</p></span></div></foreignObject></g></g><g transform="translate(213.4296875, 600.3131713867188)" id="flowchart-web2-25" class="node default"><rect height="46.5" width="129.484375" y="-23.25" x="-64.7421875" style="" class="basic label-container"></rect><g transform="translate(-40.7421875, -11.25)" style="" class="label"><rect></rect><foreignObject height="22.5" width="81.484375"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Online shop</p></span></div></foreignObject></g></g></g></g><g transform="translate(0, 0.830963134765625)" class="root"><g class="clusters"><g data-look="classic" id="BEFORE" class="cluster"><rect height="649.4012680053711" width="480.78125" y="8" x="8" style=""></rect><g transform="translate(225.8671875, 8)" class="cluster-label"><foreignObject height="22.5" width="45.046875"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Before</p></span></div></foreignObject></g></g></g><g class="edgePaths"><path marker-end="url(#mmd-575d540cdcb97864_flowchart-v2-pointEnd)" marker-start="url(#mmd-575d540cdcb97864_flowchart-v2-pointStart)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_b1_web1_0" d="M64.078,106.961L64.078,112.451C64.078,117.941,64.078,128.921,64.078,140.328C64.078,151.735,64.078,163.568,64.078,175.401C64.078,187.235,64.078,199.068,64.078,210.901C64.078,222.735,64.078,234.568,64.078,246.401C64.078,258.235,64.078,270.068,64.078,283.776C64.078,297.485,64.078,313.068,64.078,328.651C64.078,344.235,64.078,359.818,64.078,373.526C64.078,387.235,64.078,399.068,64.078,410.901C64.078,422.735,64.078,434.568,64.078,446.401C64.078,458.235,64.078,470.068,64.078,481.901C64.078,493.735,64.078,505.568,79.034,517.165C93.989,528.761,123.9,540.121,138.856,545.801L153.811,551.481"></path><path marker-end="url(#mmd-575d540cdcb97864_flowchart-v2-pointEnd)" marker-start="url(#mmd-575d540cdcb97864_flowchart-v2-pointStart)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_b2_web1_1" d="M156.234,106.593L156.234,112.145C156.234,117.696,156.234,128.799,156.234,140.267C156.234,151.735,156.234,163.568,156.234,175.401C156.234,187.235,156.234,199.068,156.234,210.901C156.234,222.735,156.234,234.568,156.234,246.401C156.234,258.235,156.234,270.068,156.234,283.776C156.234,297.485,156.234,313.068,156.234,328.651C156.234,344.235,156.234,359.818,156.234,373.526C156.234,387.235,156.234,399.068,156.234,410.901C156.234,422.735,156.234,434.568,156.234,446.401C156.234,458.235,156.234,470.068,156.234,481.901C156.234,493.735,156.234,505.568,163.493,516.998C170.751,528.428,185.268,539.455,192.527,544.968L199.785,550.482"></path><path marker-end="url(#mmd-575d540cdcb97864_flowchart-v2-pointEnd)" marker-start="url(#mmd-575d540cdcb97864_flowchart-v2-pointStart)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_b3_web1_2" d="M248.391,108.401L248.391,113.651C248.391,118.901,248.391,129.401,248.391,140.568C248.391,151.735,248.391,163.568,248.391,175.401C248.391,187.235,248.391,199.068,248.391,210.901C248.391,222.735,248.391,234.568,248.391,246.401C248.391,258.235,248.391,270.068,248.391,283.776C248.391,297.485,248.391,313.068,248.391,328.651C248.391,344.235,248.391,359.818,248.391,373.526C248.391,387.235,248.391,399.068,248.391,410.901C248.391,422.735,248.391,434.568,248.391,446.401C248.391,458.235,248.391,470.068,248.391,481.901C248.391,493.735,248.391,505.568,248.391,516.735C248.391,527.901,248.391,538.401,248.391,543.651L248.391,548.901"></path><path marker-end="url(#mmd-575d540cdcb97864_flowchart-v2-pointEnd)" marker-start="url(#mmd-575d540cdcb97864_flowchart-v2-pointStart)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_b4_web1_3" d="M340.547,106.043L340.547,111.686C340.547,117.329,340.547,128.615,340.547,140.175C340.547,151.735,340.547,163.568,340.547,175.401C340.547,187.235,340.547,199.068,340.547,210.901C340.547,222.735,340.547,234.568,340.547,246.401C340.547,258.235,340.547,270.068,340.547,283.776C340.547,297.485,340.547,313.068,340.547,328.651C340.547,344.235,340.547,359.818,340.547,373.526C340.547,387.235,340.547,399.068,340.547,410.901C340.547,422.735,340.547,434.568,340.547,446.401C340.547,458.235,340.547,470.068,340.547,481.901C340.547,493.735,340.547,505.568,333.288,516.998C326.03,528.428,311.513,539.455,304.254,544.968L296.996,550.482"></path><path marker-end="url(#mmd-575d540cdcb97864_flowchart-v2-pointEnd)" marker-start="url(#mmd-575d540cdcb97864_flowchart-v2-pointStart)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_b5_web1_4" d="M432.703,107.621L432.703,113.001C432.703,118.381,432.703,129.141,432.703,140.438C432.703,151.735,432.703,163.568,432.703,175.401C432.703,187.235,432.703,199.068,432.703,210.901C432.703,222.735,432.703,234.568,432.703,246.401C432.703,258.235,432.703,270.068,432.703,283.776C432.703,297.485,432.703,313.068,432.703,328.651C432.703,344.235,432.703,359.818,432.703,373.526C432.703,387.235,432.703,399.068,432.703,410.901C432.703,422.735,432.703,434.568,432.703,446.401C432.703,458.235,432.703,470.068,432.703,481.901C432.703,493.735,432.703,505.568,417.748,517.165C402.792,528.761,372.881,540.121,357.925,545.801L342.97,551.481"></path></g><g class="edgeLabels"><g transform="translate(64.078125, 328.6512680053711)" class="edgeLabel"><g transform="translate(-36.078125, -11.25)" class="label"><foreignObject height="22.5" width="72.15625"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"><p>SQL query</p></span></div></foreignObject></g></g><g transform="translate(156.234375, 328.6512680053711)" class="edgeLabel"><g transform="translate(-36.078125, -11.25)" class="label"><foreignObject height="22.5" width="72.15625"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"><p>SQL query</p></span></div></foreignObject></g></g><g transform="translate(248.390625, 328.6512680053711)" class="edgeLabel"><g transform="translate(-36.078125, -11.25)" class="label"><foreignObject height="22.5" width="72.15625"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"><p>SQL query</p></span></div></foreignObject></g></g><g transform="translate(340.546875, 328.6512680053711)" class="edgeLabel"><g transform="translate(-36.078125, -11.25)" class="label"><foreignObject height="22.5" width="72.15625"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"><p>SQL query</p></span></div></foreignObject></g></g><g transform="translate(432.703125, 328.6512680053711)" class="edgeLabel"><g transform="translate(-36.078125, -11.25)" class="label"><foreignObject height="22.5" width="72.15625"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"><p>SQL query</p></span></div></foreignObject></g></g></g><g class="nodes"><g transform="translate(64.078125, 73.95063400268555)" id="flowchart-b1-0" class="node default"><path transform="translate(-28.5546875, -29.009974259974257)" style="" class="basic label-container" d="M0,7.83998283998284 a28.5546875,7.83998283998284 0,0,0 57.109375,0 a28.5546875,7.83998283998284 0,0,0 -57.109375,0 l0,42.33998283998284 a28.5546875,7.83998283998284 0,0,0 57.109375,0 l0,-42.33998283998284"></path><g transform="translate(-22.5546875, -3.25)" style="" class="label"><rect></rect><foreignObject height="22.5" width="45.109375"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Milano</p></span></div></foreignObject></g></g><g transform="translate(248.390625, 587.4012680053711)" id="flowchart-web1-10" class="node default"><rect height="69" width="190.828125" y="-34.5" x="-95.4140625" style="" class="basic label-container"></rect><g transform="translate(-71.4140625, -22.5)" style="" class="label"><rect></rect><foreignObject height="45" width="142.828125"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Online shop<br>(on every page view)</p></span></div></foreignObject></g></g><g transform="translate(156.234375, 73.95063400268555)" id="flowchart-b2-1" class="node default"><path transform="translate(-27.2734375, -28.64261160908537)" style="" class="basic label-container" d="M0,7.595074406056915 a27.2734375,7.595074406056915 0,0,0 54.546875,0 a27.2734375,7.595074406056915 0,0,0 -54.546875,0 l0,42.095074406056916 a27.2734375,7.595074406056915 0,0,0 54.546875,0 l0,-42.095074406056916"></path><g transform="translate(-21.2734375, -3.25)" style="" class="label"><rect></rect><foreignObject height="22.5" width="42.546875"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Torino</p></span></div></foreignObject></g></g><g transform="translate(248.390625, 73.95063400268555)" id="flowchart-b3-2" class="node default"><path transform="translate(-33.953125, -30.450631783573627)" style="" class="basic label-container" d="M0,8.800421189049084 a33.953125,8.800421189049084 0,0,0 67.90625,0 a33.953125,8.800421189049084 0,0,0 -67.90625,0 l0,43.30042118904908 a33.953125,8.800421189049084 0,0,0 67.90625,0 l0,-43.30042118904908"></path><g transform="translate(-27.953125, -3.25)" style="" class="label"><rect></rect><foreignObject height="22.5" width="55.90625"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Bologna</p></span></div></foreignObject></g></g><g transform="translate(340.546875, 73.95063400268555)" id="flowchart-b4-3" class="node default"><path transform="translate(-25.421875, -28.09281144481962)" style="" class="basic label-container" d="M0,7.228540963213081 a25.421875,7.228540963213081 0,0,0 50.84375,0 a25.421875,7.228540963213081 0,0,0 -50.84375,0 l0,41.72854096321308 a25.421875,7.228540963213081 0,0,0 50.84375,0 l0,-41.72854096321308"></path><g transform="translate(-19.421875, -3.25)" style="" class="label"><rect></rect><foreignObject height="22.5" width="38.84375"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Roma</p></span></div></foreignObject></g></g><g transform="translate(432.703125, 73.95063400268555)" id="flowchart-b5-4" class="node default"><path transform="translate(-30.953125, -29.670581842501253)" style="" class="basic label-container" d="M0,8.280387895000835 a30.953125,8.280387895000835 0,0,0 61.90625,0 a30.953125,8.280387895000835 0,0,0 -61.90625,0 l0,42.780387895000835 a30.953125,8.280387895000835 0,0,0 61.90625,0 l0,-42.780387895000835"></path><g transform="translate(-24.953125, -3.25)" style="" class="label"><rect></rect><foreignObject height="22.5" width="49.90625"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Firenze</p></span></div></foreignObject></g></g></g></g></g></g></g></svg></figure>
+<p>The Online shop reads a <em>serving view</em>: a copy of the stock positions in Redis that the change stream keeps up to date and can rebuild at any time. Two rules keep the view from showing a wrong number, and you will see both in the labs:</p>
+<ul>
+<li>A newer revision always wins. An older or repeated event changes nothing, so you can safely replay events.</li>
+<li>When the view is not sure about a position, the answer is <em>unknown stock</em>, never zero.</li>
+</ul>
+<p>A product that does not sell produces no events, so from the outside a quiet product looks the same as a broken feed. A <em>probe</em> solves this: a synthetic stock position that changes every few seconds in each store. If the probe's changes stop reaching the serving view, the feed has stopped. The time a change takes to get from the Source to the serving view is the <em>freshness</em>.</p>
+<details><summary>More about this step</summary>
+<p><strong>The problem: why not just query the stores?</strong> Every retailer with physical stores already has stock data. It lives in the store systems that run the checkouts, and nobody wants to rewrite them. In this workshop five PostgreSQL databases play that role, one per store. We call them <em>the Sources</em>. Nothing in this workshop changes how they work.</p>
+<p>The Online shop needs <em>sellable stock</em>: the sum of a product's stock across all five stores. If the shop queries all five databases on every page view, shopper traffic lands on the systems the stores use to sell. If you copy the databases once a night instead, the number can be hours old, and the same last pair can be sold twice.</p>
+<p><strong>A change event up close: the record, SKUs and how Debezium captures it.</strong></p>
+<div class="code code-out" data-lang="json"><div class="code-bar"><span class="code-label">JSON</span></div><pre tabindex="0"><code><span class="p">{</span><span class="w"> </span><span class="nt">"store_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"S03"</span><span class="p">,</span><span class="w"> </span><span class="nt">"product_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"P0042"</span><span class="p">,</span><span class="w"> </span><span class="nt">"quantity"</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="nt">"revision"</span><span class="p">:</span><span class="w"> </span><span class="mi">1187</span><span class="p">,</span><span class="w"> </span><span class="nt">"changed_at"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2026-10-04T18:21:57Z"</span><span class="w"> </span><span class="p">}</span>
+</code></pre></div>
+<p>The field names are simplified here. The real records are Avro, wrapped in a Debezium envelope.</p>
+<p>A <code>product_id</code> such as <code>P0042</code> is a <em>SKU</em>: one model in one colour and one size. Every part of the path tracks stock per SKU: the stores, the change events, Kafka, Flink, Redis and the stock API. Only the Online shop groups SKUs into models for display (see <a href="setup.html#025-open-the-shop-the-control-panel-and-datadog">0.2.5 Open the shop, the control panel and Datadog</a>).</p>
+<p><em>Change data capture</em> (CDC) turns committed database changes into these events. Here Debezium does it: it reads PostgreSQL's <abbr title="The journal PostgreSQL already writes for crash recovery. Reading it adds no queries to the store database.">write-ahead log</abbr>, so the store applications do not change and the store databases get no extra queries. Apache Kafka keeps the events as an ordered log on disk, and each reader reads it at its own pace.</p>
+</details>
+<h2 id="the-architecture-at-a-glance">The architecture at a glance <a class="header-anchor" href="#the-architecture-at-a-glance">#</a></h2>
+<p>Figure 1 at the top shows the whole system. It runs in three places, plus Datadog.</p>
+<p>The demo is split into <em>layers</em> that you can switch on or off. <em>Core</em> is always on. Each lab adds or uses one layer and shows it in a diagram with the same layout.</p>
+<p>A <em>stack</em> is one complete deployment, separate from any other. This guide uses a stack named <code>hybrid</code>. You build it with <code>core</code> only and add the other layers when a lab needs them (<a href="#which-layers-each-chapter-needs">Which layers each Chapter needs</a>); the screenshots and examples come from a run with every layer on. The details of each component, connector and signal are in the <a href="reference.html#reference">Reference</a>.</p>
+<details><summary>More about this step</summary>
+<p><strong>What runs where.</strong></p>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>Zone</th>
+<th>What runs there</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Simulated store estate: one EC2 VM with Docker Compose</td>
+<td>The five store databases, a procurement database, a self-managed <abbr title="The process that runs the Debezium connectors and the sink connectors.">Kafka Connect</abbr> worker (Debezium sources and sink connectors), background sales, the freshness probe (<code>freshness-probe</code>), a supplier simulator, the <code>scenario-api</code> that runs the load, verify and canary checks for the control panel, and a Datadog Agent</td>
+</tr>
+<tr>
+<td>Confluent Cloud (AWS <code>eu-west-1</code>)</td>
+<td>One Basic Kafka cluster, Schema Registry and a <abbr title="Flink runs long-running SQL queries on the Kafka topics. In the core layer it sums stock across stores.">Flink</abbr> compute pool running SQL statements</td>
+</tr>
+<tr>
+<td>AWS online side (<code>eu-west-1</code>)</td>
+<td>ECS Fargate services behind an Application Load Balancer (ALB), and an ElastiCache Redis serving view</td>
+</tr>
+<tr>
+<td>Datadog (EU site)</td>
+<td><abbr title="Application Performance Monitoring: traces each request through the services.">APM</abbr>, logs, <abbr title="Maps the services and the Kafka topics between them.">Data Streams Monitoring</abbr>, dashboards, monitors, LLM Observability, Synthetics, RUM and cost</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Which layer each Lab uses.</strong></p>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Adds</th>
+<th>Lab</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>core</code></td>
+<td>Sources, Debezium, Kafka, Flink sum, Redis, lookup service, Online shop</td>
+<td><a href="chapter-1.html#lab-11-one-product-five-stores-one-online-number">1.1</a>, <a href="chapter-2.html#lab-21-unknown-is-not-zero">2.1</a></td>
+</tr>
+<tr>
+<td><code>releases</code></td>
+<td>Lookup releases 1.1.0 (slow) and 1.2.0 (fix), a traffic split</td>
+<td><a href="chapter-3.html#lab-31-the-incident">3.1</a>, <a href="chapter-4.html#lab-41-canary-the-fix">4.1</a></td>
+</tr>
+<tr>
+<td><code>restock</code></td>
+<td>Demand-driven restocking with a procurement database</td>
+<td><a href="chapter-5.html#lab-52-restock-that-learns">5.2</a></td>
+</tr>
+<tr>
+<td><code>offers</code></td>
+<td>Offers for carts whose product just sold out, with an optional AI choice</td>
+<td><a href="chapter-5.html#lab-51-offers-with-a-safe-default">5.1</a></td>
+</tr>
+<tr>
+<td><code>dd-streams</code>, <code>dd-synthetics</code>, <code>dd-rum</code></td>
+<td>Confluent integration, Synthetics tests, Real User Monitoring</td>
+<td><a href="chapter-6.html#lab-61-datadog-on-top-of-the-solution">6.1</a></td>
+</tr>
+</tbody>
+</table></div>
+</details>
+<h2 id="labs">Labs <a class="header-anchor" href="#labs">#</a></h2>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>Lab</th>
+<th>What happens to the shop</th>
+<th>What you show</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="chapter-1.html#lab-11-one-product-five-stores-one-online-number">1.1</a></td>
+<td>A product sells out in all five stores</td>
+<td>The online number follows within seconds, without querying any store</td>
+</tr>
+<tr>
+<td><a href="chapter-1.html#lab-12-optional-look-inside-confluent">1.2</a> (optional)</td>
+<td>The same sale, seen from inside</td>
+<td>The change event in Confluent Cloud, and its path in Stream Lineage</td>
+</tr>
+<tr>
+<td><a href="chapter-2.html#lab-21-unknown-is-not-zero">2.1</a></td>
+<td>One store stops reporting</td>
+<td>The shop shows &quot;at least&quot; instead of a wrong number, and Datadog names the store</td>
+</tr>
+<tr>
+<td><a href="chapter-3.html#lab-31-the-incident">3.1</a></td>
+<td>A new release is slow</td>
+<td>The canary check stops it at 10% of traffic; APM shows why</td>
+</tr>
+<tr>
+<td><a href="chapter-4.html#lab-41-canary-the-fix">4.1</a></td>
+<td>The fix goes out</td>
+<td>The same check lets it through, step by step, with a way back</td>
+</tr>
+<tr>
+<td><a href="chapter-5.html#lab-51-offers-with-a-safe-default">5.1</a> (optional layer)</td>
+<td>A shopper's product sells out in their cart</td>
+<td>An offer, chosen by AI only when it is confident enough</td>
+</tr>
+<tr>
+<td><a href="chapter-5.html#lab-52-restock-that-learns">5.2</a> (optional layer)</td>
+<td>A product runs out</td>
+<td>The system orders more and the stock comes back</td>
+</tr>
+<tr>
+<td><a href="chapter-6.html#lab-61-datadog-on-top-of-the-solution">6.1</a></td>
+<td>Nothing breaks</td>
+<td>Datadog's view of the whole platform: integrations, tests, monitors, cost</td>
+</tr>
+</tbody>
+</table></div>
+<p>Every lab follows the same pattern: start from a clean state with <strong>Full reset</strong> (or <code>make reset</code>; Lab 4.1 continues from Lab 3.1 instead), do one thing to the shop, look at the result in the shop and in Datadog, then tick the checkpoint.</p>
+<details><summary>Before each lab: the stack name, and where to get help</summary>
+<p>The labs tell one story about UrbanStreet's Online shop. Do them in order: each lab uses what the one before showed you. They are grouped by the layers they need (<a href="#which-layers-each-chapter-needs">Which layers each Chapter needs</a>).</p>
+<p>Every lab expects the stack from <a href="setup.html#02-build-the-stack">0.2 Build the stack</a> to be running and warmed up. On the terminal path, run the commands from the repository root: the make commands read your stack name from <code>demo.yaml</code>. The examples use the stack name <code>hybrid</code>; if you chose another one (<a href="setup.html#the-stack-name">the stack name in 0.2.1</a>), read <code>dd-demo-&lt;your name&gt;</code> for the <code>hybrid</code> environment name and <code>stack:&lt;your name&gt;</code> for the <code>hybrid</code> stack tag. Each lab first says what you will do and why, then shows the part of the architecture it uses. If something does not work, see <a href="troubleshooting.html#troubleshooting">Troubleshooting</a>.</p>
+</details>
+
+<nav class="pager" aria-label="Previous and next"><span class="pager-gap"></span><a class="pager-btn pager-next" href="setup.html"><span class="pager-dir">Next</span><span class="pager-title">Setup</span></a></nav>
+    </article>
+    <footer class="doc-footer">
+      <p>Generated from <a href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/workshop/README.md" target="_blank" rel="noopener"><code>workshop/README.md</code></a>. Every product, store, sale and shopper in this workshop is synthetic.</p>
+      <p>Educational demo, not for production workloads. <a href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/LICENSE" target="_blank" rel="noopener">Apache License 2.0</a>, provided as is; trademarks and third-party notices in <a href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/NOTICE" target="_blank" rel="noopener">NOTICE</a>.</p>
+      <p><a href="#top">Back to top</a> &middot; <a href="workshop.html">One-page guide</a></p>
+    </footer>
+  </main>
+</div>
+<dialog class="lightbox" aria-label="Enlarged image">
+  <form method="dialog"><button class="lightbox-close" aria-label="Close">&times;</button></form>
+  <img alt="">
+  <p class="lightbox-caption"></p>
+</dialog>
+<dialog class="path-dialog" aria-labelledby="path-dialog-title" aria-describedby="path-dialog-text">
+  <h2 id="path-dialog-title">Switch to the <span class="path-dialog-other">terminal</span> path?</h2>
+  <p id="path-dialog-text">Pick one path and use it from start to finish. The control panel and the terminal each remember their own last routing for Rollback, so mixing them in one run can roll back to the wrong state. Switch only if you are starting a lab from a reset.</p>
+  <div class="path-dialog-buttons">
+    <button type="button" class="path-keep" autofocus>Keep control panel</button>
+    <button type="button" class="path-switch-confirm">Switch to terminal</button>
+  </div>
+</dialog>
+<div class="sr-only" aria-live="polite" id="live"></div>
+<script src="assets/stack.js?v=ec6a04c228"></script>
+<script src="assets/site.js?v=1de1666aca" defer></script>
+</body>
+</html>

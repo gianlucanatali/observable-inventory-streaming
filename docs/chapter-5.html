@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chapter 5 of 6: The AI offer | Observable inventory streaming</title>
+<meta name="description" content="Hands-on workshop: stream stock changes from five PostgreSQL store databases through Debezium and Confluent Cloud into Redis on AWS, then find and fix a slow release with Datadog.">
+<meta name="color-scheme" content="light dark">
+<!-- Generated from workshop/README.md by workshop/site/build.py. Do not edit by hand. -->
+<script>
+// Set the lab path before the first paint, so the page never shows both paths and then hides one.
+(function () {
+  var d = document.documentElement, p = null;
+  d.classList.add("js");
+  var m = /[?&]path=(panel|terminal)(?:&|$)/.exec(location.search);
+  try {
+    if (m) { p = m[1]; localStorage.setItem("workshop-path", p); }
+    else { p = localStorage.getItem("workshop-path"); }
+  } catch (e) {
+    console.warn("workshop: localStorage unavailable, the path choice is not remembered:", e);
+    if (m) p = m[1];
+  }
+  if (p !== "panel" && p !== "terminal") p = null;
+  d.setAttribute("data-path-mode", p || "panel");
+  if (p) d.setAttribute("data-path-chosen", "");
+})();
+</script>
+<link rel="stylesheet" href="assets/fonts.css?v=471d416a0c">
+<link rel="stylesheet" href="assets/site.css?v=84305200bf">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23632CA6'/%3E%3Cpath d='M8 21h4v-6H8zm6 0h4V10h-4zm6 0h4v-9h-4z' fill='white'/%3E%3C/svg%3E">
+</head>
+<body data-connect-href="setup.html#connect-box">
+<a class="skip" href="#content">Skip to content</a>
+<header class="topbar">
+  <button type="button" class="toc-toggle" aria-controls="toc" aria-expanded="false">
+    <span class="burger" aria-hidden="true"></span><span class="sr-only">Table of contents</span>
+  </button>
+  <a class="brand" href="intro.html" title="Start of the workshop"><span class="brand-mark" aria-hidden="true"></span><span>Observable inventory streaming</span></a>
+  <div class="path-switch" role="group" aria-label="Lab path">
+    <span class="path-switch-label" aria-hidden="true">Path</span>
+    <button type="button" data-set-path="panel" aria-pressed="true" title="Show the control panel steps">Panel</button>
+    <button type="button" data-set-path="terminal" aria-pressed="false" title="Show the terminal (make) steps">Terminal</button>
+  </div>
+  <a class="stack-badge" id="stack-badge" href="setup.html#connect-box" hidden title="Your stack is connected to this guide. Open the Connect box."><span class="stack-dot" aria-hidden="true"></span><span class="stack-badge-text">Connected<span class="stack-badge-name"></span></span></a>
+  <nav class="topbar-links" aria-label="Site">
+    <a class="topbar-home" href="index.html">Home</a>
+    <a class="topbar-current" href="intro.html" aria-current="page">Workshop</a><a class="topbar-extra" href="workshop.html">One-page guide</a>
+    <a class="topbar-extra topbar-md" href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/workshop/README.md" target="_blank" rel="noopener">Markdown source</a>
+    <a class="topbar-extra" href="https://github.com/gianlucanatali/observable-inventory-streaming" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+</header>
+<div class="layout">
+  <nav id="toc" class="toc" aria-label="Table of contents">
+    <p class="toc-title">Workshop</p><ol class="chapter-list"><li><a href="intro.html">Intro</a></li><li><a href="setup.html"><span class="cl-n">0</span>Setup</a></li><li><a href="chapter-1.html"><span class="cl-n">1</span>One honest number</a></li><li><a href="chapter-2.html"><span class="cl-n">2</span>Unknown is not zero</a></li><li><a href="chapter-3.html"><span class="cl-n">3</span>The incident</a></li><li><a href="chapter-4.html"><span class="cl-n">4</span>Canary the fix</a></li><li><a href="chapter-5.html" aria-current="page"><span class="cl-n">5</span>The AI offer</a></li><li><a href="chapter-6.html"><span class="cl-n">6</span>Datadog on top</a></li></ol><p class="toc-title">Help and reference</p><ol class="chapter-list chapter-list-help"><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="teardown.html">Teardown</a></li><li><a href="recap.html">Recap</a></li><li><a href="reference.html">Reference</a></li><li><a class="guide-link" href="workshop.html">One-page guide</a></li></ol><p class="toc-title toc-title-page">On this page</p><ol class="toc-list">
+<li class="toc-h2"><a href="#lab-51-offers-with-a-safe-default">Lab 5.1: Offers with a safe default</a>
+<ol class="toc-sub">
+<li class="toc-h3"><a href="#turn-on-the-offers-layer">Turn on the offers layer</a></li>
+<li class="toc-h3"><a href="#1-reset-and-add-to-cart">1. Reset and add to cart</a></li>
+<li class="toc-h3"><a href="#2-sell-it-out">2. Sell it out</a></li>
+<li class="toc-h3"><a href="#3-see-why-in-llm-observability">3. See why in LLM Observability</a></li>
+<li class="toc-h3"><a href="#4-lower-the-threshold-live">4. Lower the threshold, live</a></li>
+<li class="toc-h3"><a href="#5-use-the-kill-switch">5. Use the kill switch</a></li>
+<li class="toc-h3"><a href="#6-restore-the-defaults">6. Restore the defaults</a></li>
+<li class="toc-h3"><a href="#checkpoint-5">Checkpoint</a></li>
+</ol></li>
+<li class="toc-h2"><a href="#lab-52-restock-that-learns">Lab 5.2: Restock that learns</a>
+<ol class="toc-sub">
+<li class="toc-h3"><a href="#turn-on-the-restock-layer">Turn on the restock layer</a></li>
+<li class="toc-h3"><a href="#1-reset-and-sell-out">1. Reset and sell out</a></li>
+<li class="toc-h3"><a href="#2-watch-the-eta-appear">2. Watch the ETA appear</a></li>
+<li class="toc-h3"><a href="#3-open-the-control-panel">3. Open the control panel</a></li>
+<li class="toc-h3"><a href="#4-shorten-the-lead-time">4. Shorten the lead time</a></li>
+<li class="toc-h3"><a href="#5-watch-the-delivery">5. Watch the delivery</a></li>
+<li class="toc-h3"><a href="#6-see-it-in-datadog">6. See it in Datadog</a></li>
+<li class="toc-h3"><a href="#checkpoint-6">Checkpoint</a></li>
+</ol></li>
+</ol>
+  </nav>
+  <div class="scrim" hidden></div>
+  <main id="content" class="content" tabindex="-1">
+    <article id="top" class="doc">
+<nav class="chapter-progress" aria-label="Chapters"><ol><li class="cp-step cp-extra"><a href="intro.html"><span class="cp-dot" aria-hidden="true">&middot;</span><span class="cp-label">Intro</span></a></li><li class="cp-step cp-extra"><a href="setup.html"><span class="cp-dot" aria-hidden="true">0</span><span class="cp-label">Setup</span></a></li><li class="cp-step"><a href="chapter-1.html"><span class="cp-dot" aria-hidden="true">1</span><span class="cp-label">One honest number</span></a></li><li class="cp-step"><a href="chapter-2.html"><span class="cp-dot" aria-hidden="true">2</span><span class="cp-label">Unknown is not zero</span></a></li><li class="cp-step"><a href="chapter-3.html"><span class="cp-dot" aria-hidden="true">3</span><span class="cp-label">The incident</span></a></li><li class="cp-step"><a href="chapter-4.html"><span class="cp-dot" aria-hidden="true">4</span><span class="cp-label">Canary the fix</span></a></li><li class="cp-step cp-current"><a href="chapter-5.html" aria-current="page"><span class="cp-dot" aria-hidden="true">5</span><span class="cp-label">The AI offer</span></a></li><li class="cp-step"><a href="chapter-6.html"><span class="cp-dot" aria-hidden="true">6</span><span class="cp-label">Datadog on top</span></a></li></ol></nav>
+<p class="chapter-kicker">Chapter 5 of 6</p>
+<h1 class="chapter-title">The AI offer</h1>
+<aside class="see-box"><p class="see-title">What you will see</p><p><em>About 20 minutes.</em> When a product in a shopper's cart sells out, the Online shop offers an alternative. An external AI service can choose it, but its choice counts only when it is confident enough; otherwise a fixed rule decides. The AI part is optional, so the shop still works when the AI is slow, wrong or switched off, and every offer records why it was made.</p>
+<p><strong>Needs:</strong> the <code>offers</code> layer. Lab 5.1 starts by turning it on (skip that if you chose everything at once). Lab 5.2 needs the <code>restock</code> layer and turns it on the same way.</p>
+</aside>
+<h3 id="lab-51-offers-with-a-safe-default" class="lab lab">Lab 5.1: Offers with a safe default <a class="header-anchor" href="#lab-51-offers-with-a-safe-default">#</a></h3>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Offers layer: the shop publishes cart adds; Flink cart at risk joins carts with sellable totals; the offer worker asks Jev and publishes offers"><img src="img/arch-4-offers.png" alt="Offers layer: the shop publishes cart adds; Flink cart at risk joins carts with sellable totals; the offer worker asks Jev and publishes offers" width="3820" height="1620" loading="lazy" decoding="async"></button>
+<figcaption>Figure 5: the offers layer adds a Flink &quot;cart at risk&quot; statement, the offer worker on Fargate, and an optional call to the external Jev API.</figcaption></figure>
+<p>A <em>cart at risk</em> is an active cart that holds a product whose sellable stock just reached zero.</p>
+<details><summary>How the offer is chosen</summary>
+<p>For each one, <code>offer-worker</code> builds up to two <abbr title="In stock, same category and size, price within 20% of the sold-out product.">eligible alternatives</abbr> plus a &quot;notify me&quot; option. It sends Jev, an external decision API, the product facts, the restock ETA and a few synthetic cart signals (cart value, item count, new or returning shopper), never cart or shopper IDs. Jev returns a choice and a confidence score. The worker accepts the choice only if it is one of the options and its confidence is at least 0.8, the <em>confidence threshold</em>. Otherwise it uses the <em>rule default</em>: the in-stock alternative closest in price, or &quot;notify me&quot; if there is none.</p>
+</details>
+<aside class="admonition admonition-note" role="note"><p class="admonition-title"><span class="admonition-icon" aria-hidden="true"></span>Note</p>
+<p>Without a Jev key every offer takes the rule default with reason <code>disabled</code>, and LLM Observability has no AI call to show. The rest of the lab works the same way.</p>
+</aside>
+<p>Open this Chapter in the <a href="setup.html#3-open-the-datadog-stock-dashboard" data-stack-link="overview-dashboard">demo home</a>, group &quot;5. The AI offer&quot;: decisions by route and reason, with links to LLM Observability and the offer-worker service.</p>
+<h4 id="turn-on-the-offers-layer">Turn on the offers layer <a class="header-anchor" href="#turn-on-the-offers-layer">#</a></h4>
+<p>Skip this if you chose everything at once, or if <code>offers</code> is already in your <code>layers:</code> line. In <code>demo.yaml</code>, add <code>offers</code> to the line, then run:</p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>layer-on<span class="w"> </span><span class="nv">L</span><span class="o">=</span>offers<span class="w"> </span><span class="nv">CONFIRM</span><span class="o">=</span>yes
+</code></pre></div>
+<details><summary>What this creates</summary>
+<p>This creates two Kafka topics and one more Flink statement (&quot;cart at risk&quot;) in Confluent Cloud, starts the <code>offer-worker</code> Fargate service, and switches the Online shop's offer branch on. If you set <code>jev_api_key</code> in <code>demo.yaml</code>, the worker can call Jev; without it every offer uses the rule default.</p>
+</details>
+<p>Check with <code>make layers-status</code>: <code>offers: ON</code>.</p>
+<h4 id="1-reset-and-add-to-cart">1. Reset and add to cart <a class="header-anchor" href="#1-reset-and-add-to-cart">#</a></h4>
+<div data-path="panel" markdown="1">
+<p><strong>With the control panel</strong></p>
+<p>In the <a href="setup.html#2-open-the-control-panel" data-stack-link="control">control panel</a>, press <strong>Full reset</strong> on the <strong>Background sales</strong> card and confirm. Wait for <code>full-reset succeeded</code>.</p>
+</div>
+<div data-path="terminal" markdown="1">
+<p><strong>With the terminal</strong></p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>reset
+</code></pre></div>
+</div>
+<p>Open the <a href="chapter-1.html#hop-5-the-shop-page" data-stack-link="shop">product page</a> of <code>P0042</code> and click <strong>Add to cart</strong>. The cart badge should show 1.</p>
+<details><summary>What adding to the cart does</summary>
+<p>The Online shop has published a cart <code>ADD</code> event to Kafka.</p>
+</details>
+<h4 id="2-sell-it-out">2. Sell it out <a class="header-anchor" href="#2-sell-it-out">#</a></h4>
+<p>Keep the <a href="chapter-1.html#hop-5-the-shop-page" data-stack-link="shop">product page</a> open where you can see it.</p>
+<div data-path="panel" markdown="1">
+<p><strong>With the control panel</strong></p>
+<p>In the <a href="setup.html#2-open-the-control-panel" data-stack-link="control">control panel</a>, on the <strong>Actions</strong> card, keep <code>P0042</code> in the <strong>Product ID</strong> field, press <strong>Sell out product</strong> and confirm.</p>
+</div>
+<div data-path="terminal" markdown="1">
+<p><strong>With the terminal</strong></p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>sell-out<span class="w"> </span><span class="nv">PRODUCT</span><span class="o">=</span>P0042<span class="w"> </span><span class="nv">GAP</span><span class="o">=</span><span class="m">1</span>.5
+</code></pre></div>
+</div>
+<p>About 8 to 10 seconds after the last store sells out, an offer card appears below the product.</p>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Offer card proposing an eligible alternative at 10% off after P0042 sold out"><img src="img/lab6-01-offer-rule-default.png" alt="Offer card proposing an eligible alternative at 10% off after P0042 sold out" width="2880" height="2716" loading="lazy" decoding="async"></button><figcaption>Offer card proposing an eligible alternative at 10% off after P0042 sold out</figcaption></figure>
+<details><summary>More about this step</summary>
+<p><strong>Which offer you get, and why a different model.</strong> With the default threshold, the offer is usually the rule default: the closest-priced eligible alternative, at 10% off. For P0042 (Trailrunner GTX, EU 42) that is P0160, the Brenta Storm in EU 42.</p>
+<p>It is a different model because the Trailrunner GTX exists in EU 42 only in Forest green, so there is no other colour of it to offer in that size.</p>
+<p><em>What just happened:</em> Flink joined your cart (topic <code>carts.events</code>) with the <code>stock.sellable</code> value of 0 and emitted a cart at risk. <code>offer-worker</code> built the alternatives, asked Jev, compared Jev's confidence with 0.8, checked the stock again, and published the offer to the <code>offers</code> topic, where the Online shop reads it.</p>
+</details>
+<h4 id="3-see-why-in-llm-observability">3. See why in LLM Observability <a class="header-anchor" href="#3-see-why-in-llm-observability">#</a></h4>
+<p>In Datadog, open AI Observability &gt; Agent Observability &gt; Traces and select the application <code>urbanstreet-offers</code> (the picker may show another application first). Open the latest trace and its <code>offer.jev.call</code> span, the step that called Jev. The input shows the eligible alternatives as <code>criteria</code>. The output shows the <code>choice</code> and its <code>confidence</code>.</p>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Offer.jev.call span input and output"><img src="img/lab6-03-llmobs-span-io.png" alt="Offer.jev.call span input and output" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>Offer.jev.call span input and output</figcaption></figure>
+<details><summary>More about this step</summary>
+<p><strong>What LLM Observability keeps.</strong></p>
+<p><abbr title="Datadog's record of each AI call as a trace, with what was sent and what came back.">LLM Observability</abbr> keeps the Jev calls here.</p>
+<p><strong>The trace list, and the same request in APM.</strong></p>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: LLM Observability trace list for urbanstreet-offers"><img src="img/lab6-02-llmobs-traces.png" alt="LLM Observability trace list for urbanstreet-offers" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>LLM Observability trace list for urbanstreet-offers</figcaption></figure>
+<p>The same request also appears in APM (service <code>offer-worker</code>, span <code>offer.process</code>). Its linked logs state the decision, for example route <code>RULE_DEFAULT</code> with reason <code>low_confidence</code>.</p>
+</details>
+<h4 id="4-lower-the-threshold-live">4. Lower the threshold, live <a class="header-anchor" href="#4-lower-the-threshold-live">#</a></h4>
+<p>This setting exists only in the control panel, so you use the panel in both paths (<a href="setup.html#2-open-the-control-panel" data-stack-link="control">how to open it</a>). In the <code>offers</code> settings, set <strong>Jev minimum confidence</strong> (<code>jev_min_confidence</code>) to <code>0.7</code> and press <strong>Save</strong>. Then reset, reload the page, add P0042 to the cart again, and sell it out.</p>
+<div data-path="panel" markdown="1">
+<p><strong>With the control panel</strong></p>
+<p>In the <a href="setup.html#2-open-the-control-panel" data-stack-link="control">control panel</a>, press <strong>Full reset</strong>, reload the <a href="chapter-1.html#hop-5-the-shop-page" data-stack-link="shop">product page</a>, click <strong>Add to cart</strong>, then press <strong>Sell out product</strong> with <code>P0042</code>.</p>
+</div>
+<div data-path="terminal" markdown="1">
+<p><strong>With the terminal</strong></p>
+<p>Reload the <a href="chapter-1.html#hop-5-the-shop-page" data-stack-link="shop">product page</a> and click <strong>Add to cart</strong> after the reset:</p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>reset
+make<span class="w"> </span>sell-out<span class="w"> </span><span class="nv">PRODUCT</span><span class="o">=</span>P0042<span class="w"> </span><span class="nv">GAP</span><span class="o">=</span><span class="m">1</span>.5
+</code></pre></div>
+</div>
+<p>With the lower threshold, some runs use the AI choice and some still use the rule default.</p>
+<details><summary>Why reset before each run</summary>
+<p>The reset expires the carts from the previous run, so each sell-out produces exactly one offer, and it cancels the purchase orders left from an earlier Lab 5.2 run.</p>
+</details>
+<h4 id="5-use-the-kill-switch">5. Use the kill switch <a class="header-anchor" href="#5-use-the-kill-switch">#</a></h4>
+<p>In the <a href="setup.html#2-open-the-control-panel" data-stack-link="control">control panel</a>, set <strong>AI kill switch</strong> (<code>offers_kill_switch</code>) to <code>1</code> and press <strong>Save</strong>. Then repeat the reset, add to cart and sell-out. You should see the decision line &quot;safe rule — AI did not return a decision&quot; in the Online shop.</p>
+<details><summary>More about the kill switch</summary>
+<p>This <abbr title="A setting that stops all calls to Jev, so every offer uses the rule default.">kill switch</abbr> takes effect on the next offer. The decision line in the Online shop reads &quot;safe rule — AI did not return a decision&quot;, the reason on the dashboard is <code>kill_switch</code>, and the worker makes no Jev call. On the stock dashboard, in the <strong>Offers</strong> group, <code>offer.decision by route and reason</code> shows each of your runs.</p>
+</details>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Offers group by route and reason"><img src="img/lab6-04-offers-group.png" alt="Offers group by route and reason" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>Offers group by route and reason</figcaption></figure>
+<h4 id="6-restore-the-defaults">6. Restore the defaults <a class="header-anchor" href="#6-restore-the-defaults">#</a></h4>
+<p>In the <a href="setup.html#2-open-the-control-panel" data-stack-link="control">control panel</a>, set <code>jev_min_confidence</code> back to <code>0.8</code> and <code>offers_kill_switch</code> back to <code>0</code> (or press <strong>Reset to default</strong> on each), then reset.</p>
+<div data-path="panel" markdown="1">
+<p><strong>With the control panel</strong></p>
+<p>Press <strong>Full reset</strong> and confirm.</p>
+</div>
+<div data-path="terminal" markdown="1">
+<p><strong>With the terminal</strong></p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>reset
+</code></pre></div>
+</div>
+<h4 id="checkpoint-5" class="checkpoint checkpoint">Checkpoint <a class="header-anchor" href="#checkpoint-5">#</a></h4>
+<ul class="contains-task-list">
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"  type="checkbox"> You have seen at least one offer card (<a href="#2-sell-it-out">step 2</a>).</li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"  type="checkbox"> <code>offer.decision</code> shows at least two reasons, for example <code>accepted</code> or <code>low_confidence</code>, and <code>kill_switch</code> (or <code>disabled</code> without a Jev key) (<a href="#5-use-the-kill-switch">step 5</a>).</li>
+</ul>
+<aside class="summary-box"><p class="see-title">Summary</p><p>The shop does not depend on the AI. Fixed rules decide what may be offered, the rule default always gives an answer, and the trace shows why each offer was made. An offer is only an offer: nothing in this lab proves that it saved a sale.</p></aside>
+<!-- box: also-lab-5-2
+Also in this chapter: Lab 5.2, restock that learns (optional)
+-->
+<div class="chapter-sub"><p>Also in this chapter: Lab 5.2, restock that learns (optional)</p></div>
+<h3 id="lab-52-restock-that-learns" class="lab lab">Lab 5.2: Restock that learns <a class="header-anchor" href="#lab-52-restock-that-learns">#</a></h3>
+<p><em>About 15 minutes.</em> When a product sells out, nobody can buy it until new stock arrives. Someone has to notice and order more, early enough and in the right amount. Here the system does it by itself: you sell out a product and watch the sale turn into restock requests, then into <abbr title="Orders sent to the supplier, kept in the procurement database until the goods arrive.">purchase orders</abbr>, and finally into a delivery that puts the product back in stock.</p>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Restock layer: Flink restock reads movements and orders, writes requests; order sync writes purchase orders to the procurement database; the supplier simulator delivers stock"><img src="img/arch-3-restock.png" alt="Restock layer: Flink restock reads movements and orders, writes requests; order sync writes purchase orders to the procurement database; the supplier simulator delivers stock" width="3820" height="1620" loading="lazy" decoding="async"></button>
+<figcaption>Figure 4: the restock layer adds Flink restock logic in Confluent Cloud, and a procurement database, order sync and supplier simulator on the VM.</figcaption></figure>
+<p>A <em>demo clock</em> saves you from waiting days for a delivery: by default, one real minute counts as one business hour.</p>
+<details><summary>How Flink decides when to reorder</summary>
+<p>Flink learns two values: each store's <em>demand rate</em> (units sold per hour, from recent sales) and the <em>supplier lead time</em> (order to delivery, from past purchase orders).</p>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Restock detail: Debezium ×5 sends store changes and Order sync (JDBC + CDC) sends purchase orders into Kafka; Flink computes demand and lead time; the Projector on AWS publishes stock movements"><img src="img/arch-b10-restock.png" alt="Restock detail: Debezium ×5 sends store changes and Order sync (JDBC + CDC) sends purchase orders into Kafka; Flink computes demand and lead time; the Projector on AWS publishes stock movements" width="3820" height="1820" loading="lazy" decoding="async"></button><figcaption>Restock detail: Debezium ×5 sends store changes and Order sync (JDBC + CDC) sends purchase orders into Kafka; Flink computes demand and lead time; the Projector on AWS publishes stock movements</figcaption></figure>
+<p>Flink adds the stock on hand and the stock already on order. When that total falls to the <em>reorder point</em> (demand rate × lead time × <abbr title="A margin on top of the demand expected during the lead time.">safety factor</abbr>), Flink emits a <em>restock request</em>.</p>
+</details>
+<p>Open this Chapter in the <a href="setup.html#3-open-the-datadog-stock-dashboard" data-stack-link="overview-dashboard">demo home</a>, group &quot;5. The AI offer&quot;. The restock charts themselves are in the <strong>Restock</strong> group of the stock dashboard (step 6).</p>
+<h4 id="turn-on-the-restock-layer">Turn on the restock layer <a class="header-anchor" href="#turn-on-the-restock-layer">#</a></h4>
+<p>Skip this if you chose everything at once, or if <code>restock</code> is already in your <code>layers:</code> line. In <code>demo.yaml</code>, add <code>restock</code> to the line (for example <code>layers: core,releases,restock</code>), then run:</p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>layer-on<span class="w"> </span><span class="nv">L</span><span class="o">=</span>restock<span class="w"> </span><span class="nv">CONFIRM</span><span class="o">=</span>yes
+</code></pre></div>
+<details><summary>What this starts</summary>
+<p>This starts the procurement database and the supplier simulator on the VM, registers the two procurement connectors, and creates three more Flink statements in Confluent Cloud (demand, procurement, restock) with a Datadog restock group and monitors.</p>
+</details>
+<p>Flink bills for the statements while they run; the pool stays capped at 5 CFU. The command waits for the first records before it starts the statements, so give it several minutes. Check with <code>make layers-status</code>: <code>restock: ON</code>.</p>
+<h4 id="1-reset-and-sell-out">1. Reset and sell out <a class="header-anchor" href="#1-reset-and-sell-out">#</a></h4>
+<div data-path="panel" markdown="1">
+<p><strong>With the control panel</strong></p>
+<ol>
+<li>In the <a href="setup.html#2-open-the-control-panel" data-stack-link="control">control panel</a>, press <strong>Full reset</strong> on the <strong>Background sales</strong> card and confirm.</li>
+</ol>
+<details><summary>Why Full reset, not Reset demo data</summary>
+<p>When the restock layer is on, it also cancels open purchase orders and clears the restock ETA keys in Redis. <strong>Reset demo data</strong> does neither of these, so use <strong>Full reset</strong>.</p>
+</details>
+2. In the [control panel](#2-open-the-control-panel "stack-link:control"), on the **Actions** card, keep `P0042` in the **Product ID** field and press **Sell out product**. Wait for `succeeded: Source and Redis verification completed`.
+</div>
+<div data-path="terminal" markdown="1">
+<p><strong>With the terminal</strong></p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>reset
+make<span class="w"> </span>sell-out<span class="w"> </span><span class="nv">PRODUCT</span><span class="o">=</span>P0042<span class="w"> </span><span class="nv">GAP</span><span class="o">=</span><span class="m">1</span>.5
+</code></pre></div>
+<p>You should see the five <code>{&quot;store&quot;: ..., &quot;remaining_store&quot;: 0, ...}</code> lines from Lab 1.1.</p>
+</div>
+<h4 id="2-watch-the-eta-appear">2. Watch the ETA appear <a class="header-anchor" href="#2-watch-the-eta-appear">#</a></h4>
+<p>After a few seconds the page shows &quot;Out of stock online&quot; with &quot;Back in stock in about N hours&quot; and the note &quot;demo clock: 1 min = 1 h&quot;.</p>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Product page showing Out of stock online with a restock ETA"><img src="img/lab5-01-restock-eta.png" alt="Product page showing Out of stock online with a restock ETA" width="2880" height="2468" loading="lazy" decoding="async"></button><figcaption>Product page showing Out of stock online with a restock ETA</figcaption></figure>
+<details><summary>More about this step</summary>
+<p><strong>What the ETA is.</strong> This is the <abbr title="Estimated time until the product is back in stock.">ETA</abbr>. The default lead time is 48 business hours and each order gets a random variation (jitter), so N is a few tens of hours. We saw 28, 29 and 37.</p>
+<p><strong>What just happened: the order loop.</strong> This is the loop that just ran:</p>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Order flow: Flink turns demand and lead time into restock requests; Order sync (JDBC + CDC) upserts purchase orders into the procurement database; Supplier sim reads orders to ship and calls restock() in the five store databases"><img src="img/arch-b11-order-flow.png" alt="Order flow: Flink turns demand and lead time into restock requests; Order sync (JDBC + CDC) upserts purchase orders into the procurement database; Supplier sim reads orders to ship and calls restock() in the five store databases" width="3420" height="1660" loading="lazy" decoding="async"></button><figcaption>Order flow: Flink turns demand and lead time into restock requests; Order sync (JDBC + CDC) upserts purchase orders into the procurement database; Supplier sim reads orders to ship and calls restock() in the five store databases</figcaption></figure>
+<p><em>What just happened:</em> Flink emitted one restock request per store. A <abbr title="A Kafka Connect connector that copies Kafka records into a database table.">JDBC sink connector</abbr> wrote each request into the procurement database as a purchase order, and Debezium streamed the orders back into Kafka. That is how Flink knows the stock is on order and does not order it twice. The supplier simulator (<code>supplier-sim</code>) wrote the earliest due time to Redis, and the page shows it as the ETA.</p>
+</details>
+<h4 id="3-open-the-control-panel">3. Open the control panel <a class="header-anchor" href="#3-open-the-control-panel">#</a></h4>
+<p>Open the <a href="setup.html#2-open-the-control-panel" data-stack-link="control">control panel</a> in both paths (<a href="setup.html#2-open-the-control-panel" data-stack-link="control">how to open it</a>) and scroll below the cards to the <code>restock</code> settings. You should see the restock parameters: supplier lead time, lead time jitter, safety factor, coverage after delivery, minimum order quantity, demand window and the demo clock (<code>time_compression</code>, 60 by default).</p>
+<details><summary>Your changes become Datadog events</summary>
+<p>Each change you save is also sent to Datadog as an event.</p>
+</details>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Control panel restock parameters"><img src="img/lab5-03-control-panel.png" alt="Control panel restock parameters" width="2328" height="2387" loading="lazy" decoding="async"></button><figcaption>Control panel restock parameters</figcaption></figure>
+<h4 id="4-shorten-the-lead-time">4. Shorten the lead time <a class="header-anchor" href="#4-shorten-the-lead-time">#</a></h4>
+<p>Set the supplier lead time to 2 business hours, which is 2 real minutes with the default clock.</p>
+<div data-path="panel" markdown="1">
+<p><strong>With the control panel</strong></p>
+<p>Set <strong>Supplier lead time (base)</strong> (<code>lead_time_s</code>, in business seconds) to <code>7200</code> and press <strong>Save</strong>.</p>
+</div>
+<div data-path="terminal" markdown="1">
+<p><strong>With the terminal</strong></p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>lead-time<span class="w"> </span><span class="nv">SECONDS</span><span class="o">=</span><span class="m">7200</span>
+</code></pre></div>
+<div class="code code-out" data-lang="text"><div class="code-bar"><span class="code-label">Expected output</span></div><pre tabindex="0"><code>lead time set to 7200 s (applies to every open purchase order on supplier-sim's next cycle, every second)
+</code></pre></div>
+</div>
+<details><summary>More about this step</summary>
+<div data-path="panel" markdown="1">
+<p><strong>With the control panel</strong></p>
+<p><strong>The change becomes a Datadog event.</strong> The panel also sends this change to Datadog as an event, which you see in step 6.</p>
+</div>
+<div data-path="terminal" markdown="1">
+<p><strong>With the terminal</strong></p>
+<p><strong>No event marker from the terminal.</strong> This command sends no event to Datadog, so step 6 shows no marker for it. If you want the marker, set <strong>Supplier lead time (base)</strong> to <code>7200</code> in the panel and press <strong>Save</strong> instead: a setting is not routing, so it does not mix the paths.</p>
+</div>
+<p><strong>What happens to open orders.</strong> Every open order is rescaled and keeps its own jitter.</p>
+</details>
+<h4 id="5-watch-the-delivery">5. Watch the delivery <a class="header-anchor" href="#5-watch-the-delivery">#</a></h4>
+<p>After about a minute (the exact time depends on the product), you should see the page go back to &quot;N available online&quot;.</p>
+<details><summary>How the delivery travels</summary>
+<p>After about a minute (the exact time depends on the product), the supplier calls <code>restock()</code> in each store's database. That is an ordinary stock update, like a sale but marked <code>restock</code>, so it travels the same path and the page goes back to &quot;N available online&quot;. N depends on the demand Flink has learned and on the coverage setting.</p>
+</details>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Product page back in stock after the supplier delivery"><img src="img/lab5-02-back-in-stock.png" alt="Product page back in stock after the supplier delivery" width="2880" height="2300" loading="lazy" decoding="async"></button><figcaption>Product page back in stock after the supplier delivery</figcaption></figure>
+<h4 id="6-see-it-in-datadog">6. See it in Datadog <a class="header-anchor" href="#6-see-it-in-datadog">#</a></h4>
+<p>On the <a href="setup.html#3-open-the-datadog-stock-dashboard" data-stack-link="stock-dashboard">stock dashboard</a>, open the <strong>Restock</strong> group. <code>restock.orders.open</code> rises after the sell-out and falls at delivery. Next to it are <code>restock.orders.delivered by store</code> and <code>restock.lead_time</code>.</p>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Restock group with the lead-time event"><img src="img/lab5-04-restock-group.png" alt="Restock group with the lead-time event" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>Restock group with the lead-time event</figcaption></figure>
+<details><summary>The config-change events, and the Flink statements in Confluent Cloud</summary>
+<p>If you saved the lead-time change in the panel, it shows as an event marker on <code>restock.orders.open</code> and as a <code>demo config: lead_time_s = 7200</code> entry in the <strong>Demo panel: config changes and actions</strong> list. That list also shows each panel action, such as a sell-out or a reset, as <code>demo action: &lt;name&gt; started</code>, then <code>succeeded</code> or <code>failed</code>. These events have the tags <code>project:dd-demo</code>, <code>stack:hybrid</code> and <code>demo_event:config</code> or <code>demo_event:action</code>, so you can also find them in the Events Explorer.</p>
+<p>Optional: in the Confluent Cloud console, open the environment's Flink section. It lists the <abbr title="SQL queries that run continuously on the stream.">Flink statements</abbr> <code>dd-demo-hybrid-*</code>. The <code>-0</code> statements create the output tables. The <code>-1</code> statements are the long-running inserts (<code>sellable-1</code>, <code>demand-1</code>, <code>procurement-1</code>, <code>restock-1</code>, <code>offers-1</code>).</p>
+</details>
+<h4 id="checkpoint-6" class="checkpoint checkpoint">Checkpoint <a class="header-anchor" href="#checkpoint-6">#</a></h4>
+<ul class="contains-task-list">
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"  type="checkbox"> The page shows P0042 available again (<a href="#5-watch-the-delivery">step 5</a>).</li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"  type="checkbox"> Verify passes. <strong>Control panel:</strong> <strong>Verify</strong> on the <strong>Checks</strong> card shows <code>VERIFY PASSED</code> · <strong>Terminal:</strong> <code>make verify</code> prints zero mismatches (<a href="chapter-1.html#hop-1-the-store-table">how in Lab 1.1</a>).</li>
+</ul>
+<aside class="summary-box"><p class="see-title">Summary</p><p>The stream triggered the reorder directly, with no batch job, and you could change its parameters from the panel while it ran. The restock numbers come from a simulation. They are not a forecast.</p></aside>
+
+<nav class="pager" aria-label="Previous and next"><a class="pager-btn pager-prev" href="chapter-4.html"><span class="pager-dir">Previous</span><span class="pager-title">Chapter 4: Canary the fix</span></a><a class="pager-btn pager-next" href="chapter-6.html"><span class="pager-dir">Next</span><span class="pager-title">Chapter 6: Datadog on top</span></a></nav>
+    </article>
+    <footer class="doc-footer">
+      <p>Generated from <a href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/workshop/README.md" target="_blank" rel="noopener"><code>workshop/README.md</code></a>. Every product, store, sale and shopper in this workshop is synthetic.</p>
+      <p>Educational demo, not for production workloads. <a href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/LICENSE" target="_blank" rel="noopener">Apache License 2.0</a>, provided as is; trademarks and third-party notices in <a href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/NOTICE" target="_blank" rel="noopener">NOTICE</a>.</p>
+      <p><a href="#top">Back to top</a> &middot; <a href="workshop.html">One-page guide</a></p>
+    </footer>
+  </main>
+</div>
+<dialog class="lightbox" aria-label="Enlarged image">
+  <form method="dialog"><button class="lightbox-close" aria-label="Close">&times;</button></form>
+  <img alt="">
+  <p class="lightbox-caption"></p>
+</dialog>
+<dialog class="path-dialog" aria-labelledby="path-dialog-title" aria-describedby="path-dialog-text">
+  <h2 id="path-dialog-title">Switch to the <span class="path-dialog-other">terminal</span> path?</h2>
+  <p id="path-dialog-text">Pick one path and use it from start to finish. The control panel and the terminal each remember their own last routing for Rollback, so mixing them in one run can roll back to the wrong state. Switch only if you are starting a lab from a reset.</p>
+  <div class="path-dialog-buttons">
+    <button type="button" class="path-keep" autofocus>Keep control panel</button>
+    <button type="button" class="path-switch-confirm">Switch to terminal</button>
+  </div>
+</dialog>
+<div class="sr-only" aria-live="polite" id="live"></div>
+<script src="assets/stack.js?v=ec6a04c228"></script>
+<script src="assets/site.js?v=1de1666aca" defer></script>
+</body>
+</html>

@@ -3,6 +3,10 @@
 #   cp demo.example.yaml demo.yaml && chmod 600 demo.yaml
 # demo.yaml is deliberately ignored. This parser supports only top-level key: value.
 
+# Optional, local or cloud (default cloud). local runs everything on this computer in the Lima VM (no AWS, no
+# Confluent Cloud: no cost there; Datadog still receives data) with the same ./demo create|status|links|reset|destroy; see LOCAL.md.
+# In local mode only datadog_site, dd_api_key, layers and jev_api_key are read; the cloud keys below may stay as they are.
+# mode: local
 # Stack identity: lowercase letters, digits and hyphens; 2–16 characters.
 stack: hybrid
 # Existing AWS CLI profile and deployment region.
@@ -12,8 +16,21 @@ aws_region: eu-west-1
 # Leave empty and ./demo create detects your current public IP (via checkip.amazonaws.com), prints it and uses it as /32.
 # If detection fails, create stops before anything billable; then set this value yourself. Re-run create or update it if your IP changes.
 # allowed_cidr: 203.0.113.10/32
-# Hybrid layers, comma-separated. core and control-center are included with the default optional hybrid layers.
-layers: core,releases,restock,offers,dd-streams,dd-synthetics,dd-rum,control-center
+# Optional. Hybrid layers. Without this key only core runs (the cheaper, step-by-step way: the labs turn layers on).
+# Pick one of the lines below and uncomment it. To choose your own set, copy the full list and delete what you
+# do not want (comma-separated, no spaces; core is always on).
+#   core            the stores, Debezium, Confluent Cloud, Flink, Redis, stock API, Online shop (Chapters 1-2)
+#   releases        releases 1.1.0 (slow) and 1.2.0 (fix), the traffic split (Chapters 3-4)
+#   offers          offers for carts at risk (Lab 5.1)
+#   restock         automatic reordering (Lab 5.2)
+#   dd-streams      Datadog Confluent Cloud integration, consumer lag (Lab 6.1)
+#   dd-synthetics   Synthetics private location on the VM and two tests (Lab 6.1)
+#   dd-rum          Real User Monitoring on the Online shop (Lab 6.1)
+#   control-center  Confluent Control Center, a web console for the Connect worker on the VM; no lab needs it
+# layers: core
+# layers: all
+# layers: core,releases,offers,restock,dd-streams,dd-synthetics,dd-rum,control-center
+# 'all' is every layer except control-center, billed at the full hourly rate from the first minute.
 # Datadog account endpoint and API/application keys.
 datadog_site: datadoghq.eu
 dd_api_key: REPLACE_WITH_DATADOG_API_KEY
@@ -23,3 +40,10 @@ confluent_cloud_api_key: REPLACE_WITH_CONFLUENT_API_KEY
 confluent_cloud_api_secret: REPLACE_WITH_CONFLUENT_API_SECRET
 # Optional: leave empty to use the deterministic rule-only offers path.
 # jev_api_key: REPLACE_WITH_JEV_API_KEY
+# Optional, true or false (default false). false: ./demo destroy also deletes the stack's container image repositories,
+# so nothing is left billing. true: destroy keeps them (about $0.10 per GB-month in eu-west-1) and the next create
+# reuses every unchanged image instead of building it again.
+# keep_images: false
+# Optional. Value of the owner tag on everything the build creates. Default: your local user name (id -un).
+# Many companies ask for a work email here. Letters, digits and _ . : / = + - @ only, no spaces.
+# owner: jane.doe@example.com

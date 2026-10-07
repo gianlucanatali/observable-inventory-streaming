@@ -76,6 +76,18 @@ case "$out" in *"AccessDenied"*"could not confirm"*sgr-0bbb*) ;; *) fail "API er
 out="$(CONFLUENT_JSON='[{"name":"dd-demo-hybrid","id":"env-x"}]' run)" && fail "Confluent leftover passed: $out"
 case "$out" in *"Confluent environment still exists"*dd-demo-hybrid*) ;; *) fail "Confluent leftover not reported: $out";; esac
 
+# 6. Image repositories of this stack: a leftover by default, reported as kept with keep_images true.
+printf '%s\t%s\n' "arn:aws:ecr:eu-west-1:000000000000:repository/dd-demo-hybrid/smoke" hybrid >>"$TAGGED"
+echo 2147483648 >"$LIVE/smoke"   # the fake answers both the existence and the size query with this number
+out="$(run)" && fail "existing ECR repository passed with keep_images false: $out"
+case "$out" in *"WARNING: 1 resource(s) of stack hybrid still exist"*"repository/dd-demo-hybrid/smoke"*) ;; *) fail "repository not listed as leftover: $out";; esac
+out="$(KEEP_IMAGES=true run)" || fail "kept ECR repository failed with keep_images true: $out"
+case "$out" in *"kept on purpose (keep_images: true): 1 ECR repositories of stack hybrid, 2.00 GB stored, about \$0.20 per month at \$0.10 per GB-month"*) ;; *) fail "kept report: $out";; esac
+case "$out" in *WARNING*) fail "kept repository printed a warning: $out";; esac
+out="$(KEEP_IMAGES=yes run)" && fail "KEEP_IMAGES=yes passed: $out"
+case "$out" in *"KEEP_IMAGES must be true or false"*) ;; *) fail "invalid KEEP_IMAGES message: $out";; esac
+rm "$LIVE/smoke"
+
 # 5. stack-down calls the check and fails when it fails.
 grep -Fq 'leftover_check || die "stack $STACK: resources still exist after the destroy' "$ROOT/compose/scripts/stack.sh" \
   || fail "down() does not fail on leftovers"

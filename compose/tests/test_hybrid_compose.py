@@ -22,7 +22,7 @@ def test_hybrid_stack_selects_hybrid_overlay():
 def test_hybrid_overlay_keeps_only_on_prem_services_active():
     # These inherited services are intentionally not assigned cloud-online.
     assert '  connect:\n    depends_on:' in HYBRID
-    assert '  watchdog:\n    depends_on:' in HYBRID
+    assert '  freshness-probe:\n    depends_on:' in HYBRID
     for service in (
         "redis",
         "stock-projector",
@@ -46,7 +46,7 @@ def test_hybrid_overlay_keeps_only_on_prem_services_active():
     assert "dd_nginx" not in agent
 
 
-def test_hybrid_connect_and_watchdog_use_elasticache_contract():
+def test_hybrid_connect_and_freshness_probe_use_elasticache_contract():
     assert "ELASTICACHE_REDIS_URL:?ELASTICACHE_REDIS_URL missing" in HYBRID
     assert "REDIS_URI: ${ELASTICACHE_REDIS_URL" in HYBRID
     assert "REDIS_URL: ${ELASTICACHE_REDIS_URL" in HYBRID

@@ -42,3 +42,8 @@ output "env_file" {
   ))
   sensitive = true
 }
+
+output "overview_dashboard_url" {
+  description = "Path of the demo home (the overview dashboard: Start here, then one group per Chapter with links to the deeper views; prefix with your Datadog site, for example https://app.datadoghq.eu)."
+  value       = datadog_dashboard_json.overview.url
+}

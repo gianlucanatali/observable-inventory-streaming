@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chapter 6 of 6: Datadog on top | Observable inventory streaming</title>
+<meta name="description" content="Hands-on workshop: stream stock changes from five PostgreSQL store databases through Debezium and Confluent Cloud into Redis on AWS, then find and fix a slow release with Datadog.">
+<meta name="color-scheme" content="light dark">
+<!-- Generated from workshop/README.md by workshop/site/build.py. Do not edit by hand. -->
+<script>
+// Set the lab path before the first paint, so the page never shows both paths and then hides one.
+(function () {
+  var d = document.documentElement, p = null;
+  d.classList.add("js");
+  var m = /[?&]path=(panel|terminal)(?:&|$)/.exec(location.search);
+  try {
+    if (m) { p = m[1]; localStorage.setItem("workshop-path", p); }
+    else { p = localStorage.getItem("workshop-path"); }
+  } catch (e) {
+    console.warn("workshop: localStorage unavailable, the path choice is not remembered:", e);
+    if (m) p = m[1];
+  }
+  if (p !== "panel" && p !== "terminal") p = null;
+  d.setAttribute("data-path-mode", p || "panel");
+  if (p) d.setAttribute("data-path-chosen", "");
+})();
+</script>
+<link rel="stylesheet" href="assets/fonts.css?v=471d416a0c">
+<link rel="stylesheet" href="assets/site.css?v=84305200bf">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23632CA6'/%3E%3Cpath d='M8 21h4v-6H8zm6 0h4V10h-4zm6 0h4v-9h-4z' fill='white'/%3E%3C/svg%3E">
+</head>
+<body data-connect-href="setup.html#connect-box">
+<a class="skip" href="#content">Skip to content</a>
+<header class="topbar">
+  <button type="button" class="toc-toggle" aria-controls="toc" aria-expanded="false">
+    <span class="burger" aria-hidden="true"></span><span class="sr-only">Table of contents</span>
+  </button>
+  <a class="brand" href="intro.html" title="Start of the workshop"><span class="brand-mark" aria-hidden="true"></span><span>Observable inventory streaming</span></a>
+  <div class="path-switch" role="group" aria-label="Lab path">
+    <span class="path-switch-label" aria-hidden="true">Path</span>
+    <button type="button" data-set-path="panel" aria-pressed="true" title="Show the control panel steps">Panel</button>
+    <button type="button" data-set-path="terminal" aria-pressed="false" title="Show the terminal (make) steps">Terminal</button>
+  </div>
+  <a class="stack-badge" id="stack-badge" href="setup.html#connect-box" hidden title="Your stack is connected to this guide. Open the Connect box."><span class="stack-dot" aria-hidden="true"></span><span class="stack-badge-text">Connected<span class="stack-badge-name"></span></span></a>
+  <nav class="topbar-links" aria-label="Site">
+    <a class="topbar-home" href="index.html">Home</a>
+    <a class="topbar-current" href="intro.html" aria-current="page">Workshop</a><a class="topbar-extra" href="workshop.html">One-page guide</a>
+    <a class="topbar-extra topbar-md" href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/workshop/README.md" target="_blank" rel="noopener">Markdown source</a>
+    <a class="topbar-extra" href="https://github.com/gianlucanatali/observable-inventory-streaming" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+</header>
+<div class="layout">
+  <nav id="toc" class="toc" aria-label="Table of contents">
+    <p class="toc-title">Workshop</p><ol class="chapter-list"><li><a href="intro.html">Intro</a></li><li><a href="setup.html"><span class="cl-n">0</span>Setup</a></li><li><a href="chapter-1.html"><span class="cl-n">1</span>One honest number</a></li><li><a href="chapter-2.html"><span class="cl-n">2</span>Unknown is not zero</a></li><li><a href="chapter-3.html"><span class="cl-n">3</span>The incident</a></li><li><a href="chapter-4.html"><span class="cl-n">4</span>Canary the fix</a></li><li><a href="chapter-5.html"><span class="cl-n">5</span>The AI offer</a></li><li><a href="chapter-6.html" aria-current="page"><span class="cl-n">6</span>Datadog on top</a></li></ol><p class="toc-title">Help and reference</p><ol class="chapter-list chapter-list-help"><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="teardown.html">Teardown</a></li><li><a href="recap.html">Recap</a></li><li><a href="reference.html">Reference</a></li><li><a class="guide-link" href="workshop.html">One-page guide</a></li></ol><p class="toc-title toc-title-page">On this page</p><ol class="toc-list">
+<li class="toc-h2"><a href="#lab-61-datadog-on-top-of-the-solution">Lab 6.1: Datadog on top of the solution</a>
+<ol class="toc-sub">
+<li class="toc-h3"><a href="#start-from-the-demo-home">Start from the demo home</a></li>
+<li class="toc-h3"><a href="#turn-on-the-datadog-layers">Turn on the Datadog layers</a></li>
+<li class="toc-h3"><a href="#1-read-back-the-stack">1. Read back the stack</a></li>
+<li class="toc-h3"><a href="#2-aws-native-online-dashboard">2. AWS-native online dashboard</a></li>
+<li class="toc-h3"><a href="#3-confluent-cloud-integration">3. Confluent Cloud integration</a></li>
+<li class="toc-h3"><a href="#4-synthetics">4. Synthetics</a></li>
+<li class="toc-h3"><a href="#5-monitors">5. Monitors</a></li>
+<li class="toc-h3"><a href="#6-cost">6. Cost</a></li>
+<li class="toc-h3"><a href="#7-check-rum-on-your-run">7. Check RUM on your run</a></li>
+<li class="toc-h3"><a href="#checkpoint-7">Checkpoint</a></li>
+</ol></li>
+</ol>
+  </nav>
+  <div class="scrim" hidden></div>
+  <main id="content" class="content" tabindex="-1">
+    <article id="top" class="doc">
+<nav class="chapter-progress" aria-label="Chapters"><ol><li class="cp-step cp-extra"><a href="intro.html"><span class="cp-dot" aria-hidden="true">&middot;</span><span class="cp-label">Intro</span></a></li><li class="cp-step cp-extra"><a href="setup.html"><span class="cp-dot" aria-hidden="true">0</span><span class="cp-label">Setup</span></a></li><li class="cp-step"><a href="chapter-1.html"><span class="cp-dot" aria-hidden="true">1</span><span class="cp-label">One honest number</span></a></li><li class="cp-step"><a href="chapter-2.html"><span class="cp-dot" aria-hidden="true">2</span><span class="cp-label">Unknown is not zero</span></a></li><li class="cp-step"><a href="chapter-3.html"><span class="cp-dot" aria-hidden="true">3</span><span class="cp-label">The incident</span></a></li><li class="cp-step"><a href="chapter-4.html"><span class="cp-dot" aria-hidden="true">4</span><span class="cp-label">Canary the fix</span></a></li><li class="cp-step"><a href="chapter-5.html"><span class="cp-dot" aria-hidden="true">5</span><span class="cp-label">The AI offer</span></a></li><li class="cp-step cp-current"><a href="chapter-6.html" aria-current="page"><span class="cp-dot" aria-hidden="true">6</span><span class="cp-label">Datadog on top</span></a></li></ol></nav>
+<p class="chapter-kicker">Chapter 6 of 6</p>
+<h1 class="chapter-title">Datadog on top</h1>
+<aside class="see-box"><p class="see-title">What you will see</p><p><em>About 20 minutes.</em> In the earlier labs you looked at one incident at a time. Here you use Datadog to watch the whole platform: the VM, Confluent Cloud and AWS. You look at the integrations, at tests that call the shop from outside, at monitors and at cost.</p>
+<p><strong>Needs:</strong> up to three small layers that only change what Datadog collects: <code>dd-streams</code>, <code>dd-synthetics</code> and <code>dd-rum</code>. The step &quot;Turn on the Datadog layers&quot; turns on the ones you want (skip it if you chose everything at once).</p>
+</aside>
+<h3 id="lab-61-datadog-on-top-of-the-solution" class="lab lab">Lab 6.1: Datadog on top of the solution <a class="header-anchor" href="#lab-61-datadog-on-top-of-the-solution">#</a></h3>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Datadog layer: Confluent consumer lag, VM Agent, dashboards, AWS metrics, APM, Synthetics and LLM Observability under the whole architecture"><img src="img/arch-5-datadog.png" alt="Datadog layer: Confluent consumer lag, VM Agent, dashboards, AWS metrics, APM, Synthetics and LLM Observability under the whole architecture" width="3820" height="1620" loading="lazy" decoding="async"></button>
+<figcaption>Figure 6: everything Datadog collects, as in Figure 1.</figcaption></figure>
+<h4 id="start-from-the-demo-home">Start from the demo home <a class="header-anchor" href="#start-from-the-demo-home">#</a></h4>
+<p>Open the <a href="setup.html#3-open-the-datadog-stock-dashboard" data-stack-link="overview-dashboard">demo home</a>.</p>
+<details><summary>What the demo home shows</summary>
+<p>It starts with a &quot;Start here&quot; note, then one group per Chapter: what you are seeing, links to the deeper views already filtered to your stack, and the key charts. Group &quot;6. Datadog on top&quot; holds Synthetics, Confluent consumer lag and the cost per hour. Charts of a layer you have not turned on stay empty. Come back to it after each step below.</p>
+</details>
+<h4 id="turn-on-the-datadog-layers">Turn on the Datadog layers <a class="header-anchor" href="#turn-on-the-datadog-layers">#</a></h4>
+<p>Skip this if you chose everything at once.</p>
+<p>Add the ones you want to <code>demo.yaml</code>, for example <code>layers: core,releases,dd-streams,dd-synthetics,dd-rum</code>, then run one command per layer:</p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>layer-on<span class="w"> </span><span class="nv">L</span><span class="o">=</span>dd-streams<span class="w"> </span><span class="nv">CONFIRM</span><span class="o">=</span>yes
+make<span class="w"> </span>layer-on<span class="w"> </span><span class="nv">L</span><span class="o">=</span>dd-synthetics<span class="w"> </span><span class="nv">CONFIRM</span><span class="o">=</span>yes
+make<span class="w"> </span>layer-on<span class="w"> </span><span class="nv">L</span><span class="o">=</span>dd-rum<span class="w"> </span><span class="nv">CONFIRM</span><span class="o">=</span>yes
+</code></pre></div>
+<p>Steps 1, 2, 5 and 6 need none of them. Datadog usage runs on your trial; check your trial terms. Skip the steps of a layer you did not turn on.</p>
+<details><summary>More about this step</summary>
+<p><strong>What these layers change.</strong> This lab uses three small layers that only change what Datadog collects.</p>
+<p><strong>What each Datadog layer creates.</strong></p>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>What it creates</th>
+<th>Used in step</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dd-streams</code></td>
+<td>A read-only Confluent identity and the Datadog Confluent Cloud integration (consumer lag)</td>
+<td>3</td>
+</tr>
+<tr>
+<td><code>dd-synthetics</code></td>
+<td>A Synthetics private location on the VM and two tests (an API test every 60 s, a browser test every 300 s)</td>
+<td>4</td>
+</tr>
+<tr>
+<td><code>dd-rum</code></td>
+<td>A RUM application, and the Online shop is redeployed with its settings</td>
+<td>7</td>
+</tr>
+</tbody>
+</table></div>
+</details>
+<h4 id="1-read-back-the-stack">1. Read back the stack <a class="header-anchor" href="#1-read-back-the-stack">#</a></h4>
+<div data-path="panel" markdown="1">
+<p><strong>With the control panel</strong></p>
+<p>Open the <a href="setup.html#3-open-the-datadog-stock-dashboard" data-stack-link="stock-dashboard">stock dashboard</a>. The <strong>Pipeline</strong> group shows the six core connectors in <code>stock.connect.task_running by connector</code>, plus <code>restock-procurement</code> and <code>procurement-orders</code> if you turned on the restock layer, all running.</p>
+</div>
+<div data-path="terminal" markdown="1">
+<p><strong>With the terminal</strong></p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>status
+</code></pre></div>
+<p>You should see the six core connectors, plus <code>restock-procurement</code> and <code>procurement-orders</code> if you turned on the restock layer, all <code>RUNNING</code>.</p>
+</div>
+<details><summary>More about this step</summary>
+<div data-path="panel" markdown="1">
+<p><strong>With the control panel</strong></p>
+<p><strong>The control panel header.</strong> The header of the control panel shows the running layers and the canary routing.</p>
+</div>
+<div data-path="terminal" markdown="1">
+<p><strong>With the terminal</strong></p>
+<p><strong>What else the output lists.</strong> The output lists the VM containers, the current routing, the layers that are on and the status of every connector.</p>
+</div>
+<p><strong>Why not DSM for connectors.</strong> This is where you check connectors. DSM shows the data flow, but it does not show connector status.</p>
+</details>
+<h4 id="2-aws-native-online-dashboard">2. AWS-native online dashboard <a class="header-anchor" href="#2-aws-native-online-dashboard">#</a></h4>
+<p>Open the <a href="setup.html#3-open-the-datadog-stock-dashboard" data-stack-link="online-dashboard">AWS-native online dashboard</a>. It shows Fargate CPU and memory by service and version, ElastiCache memory and CPU, and ALB unhealthy targets, next to <code>inventory-api</code> p95 by version. If you ran Lab 3.1, you can see the CPU peak of release 1.1.0.</p>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: AWS-native online dashboard"><img src="img/lab7-01-aws-online-dashboard.png" alt="AWS-native online dashboard" width="2880" height="2300" loading="lazy" decoding="async"></button><figcaption>AWS-native online dashboard</figcaption></figure>
+<h4 id="3-confluent-cloud-integration">3. Confluent Cloud integration <a class="header-anchor" href="#3-confluent-cloud-integration">#</a></h4>
+<p>On the <a href="setup.html#3-open-the-datadog-stock-dashboard" data-stack-link="stock-dashboard">stock dashboard</a>, in the <strong>Pipeline</strong> group, the chart &quot;Confluent Cloud consumer lag (offsets) by group&quot; comes from the Confluent <abbr title="Datadog reading metrics from another provider's account, here Confluent Cloud.">integration</abbr> (the <code>dd-streams</code> layer). <abbr title="The number of messages a consumer group has not read yet.">Consumer lag</abbr> for <code>stock-projector</code> and <code>connect-sellable-redis</code> should stay near zero, which agrees with the probe.</p>
+<details><summary>Spikes are normal</summary>
+<p>A short spike after a burst of records, like the one in the screenshot, is normal; the lag should fall back to near zero.</p>
+</details>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Consumer lag by group"><img src="img/lab7-02-consumer-lag.png" alt="Consumer lag by group" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>Consumer lag by group</figcaption></figure>
+<h4 id="4-synthetics">4. Synthetics <a class="header-anchor" href="#4-synthetics">#</a></h4>
+<p>Open Synthetic Monitoring &gt; Tests and search <code>dd-demo-hybrid</code>. You should see two <abbr title="Requests that Datadog sends to your Online shop on a schedule from its own locations, like a shopper on the internet.">synthetic tests</abbr> that run from <code>aws:eu-central-1</code> against your ALB: an API test of <code>GET /api/availability/P0042</code> every 60 s, and a browser test of the product page every 300 s.</p>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Synthetics test results"><img src="img/lab7-03-synthetics.png" alt="Synthetics test results" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>Synthetics test results</figcaption></figure>
+<h4 id="5-monitors">5. Monitors <a class="header-anchor" href="#5-monitors">#</a></h4>
+<p>Open Monitors &gt; Manage Monitors and search <code>tag:project:dd-demo tag:stack:hybrid</code>. You should see the freshness, connector, VM Agent, p95-by-version, restock and AWS-side <abbr title="Rules that watch a metric and alert when it crosses a threshold or stops arriving.">monitors</abbr> (16 in our test run). A monitor in &quot;No Data&quot; does not mean everything is fine: the signal is missing.</p>
+<details><summary>More about this step</summary>
+<div data-path="panel" markdown="1">
+<p><strong>With the control panel</strong></p>
+<p>Then open Events &gt; Explorer and search <code>demo action</code>. Every control-panel action posts <code>demo action: &lt;name&gt; started</code> and then <code>succeeded</code> or <code>failed</code>, for example <code>demo action: canary-10 succeeded</code>. The resulting weights are in a <code>weights:</code> tag. Overlay these events on the p95-by-version graph to see exactly when a release change took effect.</p>
+</div>
+<div data-path="terminal" markdown="1">
+<p><strong>With the terminal</strong></p>
+<p>Then open Events &gt; Explorer and search <code>demo config</code>. You should see the settings you saved in the panel in Labs 5.1 and 5.2. The make commands post no events, so your routing changes from the terminal do not appear here.</p>
+</div>
+</details>
+<h4 id="6-cost">6. Cost <a class="header-anchor" href="#6-cost">#</a></h4>
+<p>Open the <a href="setup.html#3-open-the-datadog-stock-dashboard" data-stack-link="cost-dashboard"><code>account-cost dashboard:</code> link</a> and set <code>stack</code> to <code>hybrid</code>.</p>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Account cost dashboard"><img src="img/lab7-04-cost-dashboard.png" alt="Account cost dashboard" width="2880" height="2520" loading="lazy" decoding="async"></button><figcaption>Account cost dashboard</figcaption></figure>
+<details><summary>More about this step</summary>
+<p><strong>Where the numbers come from, and when the billed cost arrives.</strong> The <code>cost-meter</code> service estimates the hourly cost of the AWS pieces from list prices and reads Confluent usage. The billed AWS cost arrives later: AWS writes it to the <abbr title="AWS's detailed billing export, delivered to an S3 bucket.">Cost and Usage Report</abbr>, and Datadog Cloud Cost Management reads it from there, typically 48 to 72 hours after the first complete report.</p>
+<p><strong>Why the fix does not change the price of a task.</strong> Fargate bills each task by its vCPU and memory size, so the cost estimate follows the task size set in <code>service_sizing</code> (<code>terraform/aws/variables.tf</code>). All three releases use the same size (0.5 vCPU / 1 GB). The fix therefore does not change the hourly price of a task. It changes how much traffic one task can handle (see the CPU comparison in <a href="chapter-4.html#5-prove-it-latency-cpu-and-cost">Lab 4.1</a>).</p>
+</details>
+<h4 id="7-check-rum-on-your-run">7. Check RUM on your run <a class="header-anchor" href="#7-check-rum-on-your-run">#</a></h4>
+<p><abbr title="Real User Monitoring: Datadog's record of what real browsers do in the Online shop, such as page loads and API calls.">RUM</abbr> should record your browser sessions. Check that it works on your run: open <code>http://&lt;alb-dns-name&gt;/config</code> in your browser.</p>
+<details><summary>Or ask it from the terminal</summary>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>curl<span class="w"> </span>-s<span class="w"> </span>http://&lt;alb-dns-name&gt;/config
+</code></pre></div>
+</details>
+<p>You should see a <code>rum</code> block with an application ID and a client token. The client token is meant to be public. Browse the shop for a minute, then open Digital Experience &gt; RUM &gt; Sessions for the application <code>dd-demo-hybrid-shop</code>. If a session appears, RUM works on your run.</p>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: RUM session for dd-demo-hybrid-shop"><img src="img/lab7-05-rum-session.png" alt="RUM session for dd-demo-hybrid-shop" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>RUM session for dd-demo-hybrid-shop</figcaption></figure>
+<h4 id="checkpoint-7" class="checkpoint checkpoint">Checkpoint <a class="header-anchor" href="#checkpoint-7">#</a></h4>
+<ul class="contains-task-list">
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"  type="checkbox"> Every connector is running, six or eight with the restock layer. <strong>Control panel:</strong> the <strong>Pipeline</strong> group of the stock dashboard shows them all running · <strong>Terminal:</strong> <code>make status</code> shows every connector <code>RUNNING</code> (<a href="#1-read-back-the-stack">step 1</a>).</li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"  type="checkbox"> If <code>dd-synthetics</code> is on: both Synthetics tests have recent passing results (<a href="#4-synthetics">step 4</a>).</li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"  type="checkbox"> The cost dashboard shows a current USD-per-hour value for <code>hybrid</code> (<a href="#6-cost">step 6</a>).</li>
+</ul>
+<aside class="summary-box"><p class="see-title">Summary</p><p>Across the labs, APM found the slow request, freshness and DSM showed that the data path was fine, version tags checked the canary, and the integrations and monitors gave you the view of the whole platform.</p></aside>
+
+<nav class="pager" aria-label="Previous and next"><a class="pager-btn pager-prev" href="chapter-5.html"><span class="pager-dir">Previous</span><span class="pager-title">Chapter 5: The AI offer</span></a><a class="pager-btn pager-next" href="troubleshooting.html"><span class="pager-dir">Next</span><span class="pager-title">Troubleshooting</span></a></nav>
+    </article>
+    <footer class="doc-footer">
+      <p>Generated from <a href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/workshop/README.md" target="_blank" rel="noopener"><code>workshop/README.md</code></a>. Every product, store, sale and shopper in this workshop is synthetic.</p>
+      <p>Educational demo, not for production workloads. <a href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/LICENSE" target="_blank" rel="noopener">Apache License 2.0</a>, provided as is; trademarks and third-party notices in <a href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/NOTICE" target="_blank" rel="noopener">NOTICE</a>.</p>
+      <p><a href="#top">Back to top</a> &middot; <a href="workshop.html">One-page guide</a></p>
+    </footer>
+  </main>
+</div>
+<dialog class="lightbox" aria-label="Enlarged image">
+  <form method="dialog"><button class="lightbox-close" aria-label="Close">&times;</button></form>
+  <img alt="">
+  <p class="lightbox-caption"></p>
+</dialog>
+<dialog class="path-dialog" aria-labelledby="path-dialog-title" aria-describedby="path-dialog-text">
+  <h2 id="path-dialog-title">Switch to the <span class="path-dialog-other">terminal</span> path?</h2>
+  <p id="path-dialog-text">Pick one path and use it from start to finish. The control panel and the terminal each remember their own last routing for Rollback, so mixing them in one run can roll back to the wrong state. Switch only if you are starting a lab from a reset.</p>
+  <div class="path-dialog-buttons">
+    <button type="button" class="path-keep" autofocus>Keep control panel</button>
+    <button type="button" class="path-switch-confirm">Switch to terminal</button>
+  </div>
+</dialog>
+<div class="sr-only" aria-live="polite" id="live"></div>
+<script src="assets/stack.js?v=ec6a04c228"></script>
+<script src="assets/site.js?v=1de1666aca" defer></script>
+</body>
+</html>

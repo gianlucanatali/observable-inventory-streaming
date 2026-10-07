@@ -431,8 +431,8 @@ def test_load_and_gate_parameters_mirror_make_and_docs():
     assert '$(SCEN) canary-check /out/last.json --routing "$$live" --verify-file /out/verify.json' in makefile
     assert check_args(canary_gate_spec((0, 50, 50))) == "--release-a 1.1.0 --release-b 1.2.0 --verify-file /out/verify.json"
     workshop = (OVERLAY / "workshop" / "README.md").read_text()
-    assert f'canary-check CHECK_ARGS="{check_args(canary_gate_spec((90, 10, 0)))}"' in workshop  # Lab 3 bad canary
-    assert f'canary-check CHECK_ARGS="{check_args(canary_gate_spec((90, 0, 10)))}"' in workshop  # Lab 4 fix at 10%
+    assert f'canary-check CHECK_ARGS="{check_args(canary_gate_spec((90, 10, 0)))}"' in workshop  # Lab 3.1 bad canary
+    assert f'canary-check CHECK_ARGS="{check_args(canary_gate_spec((90, 0, 10)))}"' in workshop  # Lab 4.1 fix at 10%
     assert f'canary-check CHECK_ARGS="{check_args(canary_gate_spec((0, 0, 100)))}"' in workshop
     assert "load --output /out/last.json $(LOAD_ARGS)" in makefile and "verify --json-out /out/verify.json" in makefile
     assert "canary-check /out/last.json $(CHECK_ARGS)" in makefile

@@ -9,8 +9,9 @@ MAX_ALTERNATIVES = 2
 SCAN_LIMIT = 12  # eligible products examined (closest price first) when looking for in-stock alternatives
 NOTIFY_ID = "notify_me"
 
-# Lookup of the sellable quantity for a product: int, or None when unknown. Never treated as available.
-SellableLookup = Callable[[str], "int | None"]
+# Lookup of a product's confirmed minimum (offer_worker/stock.py): the quantity counted only from live
+# stores, the same number the shop promises. None when it cannot be computed. Only > 0 is eligible; None never is.
+ConfirmedMinLookup = Callable[[str], "int | None"]
 
 
 @dataclass(frozen=True)
@@ -32,7 +33,7 @@ def _describe(p: dict) -> str:
     return f"{p['name']} by {p['brand']}, {p['category']}, size {p['size']}, {p['colour']['name']}, EUR {p['price_eur']:.2f}"
 
 
-def build_candidates(original: dict, catalogue: dict[str, dict], sellable: SellableLookup, discount_pct: int) -> list[Candidate]:
+def build_candidates(original: dict, catalogue: dict[str, dict], confirmed_min: ConfirmedMinLookup, discount_pct: int) -> list[Candidate]:
     minimum_price = original["price_eur"] * 0.8
     maximum_price = original["price_eur"] * 1.2
     pool = sorted(
@@ -45,7 +46,7 @@ def build_candidates(original: dict, catalogue: dict[str, dict], sellable: Sella
     )
     cands: list[Candidate] = []
     for p in pool[:SCAN_LIMIT]:
-        qty = sellable(p["product_id"])
+        qty = confirmed_min(p["product_id"])
         if qty is not None and qty > 0:
             cands.append(Candidate(f"alt:{p['product_id']}", "ALTERNATIVE_PRODUCT", p["product_id"], discount_pct,
                                    f"Similar in-stock product with {discount_pct}% off: {_describe(p)}"))

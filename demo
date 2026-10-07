@@ -12,16 +12,30 @@ import stat
 import subprocess
 import sys
 import tempfile
+import textwrap
 import urllib.request
 from pathlib import Path
 
 IP_LOOKUP_URL = "https://checkip.amazonaws.com"
 ROOT = Path(__file__).resolve().parent
 CONFIG = ROOT / "demo.yaml"
-REQUIRED = {"stack", "aws_profile", "aws_region", "layers", "datadog_site", "dd_api_key", "dd_app_key", "confluent_cloud_api_key", "confluent_cloud_api_secret"}
-OPTIONAL = {"allowed_cidr", "presenter_cidr", "jev_api_key"}
+REQUIRED = {"stack", "aws_profile", "aws_region", "datadog_site", "dd_api_key", "dd_app_key", "confluent_cloud_api_key", "confluent_cloud_api_secret"}
+OPTIONAL = {"allowed_cidr", "presenter_cidr", "jev_api_key", "keep_images", "layers", "mode", "owner"}
+# owner: value of the owner tag on every AWS resource. AWS allows letters, digits, spaces and _ . : / = + - @ up to 256
+# characters; spaces are left out here so the value stays one word for make and the shell. Same rule in stack.sh (OWNER).
+OWNER_PATTERN = r"[A-Za-z0-9_.:/=+@-]{1,256}"
+DEFAULT_LAYERS = "core"  # no layers key: core only; "all" = every layer except control-center
 ALLOWED = REQUIRED | OPTIONAL
 LAYERS = {"core", "releases", "restock", "offers", "dd-streams", "dd-synthetics", "dd-rum", "control-center"}
+# mode: cloud (default, AWS + Confluent Cloud) | local (Lima VM on this laptop, no AWS or Confluent Cloud).
+MODES = ("cloud", "local")
+DEFAULT_MODE = "cloud"
+# Local mode reads only these keys; the cloud keys may stay in the file (one-line flip) and are then ignored.
+LOCAL_REQUIRED = {"datadog_site", "dd_api_key"}
+LOCAL_USED = LOCAL_REQUIRED | {"mode", "layers", "jev_api_key"}
+LOCAL_STACK = "dev"  # local data is always env dd-demo-dev, so it never mixes with a cloud stack in Datadog
+LOCAL_LAYERS = ("releases", "restock", "offers")  # container layers; the others need the cloud (LOCAL.md)
+LIMA_VM = "dd-demo"
 SECRET_KEYS = {"dd_api_key", "dd_app_key", "confluent_cloud_api_key", "confluent_cloud_api_secret", "jev_api_key"}
 PLACEHOLDERS = ("replace", "example", "changeme", "your_", "<", "placeholder")
 
@@ -54,24 +68,37 @@ def parse_yaml(path: Path) -> dict[str, str]:
             value = value.split(" #", 1)[0].rstrip()
         values[key] = value
     unknown = sorted(set(values) - ALLOWED)
-    missing = sorted(REQUIRED - set(values))
+    if "mode" in values and values["mode"] not in MODES:
+        fail(f"demo.yaml: mode must be local or cloud, got '{values['mode']}' (remove the key for cloud)")
+    values.setdefault("mode", DEFAULT_MODE)
+    local = values["mode"] == "local"
+    missing = sorted((LOCAL_REQUIRED if local else REQUIRED) - set(values))
     if unknown:
         fail("demo.yaml has unknown key(s): " + ", ".join(unknown))
     if missing:
         fail("demo.yaml is missing required key(s): " + ", ".join(missing))
+    if local:  # cloud-only keys are ignored locally: not validated, not used, never written to .env
+        for key in set(values) - LOCAL_USED:
+            values.pop(key)
     if "allowed_cidr" in values and "presenter_cidr" in values:
         fail("demo.yaml may contain only one of allowed_cidr or presenter_cidr")
     if "presenter_cidr" in values:  # compatibility for existing private configs
         values["allowed_cidr"] = values.pop("presenter_cidr")
+    if "layers" in values and not values["layers"]:
+        fail("demo.yaml: 'layers' cannot be empty (remove the key for core only, or write core, all, or a comma list)")
+    values.setdefault("layers", DEFAULT_LAYERS)
     for key, value in values.items():
         if not value and key not in OPTIONAL:
             fail(f"demo.yaml: '{key}' cannot be empty")
-        if any(marker in value.lower() for marker in PLACEHOLDERS):
+        if key != "owner" and any(marker in value.lower() for marker in PLACEHOLDERS):  # an owner may be jane.doe@example.com
             fail(f"demo.yaml: '{key}' still contains a placeholder")
     return values
 
 
 def validate(values: dict[str, str]) -> None:
+    if values.get("mode") == "local":
+        validate_local(values)
+        return
     if not re.fullmatch(r"[a-z][a-z0-9-]{1,15}", values["stack"]):
         fail("demo.yaml: stack must match ^[a-z][a-z0-9-]{1,15}$")
     if not re.fullmatch(r"[A-Za-z0-9_+=,.@-]{1,128}", values["aws_profile"]):
@@ -81,8 +108,8 @@ def validate(values: dict[str, str]) -> None:
     if values["datadog_site"] not in {"datadoghq.com", "datadoghq.eu", "us3.datadoghq.com", "us5.datadoghq.com", "ddog-gov.com"}:
         fail("demo.yaml: datadog_site is not supported")
     selected = values["layers"].split(",")
-    if not selected or any(layer not in LAYERS for layer in selected) or len(selected) != len(set(selected)):
-        fail("demo.yaml: layers must be a unique comma-separated list of supported layers")
+    if values["layers"] != "all" and (any(layer not in LAYERS for layer in selected) or len(selected) != len(set(selected))):
+        fail("demo.yaml: layers must be all, or a unique comma-separated list of supported layers")
 
     if values.get("allowed_cidr"):
         try:
@@ -92,6 +119,13 @@ def validate(values: dict[str, str]) -> None:
         if network is None or network.prefixlen != 32 or not values["allowed_cidr"].endswith("/32"):
             fail("demo.yaml: allowed_cidr must be a single IPv4 address in /32 form, for example 203.0.113.7/32 (or empty to auto-detect)")
 
+    if "keep_images" in values and values["keep_images"] not in {"true", "false"}:
+        fail("demo.yaml: keep_images must be true or false")
+
+    if "owner" in values and not re.fullmatch(OWNER_PATTERN, values["owner"]):
+        fail("demo.yaml: owner must be 1 to 256 characters from letters, digits and _ . : / = + - @ (no spaces), "
+             "for example jane.doe@example.com; remove the key to use your local user name")
+
     for key in SECRET_KEYS - {"jev_api_key"}:
         if not re.fullmatch(r"[A-Za-z0-9_+=./:-]{8,512}", values[key]):
             fail(f"demo.yaml: {key} has an invalid credential shape")
@@ -99,17 +133,51 @@ def validate(values: dict[str, str]) -> None:
         fail("demo.yaml: jev_api_key has an invalid credential shape")
 
 
-def write_env(values: dict[str, str]) -> None:
-    lines = [
-        "# Generated by ./demo from demo.yaml; mode 0600. Do not edit secrets here.",
-        f"DD_SITE={values['datadog_site']}",
-        f"DD_API_KEY={values['dd_api_key']}",
-        f"DD_APP_KEY={values['dd_app_key']}",
-        f"CONFLUENT_CLOUD_API_KEY={values['confluent_cloud_api_key']}",
-        f"CONFLUENT_CLOUD_API_SECRET={values['confluent_cloud_api_secret']}",
-    ]
+def validate_local(values: dict[str, str]) -> None:
+    """mode: local reads only datadog_site, dd_api_key, layers and jev_api_key (LOCAL_USED)."""
+    if values["datadog_site"] not in {"datadoghq.com", "datadoghq.eu", "us3.datadoghq.com", "us5.datadoghq.com", "ddog-gov.com"}:
+        fail("demo.yaml: datadog_site is not supported")
+    selected = values["layers"].split(",")
+    if values["layers"] != "all" and (any(layer not in LAYERS for layer in selected) or len(selected) != len(set(selected))):
+        fail("demo.yaml: layers must be all, or a unique comma-separated list of supported layers")
+    if not re.fullmatch(r"[A-Za-z0-9_+=./:-]{8,512}", values["dd_api_key"]):
+        fail("demo.yaml: dd_api_key has an invalid credential shape")
+    if values.get("jev_api_key") and not re.fullmatch(r"[A-Za-z0-9_+=./:-]{8,512}", values["jev_api_key"]):
+        fail("demo.yaml: jev_api_key has an invalid credential shape")
+
+
+def local_layers(layers: str) -> tuple[list[str], list[str]]:
+    """(layers turned on locally, cloud-only layers skipped). all = every local layer; core is always on."""
+    if layers == "all":
+        return list(LOCAL_LAYERS), []
+    chosen = [layer for layer in layers.split(",") if layer != "core"]
+    return [layer for layer in chosen if layer in LOCAL_LAYERS], [layer for layer in chosen if layer not in LOCAL_LAYERS]
+
+
+def env_lines(values: dict[str, str]) -> list[tuple[str, str]]:
+    if values.get("mode") == "local":
+        pairs = [("DD_SITE", values["datadog_site"]), ("DD_API_KEY", values["dd_api_key"])]
+    else:
+        pairs = [("DD_SITE", values["datadog_site"]), ("DD_API_KEY", values["dd_api_key"]),
+                 ("DD_APP_KEY", values["dd_app_key"]), ("CONFLUENT_CLOUD_API_KEY", values["confluent_cloud_api_key"]),
+                 ("CONFLUENT_CLOUD_API_SECRET", values["confluent_cloud_api_secret"])]
     if values.get("jev_api_key"):
-        lines.append(f"JEV_API_KEY={values['jev_api_key']}")
+        pairs.append(("JEV_API_KEY", values["jev_api_key"]))
+    return pairs
+
+
+def write_env(values: dict[str, str]) -> None:
+    """Write .env (mode 0600). Cloud: the whole file from demo.yaml. Local: only the keys local mode reads are
+    replaced and every other line is kept, so a cloud stack's Confluent and Datadog app keys survive a flip to local
+    (./demo destroy of that stack still needs them)."""
+    header = "# Generated by ./demo from demo.yaml; mode 0600. Do not edit secrets here."
+    pairs = env_lines(values)
+    kept: list[str] = []
+    if values.get("mode") == "local" and (ROOT / ".env").is_file():
+        managed = {key for key, _ in pairs}
+        kept = [line for line in (ROOT / ".env").read_text(encoding="utf-8").splitlines()
+                if line != header and line.split("=", 1)[0].strip() not in managed]
+    lines = [header, *(f"{key}={value}" for key, value in pairs), *kept]
     fd, temporary = tempfile.mkstemp(prefix=".env.", dir=ROOT, text=True)
     try:
         os.fchmod(fd, 0o600)
@@ -126,7 +194,11 @@ def write_env(values: dict[str, str]) -> None:
 
 
 def make_base(values: dict[str, str]) -> list[str]:
-    args = ["make", "--no-print-directory", "-C", str(ROOT), "MODE=cloud", "TOPOLOGY=hybrid", f"STACK={values['stack']}", f"AWS_PROFILE={values['aws_profile']}", f"AWS_REGION={values['aws_region']}", f"ENV_DIR={ROOT}", f"LAYERS={values['layers']}"]
+    if values.get("mode") == "local":  # MODE=dev on the command line: the Makefile never reads demo.yaml for cloud values
+        return ["make", "--no-print-directory", "-C", str(ROOT), "MODE=dev", f"STACK={LOCAL_STACK}", f"ENV_DIR={ROOT}"]
+    args = ["make", "--no-print-directory", "-C", str(ROOT), "MODE=cloud", "TOPOLOGY=hybrid", f"STACK={values['stack']}", f"AWS_PROFILE={values['aws_profile']}", f"AWS_REGION={values['aws_region']}", f"ENV_DIR={ROOT}", f"LAYERS={values['layers']}", f"KEEP_IMAGES={values.get('keep_images', 'false')}"]
+    if values.get("owner") and "OWNER" not in os.environ:  # an OWNER environment variable still wins (stack.sh reads it)
+        args.append(f"OWNER={values['owner']}")
     if values.get("allowed_cidr"):
         args.extend((f"PRESENTER_CIDR={values['allowed_cidr']}", f"TF_VAR_presenter_cidr={values['allowed_cidr']}"))
     return args
@@ -171,8 +243,59 @@ def invoke(command: list[str], dry_run: bool) -> None:
 def prompt(message: str, yes: bool) -> None:
     if yes:
         return
-    if not sys.stdin.isatty() or input(message + " Type yes to continue: ").strip().lower() != "yes":
+    if not sys.stdin.isatty():
         raise ValueError("confirmation not received; rerun with --yes after reviewing the cost/destruction warning")
+    # The question comes after minutes of build output: frame it so it stands out (colour only on a terminal).
+    bold, reset = ("\033[1;33m", "\033[0m") if sys.stdout.isatty() and not os.environ.get("NO_COLOR") else ("", "")
+    rule = "=" * 72
+    print(f"\n{bold}{rule}\n  ACTION NEEDED: ./demo is waiting for your answer\n{rule}{reset}")
+    print(textwrap.fill(message, width=72, initial_indent="  ", subsequent_indent="  "))
+    if input(f"\n{bold}  Type yes and press Enter to continue (anything else stops here): {reset}").strip().lower() != "yes":
+        raise ValueError("confirmation not received; rerun with --yes after reviewing the cost/destruction warning")
+
+
+def cloud_stacks_left(env_dir: Path) -> list[str]:
+    """Stacks whose .env.cloud-<stack> exists (stack.sh writes it at create and deletes it at the end of destroy)."""
+    return sorted(p.name[len(".env.cloud-"):] for p in env_dir.glob(".env.cloud-*") if p.is_file())
+
+
+def ask_purge(purge: bool, yes: bool) -> bool:
+    """Local destroy keeps the data volumes unless --purge, or the presenter answers yes when asked (tty only)."""
+    if purge:
+        return True
+    if yes or not sys.stdin.isatty():
+        print("demo: keeping the local data volumes (pass --purge to delete them too)")
+        return False
+    return input("Also delete the local data volumes (store databases, Kafka, Redis)? [y/N]: ").strip().lower() in ("y", "yes")
+
+
+def run_local(action: str, values: dict[str, str], base: list[str], args) -> None:
+    """mode: local: the same commands on the Lima VM (MODE=dev). Nothing here creates a cloud resource."""
+    if action == "create":
+        on, skipped = local_layers(values["layers"])
+        for layer in skipped:
+            print(f"demo: layer {layer} is cloud-only; skipped locally (LOCAL.md, What is different locally)", file=sys.stderr)
+        left = cloud_stacks_left(ROOT)
+        if left:
+            print("demo: WARNING: cloud stack(s) " + ", ".join(left) + " may still be running and billing. Switching to "
+                  "mode: local does not destroy them: set mode: cloud and run ./demo destroy when you are done.", file=sys.stderr)
+        command = [*base, "local-up", "LOCAL_LAYERS=" + ",".join(["core", *on])]
+        if args.dry_run:
+            invoke(command, True)
+            return
+        print(f"demo: local mode: containers in the Lima VM '{LIMA_VM}' on this laptop, no AWS or Confluent Cloud resources; Datadog still receives this stack's data.")
+        write_env(values)
+        invoke(command, False)
+    elif action == "destroy":
+        if args.dry_run:
+            invoke([*base, "local-down", *(["PURGE=1"] if args.purge else [])], True)
+            return
+        invoke([*base, "local-down", *(["PURGE=1"] if ask_purge(args.purge, args.yes) else [])], False)
+    elif action == "status":
+        invoke([*base, "status"], args.dry_run)
+        invoke([*base, "links"], args.dry_run)
+    else:
+        invoke([*base, {"links": "links", "reset": "reset"}[action]], args.dry_run)
 
 
 def main() -> int:
@@ -180,10 +303,16 @@ def main() -> int:
     parser.add_argument("action", choices=("create", "destroy", "status", "links", "reset"))
     parser.add_argument("--yes", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--purge", action="store_true", help="mode: local destroy also deletes the local data volumes")
     args = parser.parse_args()
     try:
         values = parse_yaml(CONFIG)
         validate(values)
+        if values["mode"] == "local":
+            run_local(args.action, values, make_base(values), args)
+            return 0
+        if args.purge:
+            raise ValueError("--purge is for mode: local only (a cloud destroy always deletes the stack)")
         if args.action == "create":
             resolve_allowed_cidr(values, lookup=not args.dry_run)
         base = make_base(values)

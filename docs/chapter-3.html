@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chapter 3 of 6: The incident | Observable inventory streaming</title>
+<meta name="description" content="Hands-on workshop: stream stock changes from five PostgreSQL store databases through Debezium and Confluent Cloud into Redis on AWS, then find and fix a slow release with Datadog.">
+<meta name="color-scheme" content="light dark">
+<!-- Generated from workshop/README.md by workshop/site/build.py. Do not edit by hand. -->
+<script>
+// Set the lab path before the first paint, so the page never shows both paths and then hides one.
+(function () {
+  var d = document.documentElement, p = null;
+  d.classList.add("js");
+  var m = /[?&]path=(panel|terminal)(?:&|$)/.exec(location.search);
+  try {
+    if (m) { p = m[1]; localStorage.setItem("workshop-path", p); }
+    else { p = localStorage.getItem("workshop-path"); }
+  } catch (e) {
+    console.warn("workshop: localStorage unavailable, the path choice is not remembered:", e);
+    if (m) p = m[1];
+  }
+  if (p !== "panel" && p !== "terminal") p = null;
+  d.setAttribute("data-path-mode", p || "panel");
+  if (p) d.setAttribute("data-path-chosen", "");
+})();
+</script>
+<link rel="stylesheet" href="assets/fonts.css?v=471d416a0c">
+<link rel="stylesheet" href="assets/site.css?v=84305200bf">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23632CA6'/%3E%3Cpath d='M8 21h4v-6H8zm6 0h4V10h-4zm6 0h4v-9h-4z' fill='white'/%3E%3C/svg%3E">
+</head>
+<body data-connect-href="setup.html#connect-box">
+<a class="skip" href="#content">Skip to content</a>
+<header class="topbar">
+  <button type="button" class="toc-toggle" aria-controls="toc" aria-expanded="false">
+    <span class="burger" aria-hidden="true"></span><span class="sr-only">Table of contents</span>
+  </button>
+  <a class="brand" href="intro.html" title="Start of the workshop"><span class="brand-mark" aria-hidden="true"></span><span>Observable inventory streaming</span></a>
+  <div class="path-switch" role="group" aria-label="Lab path">
+    <span class="path-switch-label" aria-hidden="true">Path</span>
+    <button type="button" data-set-path="panel" aria-pressed="true" title="Show the control panel steps">Panel</button>
+    <button type="button" data-set-path="terminal" aria-pressed="false" title="Show the terminal (make) steps">Terminal</button>
+  </div>
+  <a class="stack-badge" id="stack-badge" href="setup.html#connect-box" hidden title="Your stack is connected to this guide. Open the Connect box."><span class="stack-dot" aria-hidden="true"></span><span class="stack-badge-text">Connected<span class="stack-badge-name"></span></span></a>
+  <nav class="topbar-links" aria-label="Site">
+    <a class="topbar-home" href="index.html">Home</a>
+    <a class="topbar-current" href="intro.html" aria-current="page">Workshop</a><a class="topbar-extra" href="workshop.html">One-page guide</a>
+    <a class="topbar-extra topbar-md" href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/workshop/README.md" target="_blank" rel="noopener">Markdown source</a>
+    <a class="topbar-extra" href="https://github.com/gianlucanatali/observable-inventory-streaming" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+</header>
+<div class="layout">
+  <nav id="toc" class="toc" aria-label="Table of contents">
+    <p class="toc-title">Workshop</p><ol class="chapter-list"><li><a href="intro.html">Intro</a></li><li><a href="setup.html"><span class="cl-n">0</span>Setup</a></li><li><a href="chapter-1.html"><span class="cl-n">1</span>One honest number</a></li><li><a href="chapter-2.html"><span class="cl-n">2</span>Unknown is not zero</a></li><li><a href="chapter-3.html" aria-current="page"><span class="cl-n">3</span>The incident</a></li><li><a href="chapter-4.html"><span class="cl-n">4</span>Canary the fix</a></li><li><a href="chapter-5.html"><span class="cl-n">5</span>The AI offer</a></li><li><a href="chapter-6.html"><span class="cl-n">6</span>Datadog on top</a></li></ol><p class="toc-title">Help and reference</p><ol class="chapter-list chapter-list-help"><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="teardown.html">Teardown</a></li><li><a href="recap.html">Recap</a></li><li><a href="reference.html">Reference</a></li><li><a class="guide-link" href="workshop.html">One-page guide</a></li></ol><p class="toc-title toc-title-page">On this page</p><ol class="toc-list">
+<li class="toc-h2"><a href="#lab-31-the-incident">Lab 3.1: The incident</a>
+<ol class="toc-sub">
+<li class="toc-h3"><a href="#turn-on-the-releases-layer">Turn on the releases layer</a></li>
+<li class="toc-h3"><a href="#1-check-that-routing-works-from-your-machine">1. Check that routing works from your machine</a></li>
+<li class="toc-h3"><a href="#2-ship-110-as-a-10-canary">2. Ship 1.1.0 as a 10% canary</a></li>
+<li class="toc-h3"><a href="#3-generate-steady-load">3. Generate steady load</a></li>
+<li class="toc-h3"><a href="#4-run-the-gate-it-fails">4. Run the gate: it fails</a></li>
+<li class="toc-h3"><a href="#5-roll-back">5. Roll back</a></li>
+<li class="toc-h3"><a href="#6-compare-releases-in-apm">6. Compare releases in APM</a></li>
+<li class="toc-h3"><a href="#7-open-one-slow-trace">7. Open one slow trace</a></li>
+<li class="toc-h3"><a href="#8-rule-out-the-stream">8. Rule out the stream</a></li>
+<li class="toc-h3"><a href="#9-optional-see-what-skipping-the-gate-would-have-done">9. Optional: see what skipping the gate would have done</a></li>
+<li class="toc-h3"><a href="#checkpoint-3">Checkpoint</a></li>
+</ol></li>
+</ol>
+  </nav>
+  <div class="scrim" hidden></div>
+  <main id="content" class="content" tabindex="-1">
+    <article id="top" class="doc">
+<nav class="chapter-progress" aria-label="Chapters"><ol><li class="cp-step cp-extra"><a href="intro.html"><span class="cp-dot" aria-hidden="true">&middot;</span><span class="cp-label">Intro</span></a></li><li class="cp-step cp-extra"><a href="setup.html"><span class="cp-dot" aria-hidden="true">0</span><span class="cp-label">Setup</span></a></li><li class="cp-step"><a href="chapter-1.html"><span class="cp-dot" aria-hidden="true">1</span><span class="cp-label">One honest number</span></a></li><li class="cp-step"><a href="chapter-2.html"><span class="cp-dot" aria-hidden="true">2</span><span class="cp-label">Unknown is not zero</span></a></li><li class="cp-step cp-current"><a href="chapter-3.html" aria-current="page"><span class="cp-dot" aria-hidden="true">3</span><span class="cp-label">The incident</span></a></li><li class="cp-step"><a href="chapter-4.html"><span class="cp-dot" aria-hidden="true">4</span><span class="cp-label">Canary the fix</span></a></li><li class="cp-step"><a href="chapter-5.html"><span class="cp-dot" aria-hidden="true">5</span><span class="cp-label">The AI offer</span></a></li><li class="cp-step"><a href="chapter-6.html"><span class="cp-dot" aria-hidden="true">6</span><span class="cp-label">Datadog on top</span></a></li></ol></nav>
+<p class="chapter-kicker">Chapter 3 of 6</p>
+<h1 class="chapter-title">The incident</h1>
+<aside class="see-box"><p class="see-title">What you will see</p><p><em>About 20 minutes.</em> A new release of the stock lookup service makes every stock request slow. The team ships it as a <abbr title="A new release that gets a small share of traffic next to the current one, so you can compare the two before going further.">canary</abbr> with 10% of the traffic. You run the canary check, it fails, and you roll back before the other 90% of lookups are affected. Then you use Datadog on the canary's traffic to show that the cause is in the release code, not in the stream.</p>
+<p><strong>Needs:</strong> one more layer, <code>releases</code>. Lab 3.1 starts by turning it on (skip that if you chose everything at once).</p>
+</aside>
+<h3 id="lab-31-the-incident" class="lab lab">Lab 3.1: The incident <a class="header-anchor" href="#lab-31-the-incident">#</a></h3>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Releases layer: the load balancer splits stock calls by weight between releases 1.0.0 healthy, 1.1.0 slow and 1.2.0 fix"><img src="img/arch-2-releases.png" alt="Releases layer: the load balancer splits stock calls by weight between releases 1.0.0 healthy, 1.1.0 slow and 1.2.0 fix" width="3820" height="1620" loading="lazy" decoding="async"></button>
+<figcaption>Figure 3: the releases layer. Three releases of the stock lookup service, all reading only Redis, each behind its own target group of the load balancer.</figcaption></figure>
+<p>A <em>release</em> is one deployed build of the lookup service, identified by its version. 1.0.0 is healthy. 1.1.0 adds product details by preparing a product catalogue inside every request: the regression. 1.2.0 prepares the catalogue once at startup: the fix. The load balancer (ALB) rule for <code>/api/availability/*</code> sends requests to the three releases by weight, one <abbr title="The set of containers that receives one release's share of the traffic.">target group</abbr> per release.</p>
+<p>The ALB moves the traffic and Datadog compares the versions. The gate (<code>canary-check</code>, or <strong>Check canary</strong> in the panel) says pass or stop, but only when you run it: nothing runs it for you.</p>
+<details>
+<summary>Why the comparison between versions is fair</summary>
+<p>All three releases run on the same Fargate task size (0.5 vCPU / 1 GB, <code>service_sizing</code> in <code>terraform/aws/variables.tf</code>). Any difference in latency or CPU between versions therefore comes from the code, not from the task size.</p>
+</details>
+<p>Open this Chapter in the <a href="setup.html#3-open-the-datadog-stock-dashboard" data-stack-link="overview-dashboard">demo home</a>, group &quot;3. The incident&quot;: p95 by version, ECS CPU against the task's whole vCPU and unhealthy targets, with the Amazon ECS events as markers, and links to APM and the 1.1.0 traces.</p>
+<h4 id="turn-on-the-releases-layer">Turn on the releases layer <a class="header-anchor" href="#turn-on-the-releases-layer">#</a></h4>
+<p>Skip this if you chose everything at once, or if <code>releases</code> is already in your <code>layers:</code> line (<code>make layers-status</code> shows <code>releases: ON</code>).</p>
+<ol>
+<li>
+<p>In <code>demo.yaml</code>, change the line to <code>layers: core,releases</code> (keep any other layers you already added).</p>
+</li>
+<li>
+<p>Run:</p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>layer-on<span class="w"> </span><span class="nv">L</span><span class="o">=</span>releases<span class="w"> </span><span class="nv">CONFIRM</span><span class="o">=</span>yes
+</code></pre></div>
+<p>Wait until the ECS services are healthy before you continue; give it a few minutes.</p>
+<details><summary>What this creates</summary>
+<p>This creates the p95-by-version monitor in Datadog and starts the two Fargate services for releases 1.1.0 and 1.2.0 (0.5 vCPU and 1 GB each, about $0.02 per hour each at the prices in <a href="reference.html#d-cost-details">Reference D</a>).</p>
+</details>
+</li>
+<li>
+<p>Check the layer: <code>make layers-status</code> should print <code>releases: ON</code>.</p>
+</li>
+</ol>
+<h4 id="1-check-that-routing-works-from-your-machine">1. Check that routing works from your machine <a class="header-anchor" href="#1-check-that-routing-works-from-your-machine">#</a></h4>
+<div data-path="panel" markdown="1">
+<p><strong>With the control panel</strong></p>
+<p>In the <a href="setup.html#2-open-the-control-panel" data-stack-link="control">control panel</a>, open the <strong>Release routing</strong> card and press <strong>Refresh weights</strong>. The tiles should read 100% for 1.0.0 and 0% for 1.1.0 and 1.2.0.</p>
+<details><summary>Why the panel needs no AWS login</summary>
+<p>The panel changes the routing from AWS itself, so it does not need your AWS login.</p>
+</details>
+</div>
+<div data-path="terminal" markdown="1">
+<p><strong>With the terminal</strong></p>
+<p>The routing commands call the AWS API, so they need a valid <code>aws login</code> session.</p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>route-check
+</code></pre></div>
+<div class="code code-out" data-lang="text"><div class="code-bar"><span class="code-label">Expected output</span></div><pre tabindex="0"><code>alb-routing: live weights 1.0.0/1.1.0/1.2.0 = 100 0 0%
+</code></pre></div>
+<p>If it fails, run <code>aws login --profile dd-demo</code> and try again.</p>
+</div>
+<h4 id="2-ship-110-as-a-10-canary">2. Ship 1.1.0 as a 10% canary <a class="header-anchor" href="#2-ship-110-as-a-10-canary">#</a></h4>
+<div data-path="panel" markdown="1">
+<p><strong>With the control panel</strong></p>
+<ol>
+<li>In the <a href="setup.html#2-open-the-control-panel" data-stack-link="control">control panel</a>, press <strong>Full reset</strong> on the <strong>Background sales</strong> card and confirm. It stops background sales and sets the routing to 100 / 0 / 0. Wait for <code>full-reset succeeded</code>.</li>
+<li>Press <strong>Canary 1.1.0 (10%)</strong> on the <strong>Release routing</strong> card and confirm. The tiles should read 90% for 1.0.0, 10% for 1.1.0 and 0% for 1.2.0, and the line under them <code>Live 90/10/0 · previous (for Rollback): 100/0/0</code>.</li>
+</ol>
+</div>
+<div data-path="terminal" markdown="1">
+<p><strong>With the terminal</strong></p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>reset
+make<span class="w"> </span>canary-110-10
+make<span class="w"> </span>route-show
+</code></pre></div>
+<p><code>canary-110-10</code> first prints the AWS rule JSON. The last lines should be:</p>
+<div class="code code-out" data-lang="text"><div class="code-bar"><span class="code-label">Expected output</span></div><pre tabindex="0"><code>...
+alb-routing: weights 1.0.0/1.1.0/1.2.0 = 90 10 0%
+alb-routing: live weights 1.0.0/1.1.0/1.2.0 = 90 10 0%
+current=90 10 0 previous=100 0 0
+</code></pre></div>
+</div>
+<h4 id="3-generate-steady-load">3. Generate steady load <a class="header-anchor" href="#3-generate-steady-load">#</a></h4>
+<p>You send 5 requests per second for 2 minutes.</p>
+<div data-path="panel" markdown="1">
+<p><strong>With the control panel</strong></p>
+<p>In the <a href="setup.html#2-open-the-control-panel" data-stack-link="control">control panel</a>, press <strong>Run load (120 s, 5 rps)</strong> on the <strong>Checks</strong> card and confirm.</p>
+</div>
+<div data-path="terminal" markdown="1">
+<p><strong>With the terminal</strong></p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>load<span class="w"> </span><span class="nv">LOAD_DURATION</span><span class="o">=</span><span class="m">120</span><span class="w"> </span><span class="nv">LOAD_RPS</span><span class="o">=</span><span class="m">5</span>
+</code></pre></div>
+<p>You should see one JSON line per 10 s window with both releases, then a summary. The gate reads this summary.</p>
+</div>
+<details><summary>More about this step</summary>
+<p><strong>Why load.</strong> The gate and Datadog both need enough requests on the canary to measure it.</p>
+<div data-path="panel" markdown="1">
+<p><strong>With the control panel</strong></p>
+<p><strong>What the card shows while it runs.</strong> During the 2 minutes the card shows live progress lines, for example <code>Load 40/120 s, last window: ...</code>, then the requests, errors, p50 and p95 per release. The buttons stay disabled until the run ends. The gate reads the summary of this run.</p>
+</div>
+<div data-path="terminal" markdown="1">
+<p><strong>With the terminal</strong></p>
+<p><strong>What the load prints.</strong></p>
+<div class="code code-out" data-lang="text"><div class="code-bar"><span class="code-label">Expected output</span></div><pre tabindex="0"><code>{"window": 0, "window_s": 10, "count": 50, "releases": {"1.0.0": {"count": &lt;n&gt;, "errors": 0, ...}, "1.1.0": {"count": &lt;n&gt;, "errors": 0, ...}}}
+...
+{"summary": {"total": {"count": 600, "releases": {"1.0.0": {...}, "1.1.0": {...}}}, ...}}
+</code></pre></div>
+</div>
+<p><strong>How many samples to expect.</strong> About one lookup in ten goes to 1.1.0, so expect about 60 samples of it in two minutes.</p>
+<p><strong>While it runs: watch the shop footer.</strong> While the load runs, keep the <a href="chapter-1.html#hop-5-the-shop-page" data-stack-link="shop">product page</a> open and watch the footer: about once every ten seconds it shows &quot;Serving release 1.1.0&quot; for a second. The split is per request, not per user, and the page asks for the stock every second, so about one answer in ten comes from the slow release. That is too little to notice in the shop, which is why the canary gate and p95 by version in APM (<a href="#6-compare-releases-in-apm">step 6</a>) are what catch it.</p>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Product page with a lookup served by release 1.1.0"><img src="img/lab3-01-shop-on-release-110.png" alt="Product page with a lookup served by release 1.1.0" width="2880" height="2300" loading="lazy" decoding="async"></button><figcaption>Product page with a lookup served by release 1.1.0</figcaption></figure>
+</details>
+<h4 id="4-run-the-gate-it-fails">4. Run the gate: it fails <a class="header-anchor" href="#4-run-the-gate-it-fails">#</a></h4>
+<p>The gate compares the canary (1.1.0) with the release it would replace (1.0.0).</p>
+<div data-path="panel" markdown="1">
+<p><strong>With the control panel</strong></p>
+<ol>
+<li>In the <a href="setup.html#2-open-the-control-panel" data-stack-link="control">control panel</a>, press <strong>Verify</strong> on the <strong>Checks</strong> card and wait for <code>VERIFY PASSED</code> with 0 position and 0 sellable mismatches.</li>
+<li>Press <strong>Check canary</strong> and confirm.</li>
+</ol>
+<p>You should see: Verify passes, because the stock numbers are right (1.1.0 is slow, not wrong). Then Check canary fails on latency only: the result box shows <code>CANARY GATES FAILED: p95 1.1.0 &lt;ms&gt; ms &gt; budget 200 ms; roll back</code>, with several hundred ms against the 200 ms budget. Only the <code>p95_b</code> line is <code>FAIL</code>; the sample, error-rate and correctness gates are <code>PASS</code>.</p>
+</div>
+<div data-path="terminal" markdown="1">
+<p><strong>With the terminal</strong></p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>verify
+make<span class="w"> </span>canary-check<span class="w"> </span><span class="nv">CHECK_ARGS</span><span class="o">=</span><span class="s2">"--release-a 1.0.0 --release-b 1.1.0 --min-samples 30 --verify-file /out/verify.json"</span>
+</code></pre></div>
+<p>You should see: <code>make verify</code> passes with 0 mismatches, because the stock numbers are right (1.1.0 is slow, not wrong). Then the gate fails on latency only, with a p95 of several hundred ms against the 200 ms budget:</p>
+<div class="code code-out" data-lang="text"><div class="code-bar"><span class="code-label">Expected output</span></div><pre tabindex="0"><code>PASS min_samples_a: release 1.0.0: &lt;n&gt; samples, need &gt;= 30
+PASS min_samples_b: release 1.1.0: &lt;n&gt; samples, need &gt;= 30
+PASS error_rate_a: release 1.0.0: 0/&lt;n&gt; errors (0.0000), max 0.0
+PASS error_rate_b: release 1.1.0: 0/&lt;n&gt; errors (0.0000), max 0.0
+FAIL p95_b: release 1.1.0: p95 &lt;ms&gt; ms, budget 200 ms
+PASS correctness: verify: 0 mismatch(es)
+CANARY GATES FAILED: p95 1.1.0 &lt;ms&gt; ms &gt; budget 200 ms; roll back
+</code></pre></div>
+</div>
+<p>That is the expected result: the answers are correct and there are no errors, but the canary is too slow, so the rollout stops here.</p>
+<details><summary>More about this step</summary>
+<p><strong>What the gate checks.</strong> It requires at least 30 samples of each, no errors, a canary p95 of 200 ms or less, and a passing verify. The default minimum is 100 samples, but a 10% share gives only about 60 in two minutes, so at 10% the gate lowers it to 30.</p>
+<div data-path="panel" markdown="1">
+<p><strong>With the control panel</strong></p>
+<p><strong>Which gate the card picks.</strong> With the routing at 90 / 10 / 0, the card picks this gate by itself and shows it below the buttons as <code>CHECK_ARGS=&quot;--release-a 1.0.0 --release-b 1.1.0 --min-samples 30 --verify-file /out/verify.json&quot;</code>.</p>
+</div>
+<div data-path="panel" markdown="1">
+<p><strong>With the control panel</strong></p>
+<p><strong>The status line.</strong> The status line reads <code>canary-check failed: CANARY GATES FAILED: p95 1.1.0 &lt;ms&gt; ms &gt; budget 200 ms; roll back ...</code>.</p>
+</div>
+<div data-path="terminal" markdown="1">
+<p><strong>With the terminal</strong></p>
+<p><strong>Exit code, and running it without <code>CHECK_ARGS</code>.</strong> The command exits with a non-zero code. Without <code>CHECK_ARGS</code>, <code>make canary-check</code> reads the live routing and picks the same gate; the explicit form above shows what it checks.</p>
+</div>
+</details>
+<h4 id="5-roll-back">5. Roll back <a class="header-anchor" href="#5-roll-back">#</a></h4>
+<div data-path="panel" markdown="1">
+<p><strong>With the control panel</strong></p>
+<p>In the <a href="setup.html#2-open-the-control-panel" data-stack-link="control">control panel</a>, press <strong>Rollback</strong> on the <strong>Release routing</strong> card and confirm. The tiles should read 100 / 0 / 0 again, the split before the last change, and the line under them <code>Live 100/0/0 · previous (for Rollback): 90/10/0</code>.</p>
+</div>
+<div data-path="terminal" markdown="1">
+<p><strong>With the terminal</strong></p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>rollback
+make<span class="w"> </span>route-show
+</code></pre></div>
+<div class="code code-out" data-lang="text"><div class="code-bar"><span class="code-label">Expected output</span></div><pre tabindex="0"><code>...
+current=100 0 0 previous=90 10 0
+</code></pre></div>
+</div>
+<p>Only the 10% of lookups that went to 1.1.0 during the canary were slow. The other 90% never reached it.</p>
+<details><summary>Where the evidence is</summary>
+<p>The canary's traces stay in Datadog, so you can now look for the cause while shoppers use the healthy release.</p>
+</details>
+<h4 id="6-compare-releases-in-apm">6. Compare releases in APM <a class="header-anchor" href="#6-compare-releases-in-apm">#</a></h4>
+<p>Open the <a href="setup.html#3-open-the-datadog-stock-dashboard" data-stack-link="apm"><code>APM inventory-api 1.1.0:</code> link</a> and look at the <strong>Deployments</strong> section of the service page. Each row is one version, with its p95 latency and error rate. You should see 1.1.0 far above 1.0.0.</p>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Inventory-api latency by version"><img src="img/lab3-02-apm-latency-by-version.png" alt="Inventory-api latency by version" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>Inventory-api latency by version</figcaption></figure>
+<details>
+<summary>Two more views, our numbers, and why the three numbers differ</summary>
+<p>Without the link: APM &gt; <code>inventory-api</code> with environment <code>dd-demo-hybrid</code>, past 15 minutes, operation <code>flask.request</code> (the APM link redirects to <code>/apm/entity/service:inventory-api</code>). During the canary, 1.1.0 is far above 1.0.0 at p95: around a second or more, against under ten milliseconds.</p>
+<p>You can read the comparison in three places. The first is the <strong>Deployments</strong> section above; the other two follow.</p>
+<p>In our run (2026-10-06, every release on 0.5 vCPU) the load script measured a client-side p95 of about 1.5 s for 1.1.0 and about 10 ms for 1.0.0 at 90 / 10 / 0. Your numbers will differ.</p>
+<ol start="2">
+<li>
+<p>To see the same number as a graph, open Metrics &gt; Explorer and paste this query (the environment in angle brackets is yours: <code>dd-demo-</code> followed by your stack name; a connected guide fills it in):</p>
+<div class="code code-out" data-lang="text"><div class="code-bar"><span class="code-label">Expected output</span></div><pre tabindex="0"><code>p95:trace.flask.request{env:&lt;env&gt;,service:inventory-api,resource_name:get_/api/availability/_product_id} by {version}
+</code></pre></div>
+<p>Set the time range to the load window. You should see one line per version.</p>
+</li>
+<li>
+<p>To see the load balancer's measurement, open Metrics &gt; Explorer with the AWS integration's metric (the name in angle brackets is <code>dd-demo-</code> followed by your stack name; a connected guide fills it in):</p>
+<div class="code code-out" data-lang="text"><div class="code-bar"><span class="code-label">Expected output</span></div><pre tabindex="0"><code>avg:aws.applicationelb.target_response_time.p95{name:&lt;stack name&gt;} by {targetgroup}
+</code></pre></div>
+<p>The AWS integration publishes the percentile as a separate metric (<code>.p95</code>), so take its average by target group. You should see the target group of 1.1.0 (<code>inventory-110</code>) well above the others. The AWS integration sends this metric once per minute.</p>
+</li>
+</ol>
+<p><strong>Why the three numbers differ.</strong> The load script's p95, the one the gate checks, is measured end to end through the load balancer. It includes the time a request waits while the slow release is busy. The load balancer's target response time starts when the request is sent to the task and ends when the first byte comes back. The APM <abbr title="One timed step inside a request.">span</abbr> measures only the handler inside the service, so it does not see time spent waiting before the handler starts.</p>
+<p>The three numbers agree when no requests wait, as on 1.0.0 and 1.2.0. Use the APM number to say how much time the code takes, and the client number to say what a shopper experienced.</p>
+</details>
+<h4 id="7-open-one-slow-trace">7. Open one slow trace <a class="header-anchor" href="#7-open-one-slow-trace">#</a></h4>
+<p>Open Traces filtered to <code>version:1.1.0</code> and open a slow request's <abbr title="The full record of one request, made of spans: one timed step each.">trace</abbr>. You should see a <code>catalogue.prepare</code> span that takes most of the request time and a short <code>stock.read</code> span (the Redis reads).</p>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Trace waterfall with catalogue.prepare and stock.read"><img src="img/lab3-03-trace-catalogue-prepare.png" alt="Trace waterfall with catalogue.prepare and stock.read" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>Trace waterfall with catalogue.prepare and stock.read</figcaption></figure>
+<details><summary>More about this step</summary>
+<p><strong>If you do not see the spans.</strong> If the trace does not show them at first, switch to the <strong>Waterfall</strong> view and look for <code>catalogue.prepare</code> and <code>stock.read</code> there.</p>
+<p><strong>Optional, with the <code>dd-rum</code> layer: start from the shopper's side.</strong> Optional, with the <code>dd-rum</code> layer on: the Online shop's <abbr title="Real User Monitoring: Datadog's record of what real browser sessions do.">RUM</abbr> SDK adds trace headers to its own <code>/api/</code> calls, so you can also start from the shopper's side. In RUM, open a session of your product page from the canary window, choose a slow <code>/api/availability/...</code> resource and open its trace. It opens the same <code>inventory-api</code> trace with <code>catalogue.prepare</code>.</p>
+<p><em>What just happened:</em> every span carries the <em>unified service tags</em> <code>env</code>, <code>service</code> and <code>version</code>, so APM can compare releases directly, even when one of them got only a tenth of the traffic. The catalogue work uses CPU and runs again in every request, so latency grows with load, while the Redis read stays fast.</p>
+</details>
+<h4 id="8-rule-out-the-stream">8. Rule out the stream <a class="header-anchor" href="#8-rule-out-the-stream">#</a></h4>
+<p>On the <a href="setup.html#3-open-the-datadog-stock-dashboard" data-stack-link="stock-dashboard">stock dashboard</a> the <strong>Freshness</strong> group has not changed, and the <strong>Service objective</strong> group shows <code>inventory-api p95 latency by version</code> rising for 1.1.0 only.</p>
+<details><summary>The DSM map and the p95 monitor</summary>
+<p>The <a href="setup.html#3-open-the-datadog-stock-dashboard" data-stack-link="dsm">DSM map</a> shows the same healthy edges as in Lab 1.1. The monitor &quot;[dd-demo-hybrid] inventory-api p95 latency above 0.2s on 1.1.0&quot; can go to Alert after its evaluation window, depending on how many 1.1.0 samples fell into that window.</p>
+<figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: P95 monitor in Alert for version 1.1.0"><img src="img/lab3-04-p95-monitor.png" alt="P95 monitor in Alert for version 1.1.0" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>P95 monitor in Alert for version 1.1.0</figcaption></figure>
+</details>
+<h4 id="9-optional-see-what-skipping-the-gate-would-have-done">9. Optional: see what skipping the gate would have done <a class="header-anchor" href="#9-optional-see-what-skipping-the-gate-would-have-done">#</a></h4>
+<p>To see the effect without a canary, send all traffic to 1.1.0 once, send load for about 2 minutes, then switch back to the healthy release.</p>
+<details><summary>Try it: all traffic to 1.1.0, and what happened in our run</summary>
+<div data-path="panel" markdown="1">
+<p><strong>With the control panel</strong></p>
+<ol>
+<li>In the <a href="setup.html#2-open-the-control-panel" data-stack-link="control">control panel</a>, press <strong>Incident (all to 1.1.0)</strong> on the <strong>Release routing</strong> card and confirm. The tiles read 0 / 100 / 0.</li>
+<li>Press <strong>Run load (120 s, 5 rps)</strong> on the <strong>Checks</strong> card and wait for the run to end.</li>
+<li>Press <strong>Baseline (all to 1.0.0)</strong>. The tiles read 100 / 0 / 0.</li>
+</ol>
+</div>
+<div data-path="terminal" markdown="1">
+<p><strong>With the terminal</strong></p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>incident
+</code></pre></div>
+<p>Then send load. It runs for about 2 minutes:</p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>load<span class="w"> </span><span class="nv">LOAD_DURATION</span><span class="o">=</span><span class="m">120</span><span class="w"> </span><span class="nv">LOAD_RPS</span><span class="o">=</span><span class="m">5</span>
+</code></pre></div>
+<p>When it ends, switch back to the healthy release:</p>
+<div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>route-baseline
+</code></pre></div>
+</div>
+<p>While the load runs, every lookup goes to 1.1.0 and requests queue up. On 0.5 vCPU, 1.1.0 cannot keep up with 5 requests per second. In our run (2026-10-06) 532 of the 600 requests timed out on the client, the 15 that were answered had a p95 of about 9.4 s, the task used its whole 0.5 vCPU, and ECS replaced it after it failed its health check. This is what the 10% canary kept away from 90% of the lookups. To see it in Datadog, open the <a href="setup.html#3-open-the-datadog-stock-dashboard" data-stack-link="overview-dashboard">demo home</a>, group &quot;3. The incident&quot;, and use its link &quot;The night of the incident&quot;: it opens the same dashboard on 2026-10-06 18:10-18:30 UTC, our run, where ECS CPU of 1.1.0 stays at 100% for about four minutes, the target turns unhealthy and the Amazon ECS events show the task being replaced. That fixed window has data only on the stack <code>hybrid</code>; for your own run, set the time picker to the minutes of your load. ECS starts a new 1.1.0 task by itself; Lab 4.1 does not need it. This run also gives you the CPU comparison under the same load that you use at the end of <a href="chapter-4.html#5-prove-it-latency-cpu-and-cost">Lab 4.1</a>.</p>
+</details>
+<h4 id="checkpoint-3" class="checkpoint checkpoint">Checkpoint <a class="header-anchor" href="#checkpoint-3">#</a></h4>
+<ul class="contains-task-list">
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"  type="checkbox"> The gate reported <code>CANARY GATES FAILED</code> with a <code>FAIL</code> line for <code>p95_b</code> on release 1.1.0 (<a href="#4-run-the-gate-it-fails">step 4</a>).</li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"  type="checkbox"> After the rollback, the routing is back to 100 / 0 / 0. <strong>Control panel:</strong> the <strong>Release routing</strong> tiles read 100 / 0 / 0 · <strong>Terminal:</strong> <code>make route-show</code> reads <code>100 0 0</code> (<a href="#5-roll-back">step 5</a>).</li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"  type="checkbox"> APM shows a much higher p95 for 1.1.0 than for 1.0.0, and a 1.1.0 trace shows <code>catalogue.prepare</code> (<a href="#6-compare-releases-in-apm">steps 6 and 7</a>).</li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"  type="checkbox"> The Freshness group shows no change (<a href="#8-rule-out-the-stream">step 8</a>).</li>
+</ul>
+<aside class="summary-box"><p class="see-title">Summary</p><p>The failed gate stopped the slow release at 10%, and the rollback removed it. The version tags changed &quot;the canary is slow&quot; into &quot;release 1.1.0 prepares a catalogue in every request&quot;. Do not reset: Lab 4.1 starts from 100 / 0 / 0.</p></aside>
+
+<nav class="pager" aria-label="Previous and next"><a class="pager-btn pager-prev" href="chapter-2.html"><span class="pager-dir">Previous</span><span class="pager-title">Chapter 2: Unknown is not zero</span></a><a class="pager-btn pager-next" href="chapter-4.html"><span class="pager-dir">Next</span><span class="pager-title">Chapter 4: Canary the fix</span></a></nav>
+    </article>
+    <footer class="doc-footer">
+      <p>Generated from <a href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/workshop/README.md" target="_blank" rel="noopener"><code>workshop/README.md</code></a>. Every product, store, sale and shopper in this workshop is synthetic.</p>
+      <p>Educational demo, not for production workloads. <a href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/LICENSE" target="_blank" rel="noopener">Apache License 2.0</a>, provided as is; trademarks and third-party notices in <a href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/NOTICE" target="_blank" rel="noopener">NOTICE</a>.</p>
+      <p><a href="#top">Back to top</a> &middot; <a href="workshop.html">One-page guide</a></p>
+    </footer>
+  </main>
+</div>
+<dialog class="lightbox" aria-label="Enlarged image">
+  <form method="dialog"><button class="lightbox-close" aria-label="Close">&times;</button></form>
+  <img alt="">
+  <p class="lightbox-caption"></p>
+</dialog>
+<dialog class="path-dialog" aria-labelledby="path-dialog-title" aria-describedby="path-dialog-text">
+  <h2 id="path-dialog-title">Switch to the <span class="path-dialog-other">terminal</span> path?</h2>
+  <p id="path-dialog-text">Pick one path and use it from start to finish. The control panel and the terminal each remember their own last routing for Rollback, so mixing them in one run can roll back to the wrong state. Switch only if you are starting a lab from a reset.</p>
+  <div class="path-dialog-buttons">
+    <button type="button" class="path-keep" autofocus>Keep control panel</button>
+    <button type="button" class="path-switch-confirm">Switch to terminal</button>
+  </div>
+</dialog>
+<div class="sr-only" aria-live="polite" id="live"></div>
+<script src="assets/stack.js?v=ec6a04c228"></script>
+<script src="assets/site.js?v=1de1666aca" defer></script>
+</body>
+</html>

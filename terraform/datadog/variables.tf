@@ -44,25 +44,25 @@ variable "sellable_age_threshold_seconds" {
 variable "enable_releases" {
   description = "Layer releases: the by-version latency (canary) monitor."
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "enable_restock" {
   description = "Layer restock: restock monitors and the dashboard group Restock."
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "enable_offers" {
   description = "Layer offers: the dashboard group Offers."
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "enable_dd_streams" {
   description = "Layer dd-streams: Confluent Cloud integration (account and cluster resource) and the consumer lag widget. Needs confluent_api_key, confluent_api_secret and confluent_cluster_id."
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "enable_dd_synthetics" {
@@ -131,4 +131,15 @@ variable "synthetics_location" {
   description = "Datadog-managed Synthetics location id for the tests. Must equal synthetics_location of overlay/terraform/vm (the security group admits that location's source IPs). Id format as in the provider docs, for example aws:eu-central-1."
   type        = string
   default     = "aws:eu-central-1"
+}
+
+variable "shop_url" {
+  description = "Public base URL of the stack's online shop (the ALB, or the VM when not hybrid), no path, for example http://example-alb.eu-central-1.elb.amazonaws.com. The demo home links the shop, the control panel (/control/) and a product page from it. Empty renders the links as a hint to run ./demo links."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = can(regex("^(https?://[^/]+/?)?$", var.shop_url))
+    error_message = "shop_url must be empty or look like http://host (scheme and host, no path)."
+  }
 }

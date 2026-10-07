@@ -1,4 +1,5 @@
-"""ALB release routing for the control panel: a Python port of compose/scripts/alb-routing.sh.
+"""Release routing for the control panel. AlbRouting is a Python port of compose/scripts/alb-routing.sh (hybrid);
+NginxRouting (nginx_routing.py, local mode) shares the apply/rollback logic in WeightedRouting.
 
 Presets mirror the Makefile targets (`route-baseline`, `canary-110-10`, `incident`, `canary-10/50/100`, `rollback`); the tests parse the
 Makefile and run the shell script against a mock `aws` to keep weights and the forward action identical.
@@ -91,20 +92,26 @@ def region_from_arn(arn: str) -> str:
     return parts[3]
 
 
-class AlbRouting:
-    """Apply / read back the weighted forward action of this stack's inventory listener rule."""
+class WeightedRouting:
+    """Shared apply / read-back / rollback logic of the panel's routing backends (AlbRouting, NginxRouting).
 
-    def __init__(self, elbv2, rule_arn: str, target_groups: dict[str, str], redis_client):
-        self._elbv2, self.rule_arn, self.target_groups, self._redis = elbv2, rule_arn, dict(target_groups), redis_client
+    A backend sets the wording (`where`, `label`, `kind`, `card_text`) and implements `live()` and `_modify()`.
+    The rollback memory is Redis STATE_KEY for every backend, like the scripts' overlay/.state/routing-<stack>.
+    """
+    where = "routing"          # what is read back: "ALB rule", "nginx upstream"
+    label = "weights"          # "ALB weights", "nginx weights"
+    kind = "routing"           # log event prefix
+    card_text = ""             # one sentence for the Release routing card (HTML-safe, may contain <code>)
+    target = ""                # rule ARN / routing.conf path, for logs and the view
+    _redis = None
+
+    def live(self) -> tuple[int, int, int]:  # pragma: no cover - abstract
+        raise NotImplementedError
+
+    def _modify(self, weights: tuple[int, int, int], progress: Callable[[str], None]) -> None:  # pragma: no cover
+        raise NotImplementedError
 
     # --- reading ---------------------------------------------------------------------------------------------------
-    def live(self) -> tuple[int, int, int]:
-        try:
-            resp = self._elbv2.describe_rules(RuleArns=[self.rule_arn])
-        except Exception as exc:  # botocore ClientError / BotoCoreError (credentials, network)
-            raise RoutingError(f"could not read the weighted forward action for {self.rule_arn}: {exc}") from exc
-        return parse_live(resp, self.target_groups)
-
     def state(self) -> dict:
         try:
             raw = self._redis.get(STATE_KEY)
@@ -122,7 +129,7 @@ class AlbRouting:
         weights = self.live()
         state = self.state()
         return {"weights": dict(zip(RELEASES, weights)), "current": fmt_weights(weights),
-                "previous": state["previous"], "rule_arn": self.rule_arn}
+                "previous": state["previous"], "backend": self.kind, "label": self.label}
 
     # --- writing ---------------------------------------------------------------------------------------------------
     def run(self, name: str, progress: Callable[[str], None]) -> dict:
@@ -139,20 +146,17 @@ class AlbRouting:
 
     def apply(self, weights, progress: Callable[[str], None]) -> dict:
         weights = validate_weights(weights)
-        progress("Reading live ALB weights")
+        progress(f"Reading live {self.label}")
         before = self.live()
         progress(f"Applying weights 1.0.0/1.1.0/1.2.0 = {fmt_weights(weights)}%")
-        try:
-            self._elbv2.modify_rule(RuleArn=self.rule_arn, Actions=forward_actions(self.target_groups, weights))
-        except Exception as exc:  # botocore ClientError / BotoCoreError
-            raise RoutingError(f"AWS rejected the weighted forward action for {self.rule_arn}: {exc}") from exc
-        progress("Reading the ALB rule back")
+        self._modify(weights, progress)
+        progress(f"Reading the {self.where} back")
         after = self.live()
         if after != weights:
-            raise RoutingError(f"ALB rule reports {fmt_weights(after)} after requesting {fmt_weights(weights)}")
+            raise RoutingError(f"{self.where} reports {fmt_weights(after)} after requesting {fmt_weights(weights)}")
         new = fmt_weights(weights)
-        # Like the script: remember the previous routing only when the routing actually changed.
-        # The panel's "current" is the live ALB value, so make targets used in between cannot desynchronise it.
+        # Like the scripts: remember the previous routing only when the routing actually changed.
+        # The panel's "current" is the live value, so make targets used in between cannot desynchronise it.
         if after != before:
             self._write_state({"current": new, "previous": fmt_weights(before)})
         elif self.state()["current"] != new:
@@ -162,10 +166,10 @@ class AlbRouting:
         try:
             self._redis.set(ROUTING_KEY, value)
         except Exception as exc:  # noqa: BLE001
-            raise RoutingError(f"ALB weights {new} applied and verified, but Redis {ROUTING_KEY} was not updated: {exc}") from exc
-        log.info("alb routing applied", extra={"fields": {"event": "demo_routing", "weights": new,
-                                                          "before": fmt_weights(before), "rule_arn": self.rule_arn}})
-        progress(f"ALB weights 1.0.0/1.1.0/1.2.0 = {new}% (verified)")
+            raise RoutingError(f"{self.label} {new} applied and verified, but Redis {ROUTING_KEY} was not updated: {exc}") from exc
+        log.info(f"{self.kind} routing applied", extra={"fields": {"event": "demo_routing", "weights": new,
+                                                                  "before": fmt_weights(before), "target": self.target}})
+        progress(f"{self.label} 1.0.0/1.1.0/1.2.0 = {new}% (verified)")
         state = self.state()
         return {"weights": dict(zip(RELEASES, weights)), "current": new, "previous": state["previous"]}
 
@@ -173,5 +177,31 @@ class AlbRouting:
         try:
             self._redis.set(STATE_KEY, json.dumps(value))
         except Exception as exc:  # noqa: BLE001
-            raise RoutingError(f"ALB weights {value['current']} applied and verified, but {STATE_KEY} "
+            raise RoutingError(f"{self.label} {value['current']} applied and verified, but {STATE_KEY} "
                                f"(rollback memory) was not saved: {exc}") from exc
+
+
+class AlbRouting(WeightedRouting):
+    """Apply / read back the weighted forward action of this stack's inventory listener rule (hybrid stack)."""
+    where, label, kind = "ALB rule", "ALB weights", "alb"
+    card_text = "Changes the weighted forward action of this stack's ALB inventory rule, then reads it back."
+
+    def __init__(self, elbv2, rule_arn: str, target_groups: dict[str, str], redis_client):
+        self._elbv2, self.rule_arn, self.target_groups, self._redis = elbv2, rule_arn, dict(target_groups), redis_client
+        self.target = rule_arn
+
+    def live(self) -> tuple[int, int, int]:
+        try:
+            resp = self._elbv2.describe_rules(RuleArns=[self.rule_arn])
+        except Exception as exc:  # botocore ClientError / BotoCoreError (credentials, network)
+            raise RoutingError(f"could not read the weighted forward action for {self.rule_arn}: {exc}") from exc
+        return parse_live(resp, self.target_groups)
+
+    def view(self) -> dict:
+        return {**super().view(), "rule_arn": self.rule_arn}
+
+    def _modify(self, weights, progress: Callable[[str], None]) -> None:
+        try:
+            self._elbv2.modify_rule(RuleArn=self.rule_arn, Actions=forward_actions(self.target_groups, weights))
+        except Exception as exc:  # botocore ClientError / BotoCoreError
+            raise RoutingError(f"AWS rejected the weighted forward action for {self.rule_arn}: {exc}") from exc

@@ -1,10 +1,18 @@
 #!/usr/bin/env python3
 """Build the static workshop site: a landing page and the guide rendered from workshop/README.md.
 
-The Markdown guide is the only source of the guide. This script renders it to docs/workshop.html,
+The Markdown guide is the only source of the guide. This script renders it to docs/workshop.html (the one-page guide),
 fills the landing page template (workshop/site/landing.html) into docs/index.html, and copies the
 images and assets (served by GitHub Pages from the "main /docs" folder). Both pages are checked:
 every image must exist and every in-site link must resolve.
+
+Code blocks: a Copy button appears on `sh`/`bash`/`shell`/`sql`/`yaml`/`json` blocks (things to run or paste) and not on
+`text`/other blocks (output). A word after the language wins: ```` ```sql copy ```` forces the button on, ```` ```yaml nocopy ````
+(or ```` ```text copy ````) turns it off/on for that block. Use `nocopy` on examples the reader should only read.
+
+The same parsed guide is also cut into one page per Chapter (intro.html, setup.html, chapter-1.html to chapter-6.html,
+troubleshooting.html, teardown.html, recap.html, reference.html). A link to an anchor on another page is pointed at that
+page, and the build fails when an anchor is on no page.
 
 Run from the repository root (the directory that holds workshop/ and docs/):
 
@@ -45,8 +53,9 @@ MERMAID_CACHE = SITE / "mermaid"
 REPO_URL = "https://github.com/gianlucanatali/observable-inventory-streaming"
 REPO_LABEL = "github.com/gianlucanatali/observable-inventory-streaming"
 GUIDE_PAGE = "workshop.html"
+GO_PAGE = "go.html"  # stable redirect links for slides and bookmarks (go.js); a static page, copied as is
 LANDING_PAGE = "index.html"
-ASSETS = ("site.css", "site.js", "fonts.css", "landing.css", "landing.js", "landing-noscript.css")
+ASSETS = ("site.css", "stack.js", "site.js", "go.js", "fonts.css", "landing.css", "landing.js", "landing-noscript.css")
 BLOB_URL = f"{REPO_URL}/blob/main/"
 SRC_REPO_PATH = "workshop/README.md"
 
@@ -72,6 +81,7 @@ MERMAID_CONFIG = {
 }
 
 ALERTS = {"NOTE": "Note", "TIP": "Tip", "IMPORTANT": "Important", "WARNING": "Warning", "CAUTION": "Caution"}
+COPY_LANGS = {"sh", "bash", "shell", "sql", "yaml", "json"}
 CODE_LABELS = {"sh": "Terminal", "bash": "Terminal", "shell": "Terminal", "text": "Expected output", "json": "JSON"}
 
 
@@ -98,16 +108,17 @@ PATH_CHOOSER = """<div class="path-chooser" role="group" aria-labelledby="path-c
 </div>"""
 
 
-# A guide link written as [stock dashboard](#4-open-the-datadog-stock-dashboard "stack-link:stock-dashboard") is
+# A guide link written as [stock dashboard](#3-open-the-datadog-stock-dashboard "stack-link:stock-dashboard") is
 # an "open the X" reference. On GitHub it is an ordinary link to the step that explains X. On the site, site.js
 # points it to the reader's own resource once they pasted their stack JSON (see CONNECT_BOX), else to the box.
 STACK_LINK_PREFIX = "stack-link:"
-STACK_LINK_KEYS = ("shop", "shop-home", "control", "stock-dashboard", "online-dashboard", "apm", "dsm",
-                   "cost-dashboard", "confluent", "control-center", "ecs")
+STACK_LINK_KEYS = ("shop", "shop-home", "control", "overview-dashboard", "stock-dashboard", "online-dashboard", "apm", "dsm",
+                   "cost-dashboard", "confluent", "stream-lineage", "topic-inventory-cdc",
+                   "topic-stock-sellable", "control-center", "ecs")
 CONNECT_MARKER = "<!-- connect-box -->"
 CONNECT_BOX = """<div class="connect-box" id="connect-box">
 <p class="connect-title">Connect your stack</p>
-<p class="connect-lead">Paste the JSON from your control panel or from <code>make links-json</code>.</p>
+<p class="connect-lead">Paste the output of <code>make links-json</code> (see <a href="setup.html#024-connect-this-guide-to-your-stack-recommended">0.2.4</a>).</p>
 <label class="connect-label" for="connect-json">Stack JSON</label>
 <textarea id="connect-json" rows="6" spellcheck="false" autocomplete="off" placeholder='{"version":1,"stack":"hybrid","env":"dd-demo-hybrid", ...}'></textarea>
 <div class="connect-buttons">
@@ -349,7 +360,12 @@ def add_rules(md: MarkdownIt, diagrams: dict[str, str], links_seen: list[str], s
 
     def fence(self, tokens, idx, options, env):
         tok = tokens[idx]
-        lang = (tok.info or "").strip().split()[0] if tok.info.strip() else "text"
+        words = (tok.info or "").split()
+        lang = words[0] if words else "text"
+        flags = set(words[1:])
+        if flags - {"copy", "nocopy"} or flags == {"copy", "nocopy"}:
+            raise ValueError(f"build.py: bad code fence info {tok.info!r}: only one of 'copy' or 'nocopy' may follow the language")
+        with_copy = ("copy" in flags) or (lang in COPY_LANGS and "nocopy" not in flags)
         code = tok.content
         if lang == "mermaid":
             key = mermaid_key(code)
@@ -364,10 +380,10 @@ def add_rules(md: MarkdownIt, diagrams: dict[str, str], links_seen: list[str], s
         kind = "cmd" if lang in ("sh", "bash", "shell") else "out"
         # On the control panel path, commands outside a path block are the few that both paths need.
         label_html = html.escape(label) + ('<span class="code-both"> (both paths)</span>' if kind == "cmd" else "")
-        # Only commands get a Copy button: outputs and examples are for reading, not for pasting.
+        # Copy button only where the reader pastes (see the module docstring); the fence flag overrides the default.
         button = (f'<button type="button" class="copy" aria-label="Copy {label.lower()} to clipboard">'
                   f'<span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button>'
-                  if kind == "cmd" else "")
+                  if with_copy else "")
         return (f'<div class="code code-{kind}" data-lang="{html.escape(lang)}">'
                 f'<div class="code-bar"><span class="code-label">{label_html}</span>{button}</div>'
                 f'<pre tabindex="0"><code>{body}</code></pre></div>\n')
@@ -470,7 +486,7 @@ def intro_facts(md_text: str) -> dict[str, str]:
     return facts
 
 
-def check_landing(page: str, guide_ids: set[str]) -> list[str]:
+def check_landing(page: str, guide_ids: set[str], page_ids_by_file: dict[str, set[str]]) -> list[str]:
     """Fail on a landing link or image that does not resolve; return the guide images it uses."""
     own_ids = set(re.findall(r'\sid="([^"]+)"', page))
     problems = []
@@ -486,6 +502,9 @@ def check_landing(page: str, guide_ids: set[str]) -> list[str]:
         elif path == GUIDE_PAGE:
             if frag and frag not in guide_ids:
                 problems.append(f"{ref}: no heading with id {frag!r} in the guide")
+        elif path in PAGE_FILES:
+            if frag and frag not in page_ids_by_file[path]:
+                problems.append(f"{ref}: no element with id {frag!r} on {path}")
         elif path.startswith("img/"):
             if not (WORKSHOP / path).is_file():
                 problems.append(f"{ref}: image missing in {WORKSHOP / 'img'}")
@@ -507,6 +526,333 @@ def check_landing(page: str, guide_ids: set[str]) -> list[str]:
     if problems:
         die("landing page " + str(SITE / "landing.html") + ":\n  " + "\n  ".join(problems))
     return sorted(set(re.findall(r'src="(img/[^"]+)"', page)))
+
+
+# ---------------------------------------------------------------- chapter pages
+
+# One page per Chapter, cut from the same parsed README as the one-page guide. "labs" are the lab headings (by id) that a
+# Chapter shows, in order. The first lab's opening paragraph, and the "Needs:" paragraph after it, become the
+# "What you will see" box. Chapter 5 shows Lab 5.1 (offers) first, then Lab 5.2 (restock) as "also in this chapter".
+CHAPTERS = [
+    dict(n=1, title="One honest number",
+         labs=["lab-11-one-product-five-stores-one-online-number", "lab-12-optional-look-inside-confluent"]),
+    dict(n=2, title="Unknown is not zero", labs=["lab-21-unknown-is-not-zero"]),
+    dict(n=3, title="The incident", labs=["lab-31-the-incident"]),
+    dict(n=4, title="Canary the fix", labs=["lab-41-canary-the-fix"]),
+    dict(n=5, title="The AI offer",
+         labs=["lab-51-offers-with-a-safe-default", "lab-52-restock-that-learns"],
+         also={"lab-52-restock-that-learns": "also-lab-5-2"}),
+    dict(n=6, title="Datadog on top", labs=["lab-61-datadog-on-top-of-the-solution"]),
+]
+TOTAL = len(CHAPTERS)
+# Pages in reading order: (file, key, short name). The progress bar shows the first eight.
+PAGE_LIST = ([("intro.html", "intro", "Intro"), ("setup.html", "setup", "Setup")]
+             + [(f"chapter-{c['n']}.html", c["n"], c["title"]) for c in CHAPTERS]
+             + [("troubleshooting.html", "troubleshooting", "Troubleshooting"), ("teardown.html", "teardown", "Teardown"),
+                ("recap.html", "recap", "Recap"), ("reference.html", "reference", "Reference")])
+PAGE_FILES = tuple(f for f, _, _ in PAGE_LIST)
+INTRO_PAGE = PAGE_FILES[0]
+SETUP_PAGE = PAGE_FILES[1]
+CONNECT_HREF = f"{SETUP_PAGE}#connect-box"
+CONNECT_DETAILS = ('<details class="connect-details" id="connect">\n<summary>Connect your stack <span class="connect-state">recommended</span></summary>\n'
+                   + CONNECT_BOX + "\n</details>\n")
+
+
+def read_boxes(md_text: str) -> dict[str, str]:
+    """Texts the Chapter pages show but the guide hides, written in the README as an HTML comment:
+    <!-- box: name  (next lines: Markdown)  -->  Returns {name: Markdown}."""
+    boxes = {m.group(1): m.group(2).strip() for m in re.finditer(r"<!-- box: ([a-z0-9-]+)\n(.*?)\n-->", md_text, re.S)}
+    for need in ("setup-do", "also-lab-5-2"):
+        if need not in boxes:
+            die(f"{SRC}: the box '{need}' is missing; write it as <!-- box: {need} ... --> in the README")
+    return boxes
+
+
+def heading_idx(tokens, hid: str) -> int:
+    for i, t in enumerate(tokens):
+        if t.type == "heading_open" and t.level == 0 and t.attrGet("id") == hid:
+            return i
+    die(f"heading #{hid} not found in {SRC}")
+
+
+def section(tokens, hid: str, until: str | None = None) -> list:
+    """Tokens from heading #hid up to the next heading of the same or a higher level (or to heading #until)."""
+    start = heading_idx(tokens, hid)
+    depth = int(tokens[start].tag[1])
+    end = heading_idx(tokens, until) if until else len(tokens)
+    for i in range(start + 1, end):
+        t = tokens[i]
+        if t.type == "heading_open" and t.level == 0 and int(t.tag[1]) <= depth:
+            end = i
+            break
+    toks = tokens[start:end]
+    while toks and toks[-1].type == "hr":
+        toks = toks[:-1]
+    return toks
+
+
+def html_token(content: str) -> Token:
+    t = Token("html_block", "", 0)
+    t.content = content
+    return t
+
+
+def cut_pages(tokens, boxes: dict[str, str]) -> dict[str, list]:
+    """The token list of every page, by file name."""
+    h1 = next(i for i, t in enumerate(tokens) if t.type == "heading_open" and t.tag == "h1")
+    contents = heading_idx(tokens, "contents")
+    why = heading_idx(tokens, "why-change-events")
+    conv = next((i for i in range(contents, why) if tokens[i].type == "paragraph_open"
+                 and tokens[i + 1].content.startswith("**Conventions.**")), None)
+    if conv is None:
+        die(f"{SRC}: the paragraph starting '**Conventions.**' was not found between 'Contents' and 'Why change events'")
+    pages = {
+        INTRO_PAGE: (tokens[h1:contents] + tokens[conv:why] + section(tokens, "why-change-events")
+                     + section(tokens, "the-architecture-at-a-glance") + section(tokens, "labs", until="lab-11-one-product-five-stores-one-online-number")),
+        SETUP_PAGE: section(tokens, "01-prerequisites") + section(tokens, "02-build-the-stack"),
+        "troubleshooting.html": section(tokens, "troubleshooting"),
+        "teardown.html": section(tokens, "teardown"),
+        "recap.html": section(tokens, "recap-and-further-reading"),
+        "reference.html": section(tokens, "reference"),
+    }
+    for c in CHAPTERS:
+        toks = []
+        for lab in c["labs"]:
+            if c.get("also", {}).get(lab):
+                toks = toks + [html_token(f'<div class="chapter-sub"><p>{html.escape(boxes[c["also"][lab]])}</p></div>\n')]
+            toks = toks + section(tokens, lab)
+        pages[f"chapter-{c['n']}.html"] = toks
+    return pages
+
+
+def split_see_box(toks: list, lab: str) -> tuple[list, list]:
+    """Take the lab's opening paragraph out of the page body: it becomes the 'What you will see' box."""
+    i = heading_idx(toks, lab)
+    if toks[i + 3].type != "paragraph_open" or toks[i + 5].type != "paragraph_close":
+        die(f"lab #{lab} does not open with one plain paragraph; the 'What you will see' box is taken from it")
+    end = i + 6
+    if not (toks[end].type == "paragraph_open" and toks[end + 1].content.startswith("**Needs:**")):
+        die(f"lab #{lab}: the opening paragraph must be followed by a paragraph starting '**Needs:**'")
+    return toks[i + 3:end + 3], toks[:i + 3] + toks[end + 3:]
+
+
+def page_ids(body: str) -> set[str]:
+    return set(re.findall(r'\sid="([^"]+)"', body))
+
+
+def summary_boxes(body: str) -> tuple[str, int]:
+    """A lab's closing paragraph '... **Next:** [Lab 2.1](...)' becomes a Summary box; Previous/Next replace the pointer."""
+    pat = re.compile(r"<p>((?:(?!</p>).)*?)\s*<strong>Next:</strong>.*?</p>", re.S)
+    return pat.subn(lambda m: f'<aside class="summary-box"><p class="see-title">Summary</p><p>{m.group(1)}</p></aside>', body)
+
+
+def toc_from(tokens, ids_ok: set[str]) -> str:
+    """Contents of one page: its two highest heading levels among h2 to h4."""
+    heads = [(i, t) for i, t in enumerate(tokens) if t.type == "heading_open" and t.level == 0
+             and t.tag in ("h2", "h3", "h4") and t.attrGet("id") in ids_ok]
+    levels = sorted({t.tag for _, t in heads})[:2]
+    items = []
+    for i, t in heads:
+        if t.tag in levels:
+            text = "".join(c.content for c in tokens[i + 1].children or [] if c.type in ("text", "code_inline")).strip()
+            items.append((levels.index(t.tag), t.attrGet("id"), text))
+    out, sub = ['<ol class="toc-list">'], False
+    for n, (lv, a, text) in enumerate(items):
+        if lv == 0:
+            if sub:
+                out.append("</ol></li>")
+                sub = False
+            elif n:
+                out.append("</li>")
+            out.append(f'<li class="toc-h2"><a href="#{a}">{html.escape(text)}</a>')
+        else:
+            if not sub:
+                out.append('<ol class="toc-sub">')
+                sub = True
+            out.append(f'<li class="toc-h3"><a href="#{a}">{html.escape(text)}</a></li>')
+    out.append("</ol></li>" if sub else "</li>")
+    out.append("</ol>")
+    return "\n".join(out)
+
+
+def current_attr(on: bool) -> str:
+    return ' aria-current="page"' if on else ""
+
+
+def progress_html(key) -> str:
+    items = []
+    for file, k, name in PAGE_LIST[:2 + TOTAL]:
+        dot = "&middot;" if k == "intro" else ("0" if isinstance(k, str) else str(k))
+        here = k == key
+        extra = " cp-extra" if isinstance(k, str) else ""
+        items.append(f'<li class="cp-step{extra}{" cp-current" if here else ""}"><a href="{file}"{current_attr(here)}>'
+                     f'<span class="cp-dot" aria-hidden="true">{dot}</span><span class="cp-label">{html.escape(name)}</span></a></li>')
+    return f'<nav class="chapter-progress" aria-label="Chapters"><ol>{"".join(items)}</ol></nav>'
+
+
+def pager_html(key) -> str:
+    keys = [k for _, k, _ in PAGE_LIST]
+    i = keys.index(key)
+
+    def label(j):
+        f, k, name = PAGE_LIST[j]
+        return f"Chapter {k}: {name}" if isinstance(k, int) else name
+
+    def btn(kind, j, word):
+        if j is None:
+            return '<span class="pager-gap"></span>'
+        return (f'<a class="pager-btn pager-{kind}" href="{PAGE_LIST[j][0]}"><span class="pager-dir">{word}</span>'
+                f'<span class="pager-title">{html.escape(label(j))}</span></a>')
+    prev = i - 1 if i > 0 else None
+    nxt = i + 1 if i + 1 < len(PAGE_LIST) else None
+    return f'<nav class="pager" aria-label="Previous and next">{btn("prev", prev, "Previous")}{btn("next", nxt, "Next")}</nav>'
+
+
+def sidebar_html(key, toc: str) -> str:
+    def li(file, k, name):
+        n = f'<span class="cl-n">{k}</span>' if isinstance(k, int) else ('<span class="cl-n">0</span>' if k == "setup" else "")
+        return f'<li><a href="{file}"{current_attr(k == key)}>{n}{html.escape(name)}</a></li>'
+    main = "".join(li(*p) for p in PAGE_LIST[:2 + TOTAL])
+    help_ = "".join(li(*p) for p in PAGE_LIST[2 + TOTAL:])
+    return (f'<p class="toc-title">Workshop</p><ol class="chapter-list">{main}</ol>'
+            f'<p class="toc-title">Help and reference</p><ol class="chapter-list chapter-list-help">{help_}'
+            f'<li><a class="guide-link" href="{GUIDE_PAGE}">One-page guide</a></li></ol>'
+            '<p class="toc-title toc-title-page">On this page</p>' + toc)
+
+
+def retarget_links(body: str, name: str, mine: set[str], owner: dict[str, str], problems: list[str]) -> str:
+    """An anchor on this page stays; an anchor on another page points to that page; one nowhere is a build error."""
+    def fix(m):
+        a = m.group(1)
+        if a in mine or a == "top":
+            return m.group(0)
+        if a in owner:
+            return f'href="{owner[a]}#{a}"'
+        problems.append(f"{name}: link to #{a} matches no heading or element on any page")
+        return m.group(0)
+    return re.sub(r'href="#([^"]+)"', fix, body)
+
+
+def page_shell(template: str, key, title: str, toc: str, content: str) -> str:
+    p = (template.replace("{{title}}", html.escape(title)).replace("{{toc}}", sidebar_html(key, toc))
+         .replace("{{source_url}}", BLOB_URL + SRC_REPO_PATH).replace("{{repo_url}}", REPO_URL)
+         .replace("{{content}}", content))
+    def swap(old: str, new: str) -> None:
+        nonlocal p
+        if old not in p:
+            die(f"template.html changed: {old!r} not found, update chapter page_shell()")
+        p = p.replace(old, new)
+    swap('<p class="toc-title">Contents</p>\n    ', "")
+    swap('<a class="brand" href="index.html" title="Home">', f'<a class="brand" href="{INTRO_PAGE}" title="Start of the workshop">')
+    swap('<a class="topbar-current" href="#top" aria-current="page">Workshop</a>',
+         f'<a class="topbar-current" href="{INTRO_PAGE}" aria-current="page">Workshop</a>'
+         f'<a class="topbar-extra" href="{GUIDE_PAGE}">One-page guide</a>')
+    swap('<p><a href="#top">Back to top</a></p>', f'<p><a href="#top">Back to top</a> &middot; <a href="{GUIDE_PAGE}">One-page guide</a></p>')
+    if key != "setup":
+        swap('<body>', f'<body data-connect-href="{CONNECT_HREF}">')
+        swap('href="#connect-box" hidden', f'href="{CONNECT_HREF}" hidden')
+    return p
+
+
+def build_chapter_pages(md, env, tokens, diagrams, template: str, boxes: dict[str, str]) -> dict[str, str]:
+    """Render every page; return {file: html}. Fails on a link whose anchor is on no page."""
+    cut = cut_pages(tokens, boxes)
+    see: dict[str, str] = {}
+    page_tokens = {}
+    for c in CHAPTERS:
+        f = f"chapter-{c['n']}.html"
+        box_toks, rest = split_see_box(cut[f], c["labs"][0])
+        see[f] = md.renderer.render(box_toks, md.options, env)
+        page_tokens[f] = rest
+    for f, toks in cut.items():
+        page_tokens.setdefault(f, toks)
+    bodies = {}
+    for f, toks in page_tokens.items():
+        if any(t.type.startswith("footnote") for t in toks):
+            die(f"{f}: the page contains footnotes; cutting the guide into pages would break them")
+        body = md.renderer.render(toks, md.options, env)
+        for key in diagrams:
+            body = body.replace(f"@@MERMAID:{key}@@", (MERMAID_CACHE / f"{key}.svg").read_text(encoding="utf-8"))
+        bodies[f] = body
+    # the path chooser goes on the Intro, the Connect box on Setup
+    if bodies[INTRO_PAGE].count(PATH_MARKER) != 1:
+        die(f"{INTRO_PAGE}: expected one {PATH_MARKER} marker")
+    cta = (f'<aside class="see-box start-cta"><p class="see-title">Two ways through this workshop</p><ul>'
+           '<li><b>Step by step.</b> One page per Chapter: Setup, then six Chapters of one or two labs each, with a summary and a checkpoint. '
+           'Choose your path below, then press Start.</li>'
+           f'<li><b>Everything on one page.</b> The <a href="{GUIDE_PAGE}">one-page guide</a> holds the same content, handy to search or print.</li></ul>'
+           f'<p class="see-actions"><a class="pager-btn pager-next" href="{SETUP_PAGE}"><span class="pager-dir">Start</span>'
+           '<span class="pager-title">Setup: build the stack</span></a></p></aside>\n')
+    bodies[INTRO_PAGE] = bodies[INTRO_PAGE].replace(PATH_MARKER, cta + PATH_CHOOSER)
+    if bodies[SETUP_PAGE].count(CONNECT_MARKER) != 1:
+        die(f"{SETUP_PAGE}: expected one {CONNECT_MARKER} marker")
+    # The Connect box sits at the step that uses it (0.2.4, right after the stack is built), not at the top of the page.
+    bodies[SETUP_PAGE] = bodies[SETUP_PAGE].replace(CONNECT_MARKER, CONNECT_DETAILS)
+    setup_html = md.render(boxes["setup-do"], {})
+    k = setup_html.rfind("<p>")
+    setup_html = setup_html[:k] + '<p class="see-meta">' + setup_html[k + 3:]
+    setup_head = ('<aside class="see-box"><p class="see-title">What you will do</p>' + setup_html + '</aside>\n')
+
+    # ids per page; "connect-box" lives in the Setup page's details
+    ids = {f: page_ids(b) | ({"connect-box", "connect"} if f == SETUP_PAGE else set()) | page_ids(see.get(f, "")) for f, b in bodies.items()}
+    owner: dict[str, str] = {}
+    for f in PAGE_FILES:
+        for a in ids[f]:
+            owner.setdefault(a, f)
+    problems: list[str] = []
+    out = {}
+    for file, key, name in PAGE_LIST:
+        body = bodies[file]
+        head = ""
+        if isinstance(key, int):
+            c = CHAPTERS[key - 1]
+            body, _ = summary_boxes(body)
+            head = (f'<p class="chapter-kicker">Chapter {key} of {TOTAL}</p>\n<h1 class="chapter-title">{html.escape(c["title"])}</h1>\n'
+                    f'<aside class="see-box"><p class="see-title">What you will see</p>{see[file]}</aside>\n')
+            title = f"Chapter {key} of {TOTAL}: {c['title']}"
+        elif key == "setup":
+            head = '<p class="chapter-kicker">Getting started, before Chapter 1</p>\n<h1 class="chapter-title">Setup</h1>\n' + setup_head
+            title = "Setup"
+        elif key == "intro":
+            title = "Observable inventory streaming: intro"
+        else:
+            head = f'<p class="chapter-kicker">{html.escape(name)}</p>\n'
+            title = name
+        body = retarget_links(head + body, file, ids[file], owner, problems)
+        toc_ids = page_ids(body)
+        toc = retarget_links(toc_from(page_tokens[file], toc_ids), file, ids[file], owner, problems)
+        page = page_shell(template, key, f"{title} | Observable inventory streaming" if key != "intro" else title, toc,
+                          progress_html(key) + "\n" + body + "\n" + pager_html(key))
+        if "@@MERMAID" in page or "{{" in page:
+            die(f"{file}: unfilled placeholder")
+        out[file] = page
+    if problems:
+        die("cross-page links:\n  " + "\n  ".join(sorted(set(problems))))
+    return out
+
+
+def check_page_links(pages: dict[str, str], guide_ids: set[str]) -> int:
+    """Every link between generated pages (and to the one-page guide) must point at an element that exists."""
+    ids = {f: page_ids(p) for f, p in pages.items()}
+    ids[GUIDE_PAGE] = guide_ids
+    problems, n = [], 0
+    for f, page in pages.items():
+        for ref in re.findall(r'\shref="([^"]*)"', page):
+            if re.match(r"^(?:[a-z][a-z0-9+.-]*:|//)", ref, re.I):
+                continue
+            path, _, frag = ref.partition("#")
+            target = path or f
+            if target == LANDING_PAGE or target.startswith("assets/"):
+                continue
+            if target not in ids:
+                problems.append(f"{f}: link {ref!r} goes to an unknown page")
+                continue
+            n += 1
+            if frag and frag != "top" and frag not in ids[target]:
+                problems.append(f"{f}: link {ref!r}: no element with id {frag!r} on {target}")
+    if problems:
+        die("page links:\n  " + "\n  ".join(sorted(set(problems))))
+    return n
 
 
 def main() -> None:
@@ -563,12 +909,16 @@ def main() -> None:
         die(f"in-page links without a matching heading: {', '.join('#' + b for b in broken)}")
 
     template = (SITE / "template.html").read_text(encoding="utf-8")
+    chapter_pages = build_chapter_pages(md, env, tokens, diagrams, template, read_boxes(md_text))
+    chapter_ids = {f: page_ids(p) for f, p in chapter_pages.items()}
+    n_page_links = check_page_links(chapter_pages, ids)
     page = (template
             .replace("{{title}}", html.escape(title))
             .replace("{{toc}}", toc)
             .replace("{{source_url}}", BLOB_URL + SRC_REPO_PATH)
             .replace("{{repo_url}}", REPO_URL)
-            .replace("{{content}}", body))
+            .replace("{{content}}", body)
+            .replace('<a class="topbar-extra topbar-md"', f'<a class="topbar-extra" href="{INTRO_PAGE}">Step by step</a><a class="topbar-extra topbar-md"', 1))
 
     arch_w, arch_h = png_size(WORKSHOP / "img/arch-5-datadog.png")
     facts = intro_facts(md_text)
@@ -579,11 +929,11 @@ def main() -> None:
                .replace("{{cost}}", facts["cost"])
                .replace("{{arch_w}}", str(arch_w))
                .replace("{{arch_h}}", str(arch_h)))
-    landing_imgs = check_landing(landing, ids)
+    landing_imgs = check_landing(landing, ids, chapter_ids)
 
     # write output: docs/index.html (landing), docs/workshop.html (guide), docs/assets/*, docs/img/*, docs/images/*
     if OUT.exists():
-        for child in (LANDING_PAGE, GUIDE_PAGE, "assets", "img", "images", ".nojekyll"):
+        for child in (LANDING_PAGE, GUIDE_PAGE, GO_PAGE, *PAGE_FILES, "assets", "img", "images", ".nojekyll"):
             p = OUT / child
             if p.is_dir():
                 shutil.rmtree(p)
@@ -595,12 +945,21 @@ def main() -> None:
     shutil.copytree(SITE / "vendor", OUT / "assets" / "vendor")
     shutil.copytree(SITE / "images", OUT / "images", ignore=shutil.ignore_patterns("*.md"))
     (OUT / GUIDE_PAGE).write_text(bust_cache(external_links_in_new_tab(page)), encoding="utf-8")
+    for fname, chapter_page in chapter_pages.items():
+        (OUT / fname).write_text(bust_cache(external_links_in_new_tab(chapter_page)), encoding="utf-8")
     (OUT / LANDING_PAGE).write_text(bust_cache(external_links_in_new_tab(landing)), encoding="utf-8")
+    go_page = (SITE / GO_PAGE).read_text(encoding="utf-8")
+    for need in (f'href="{SETUP_PAGE}#connect-box"', f'href="{GUIDE_PAGE}"', 'href="assets/site.css"', 'src="assets/stack.js"', 'src="assets/go.js"'):
+        if need not in go_page:
+            die(f"{SITE / GO_PAGE} must contain {need}")
+    (OUT / GO_PAGE).write_text(bust_cache(go_page), encoding="utf-8")
     (OUT / ".nojekyll").write_text("", encoding="utf-8")
-    used = sorted(set(re.findall(r'src="(img/[^"]+)"', body)) | set(landing_imgs))
+    used = sorted(set(re.findall(r'src="(img/[^"]+)"', body)) | set(landing_imgs)
+                  | {m for p in chapter_pages.values() for m in re.findall(r'src="(img/[^"]+)"', p)})
     (OUT / "img").mkdir()
     for rel in used:
         shutil.copy2(WORKSHOP / rel, OUT / rel)
+    print(f"build.py: wrote {len(chapter_pages)} chapter pages ({', '.join(PAGE_FILES)}), {n_page_links} links between pages checked")
     print(f"build.py: wrote {OUT / GUIDE_PAGE} ({len(diagrams)} diagrams, {len(ids)} anchors, "
           f"{len(links_seen)} in-page links checked, {len(stack_links)} stack links) and {OUT / LANDING_PAGE} ({len(landing_imgs)} images); "
           f"{len(used)} images in {OUT / 'img'}")

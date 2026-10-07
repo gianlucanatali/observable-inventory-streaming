@@ -74,6 +74,12 @@ locals {
   }
 
   required_secret_keys = toset(flatten(values(local.app_secret_keys)))
+
+  # Images live in terraform/images, repository dd-demo-<stack>/<image>. The URL is built from the account
+  # and region, so this root never reads that root's state and a destroy works after the images root is gone.
+  ecs_images     = setunion(toset([for app in values(local.applications) : app.image]), toset(["log-router"]))
+  image_registry = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.region}.amazonaws.com"
+  image_uri      = { for image in local.ecs_images : image => "${local.image_registry}/${local.name}/${image}:${try(var.image_tags[image], "missing-tag")}" }
 }
 
 resource "terraform_data" "workspace_guard" {
@@ -89,21 +95,13 @@ resource "terraform_data" "workspace_guard" {
       error_message = "Every task secret must use a generated stack-local parameter name."
     }
     precondition {
+      condition     = length(setsubtract(local.ecs_images, toset(keys(var.image_tags)))) == 0
+      error_message = "image_tags needs a content tag for every ECS image (stack.sh writes them to .state/stack-<stack>.image-tags)."
+    }
+    precondition {
       condition     = !var.enable_dd_rum || (var.rum_application_id != null && trimspace(var.rum_application_id) != "")
       error_message = "dd-rum requires a non-empty RUM application ID from the generated Datadog stack contract."
     }
-  }
-}
-
-resource "aws_ecr_repository" "app" {
-  for_each             = setunion(toset([for app in values(local.applications) : app.image]), toset(["log-router"]))
-  name                 = "${local.name}/${each.value}"
-  image_tag_mutability = "MUTABLE"
-  force_delete         = true
-  tags                 = local.layer_tags
-
-  image_scanning_configuration {
-    scan_on_push = true
   }
 }
 

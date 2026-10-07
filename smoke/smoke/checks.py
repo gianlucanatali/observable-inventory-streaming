@@ -63,7 +63,7 @@ def evaluate_availability(product: str, status_code: int, body: object) -> Resul
         problems += [f"store {s.get('store_id')} feed {s.get('feed')!r}" for s in stores if s.get("feed") != "ok"]
     if problems:
         return Result(name, False, "; ".join(problems))
-    return Result(name, True, f"status {body['status']}, sellable {body.get('sellable')}, "
+    return Result(name, True, f"status {body['status']}, sellable {body.get('sellable')}, confirmed_min {body.get('confirmed_min')}, "
                               f"release {body.get('release')}, {len(stores)} stores feed ok")
 
 

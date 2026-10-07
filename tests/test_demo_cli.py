@@ -119,6 +119,27 @@ class DemoCliTest(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertNotIn("TF_VAR_presenter_cidr=", result.stdout)
 
+    def test_owner_is_optional_forwarded_to_make_and_an_environment_value_wins(self) -> None:
+        result = run_demo(self.root, "status", "--dry-run")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("OWNER=", result.stdout)
+        (self.root / "demo.yaml").write_text(VALID + "owner: jane.doe@example.com\n")
+        result = run_demo(self.root, "status", "--dry-run")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("OWNER=jane.doe@example.com", result.stdout)
+        with mock.patch.dict(os.environ, {"OWNER": "envowner"}):
+            result = run_demo(self.root, "status", "--dry-run")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("OWNER=jane.doe@example.com", result.stdout)
+
+    def test_owner_must_fit_the_aws_tag_value_rules(self) -> None:
+        for value in ("jane doe", "jane,doe", "a" * 257, '""'):
+            with self.subTest(value=value[:12]):
+                (self.root / "demo.yaml").write_text(VALID + f"owner: {value}\n")
+                result = run_demo(self.root, "status", "--dry-run")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("owner must be 1 to 256 characters", result.stderr)
+
     def test_allowed_cidr_is_forwarded_as_presenter_cidr_and_legacy_key_is_accepted(self) -> None:
         result = run_demo(self.root, "status", "--dry-run")
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -220,6 +241,116 @@ class DemoCliTest(unittest.TestCase):
                 result = run_demo(self.root, action, "--dry-run", "--yes")
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertIn("TOPOLOGY=hybrid", result.stdout)
+
+    # --- mode: local ---------------------------------------------------------------------------------
+    LOCAL = "mode: local\n" + VALID.replace("layers: releases,restock", "layers: releases,dd-synthetics")
+
+    def _write(self, content: str) -> None:
+        (self.root / "demo.yaml").write_text(content)
+        os.chmod(self.root / "demo.yaml", 0o600)
+
+    def test_mode_defaults_to_cloud_and_rejects_unknown_values(self) -> None:
+        result = run_demo(self.root, "status", "--dry-run")
+        self.assertIn("MODE=cloud", result.stdout)
+        self._write("mode: laptop\n" + VALID)
+        result = run_demo(self.root, "status", "--dry-run")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("mode must be local or cloud", result.stderr)
+
+    def test_local_dry_run_maps_every_command_to_the_local_targets(self) -> None:
+        self._write(self.LOCAL)
+        expected = {
+            "create": ["local-up LOCAL_LAYERS=core,releases"],
+            "destroy": ["local-down"],
+            "status": [" status", " links"],
+            "links": [" links"],
+            "reset": [" reset"],
+        }
+        for command, snippets in expected.items():
+            with self.subTest(command=command):
+                result = run_demo(self.root, command, "--dry-run")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn("MODE=dev STACK=dev", result.stdout)
+                for forbidden in ("MODE=cloud", "TOPOLOGY=hybrid", "stack-", "CONFIRM=yes", "AWS_PROFILE", "PRESENTER_CIDR"):
+                    self.assertNotIn(forbidden, result.stdout)
+                for snippet in snippets:
+                    self.assertIn(snippet, result.stdout)
+                self.assertNotIn("dd_api_12345678", result.stdout + result.stderr)
+                self.assertFalse((self.root / ".env").exists())
+        create = run_demo(self.root, "create", "--dry-run")
+        self.assertIn("layer dd-synthetics is cloud-only; skipped locally", create.stderr)
+        self.assertNotIn("PURGE", run_demo(self.root, "destroy", "--dry-run").stdout)
+        self.assertIn("local-down PURGE=1", run_demo(self.root, "destroy", "--dry-run", "--purge").stdout)
+
+    def test_local_layers_all_and_core(self) -> None:
+        module = self._load_module()
+        self.assertEqual(module.local_layers("all"), (["releases", "restock", "offers"], []))
+        self.assertEqual(module.local_layers("core"), ([], []))
+        self.assertEqual(module.local_layers("core,offers,control-center,dd-streams"), (["offers"], ["control-center", "dd-streams"]))
+
+    def test_local_needs_only_datadog_and_ignores_cloud_placeholders(self) -> None:
+        self._write("mode: local\ndatadog_site: datadoghq.eu\ndd_api_key: dd_api_12345678\n")
+        self.assertEqual(run_demo(self.root, "create", "--dry-run").returncode, 0)
+        self._write(self.LOCAL.replace("CS12345678", "REPLACE_WITH_CONFLUENT_API_SECRET"))  # the one-line flip
+        self.assertEqual(run_demo(self.root, "create", "--dry-run").returncode, 0)
+        self._write("mode: local\ndatadog_site: datadoghq.eu\ndd_api_key: REPLACE_ME\n")
+        result = run_demo(self.root, "create", "--dry-run")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("'dd_api_key' still contains a placeholder", result.stderr)
+        self._write("mode: local\ndatadog_site: datadoghq.eu\n")
+        self.assertIn("missing required key(s): dd_api_key", run_demo(self.root, "status", "--dry-run").stderr)
+        self._write(self.LOCAL + "typo_key: x\n")
+        self.assertIn("unknown key(s): typo_key", run_demo(self.root, "status", "--dry-run").stderr)
+
+    def test_local_create_keeps_the_cloud_keys_already_in_env_and_warns_about_a_live_cloud_stack(self) -> None:
+        self._write(self.LOCAL.replace("dd_api_12345678", "dd_api_local0001"))
+        env_file = self.root / ".env"
+        env_file.write_text("# Generated by ./demo from demo.yaml; mode 0600. Do not edit secrets here.\nDD_SITE=datadoghq.eu\n"
+                            "DD_API_KEY=dd_api_cloud0001\nCONFLUENT_CLOUD_API_KEY=CKcloud0001\nDD_HOSTNAME=laptop\n")
+        (self.root / ".env.cloud-hybrid").write_text("X=1\n")
+        mock_make = self.root / "make"
+        mock_make.write_text("#!/usr/bin/env python3\nimport sys\nprint('MAKE ' + ' '.join(sys.argv[1:]))\n")
+        mock_make.chmod(0o755)
+        result = subprocess.run([str(self.root / "demo"), "create"], cwd=self.root, text=True, capture_output=True,
+                                env={**os.environ, "PATH": f"{self.root}:{os.environ['PATH']}"}, check=False, timeout=10)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("MAKE --no-print-directory -C", result.stdout)
+        self.assertIn("MODE=dev STACK=dev", result.stdout)
+        self.assertIn("local-up LOCAL_LAYERS=core,releases", result.stdout)
+        self.assertIn("cloud stack(s) hybrid may still be running and billing", result.stderr)
+        text = env_file.read_text()
+        self.assertEqual(stat.S_IMODE(env_file.stat().st_mode), 0o600)
+        self.assertIn("DD_API_KEY=dd_api_local0001", text)
+        self.assertNotIn("dd_api_cloud0001", text)
+        self.assertIn("CONFLUENT_CLOUD_API_KEY=CKcloud0001", text)  # a later cloud ./demo destroy still has it
+        self.assertIn("DD_HOSTNAME=laptop", text)
+        self.assertEqual(text.count("# Generated by ./demo"), 1)
+        self.assertNotIn("dd_api_local0001", result.stdout + result.stderr)
+
+    def test_local_destroy_keeps_volumes_unless_asked(self) -> None:
+        self._write(self.LOCAL)
+        module = self._load_module()
+        commands: list[list[str]] = []
+        for argv, tty, answer, purge in ((["demo", "destroy"], False, "", False), (["demo", "destroy", "--yes"], True, "y", False),
+                                          (["demo", "destroy"], True, "y", True), (["demo", "destroy"], True, "", False),
+                                          (["demo", "destroy", "--purge"], False, "", True)):
+            with self.subTest(argv=argv, tty=tty, answer=answer):
+                commands.clear()
+                with (
+                    mock.patch.object(module, "invoke", side_effect=lambda command, dry_run: commands.append(command)),
+                    mock.patch.object(sys, "argv", argv),
+                    mock.patch.object(module.sys.stdin, "isatty", return_value=tty),
+                    mock.patch("builtins.input", return_value=answer),
+                    mock.patch("builtins.print"),
+                ):
+                    self.assertEqual(module.main(), 0)
+                self.assertEqual(commands[0][-2 if purge else -1], "local-down")
+                self.assertEqual("PURGE=1" in commands[0], purge)
+
+    def test_purge_is_refused_in_cloud_mode(self) -> None:
+        result = run_demo(self.root, "destroy", "--dry-run", "--purge")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("--purge is for mode: local only", result.stderr)
 
     def test_public_root_files_and_submodule_contract_are_present(self) -> None:
         ignored = (self.root / ".gitignore").read_text()

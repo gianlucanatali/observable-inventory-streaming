@@ -5,6 +5,9 @@
 # Only non-sensitive URLs: Terraform outputs and the links that `make links` prints.
 # Also writes `demo:stack` (ids of the stack) so the panel's "Copy for the workshop guide" button can build the guide JSON.
 # `--print` writes nothing: it prints that guide JSON to stdout (make links-json; read-only, needs no DC).
+# Local mode (MODE=dev): shop and panel on LOCAL_BASE_URL, Datadog links from links.sh's local branch, the
+# keys go to the local Redis container. demo:stack keeps the guide's fields with local values: vm_public_ip=localhost
+# (the Lima VM), confluent_env=kafka_cluster=local (local Kafka, no Confluent Cloud ids).
 set -euo pipefail
 
 readonly HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -20,7 +23,6 @@ case "${1:-}" in
 esac
 if [ "$mode" = publish ]; then : "${DC:?publish-links: DC must be set; run via 'make links-publish'}"; fi
 : "${STACK:?publish-links: STACK must be set}"
-[ "${TOPOLOGY:-hybrid}" = hybrid ] || die "only the hybrid stack has a control panel on AWS (TOPOLOGY=${TOPOLOGY})"
 region="${AWS_REGION:-eu-west-1}"
 
 out() { # out <dir> <output>
@@ -29,25 +31,48 @@ out() { # out <dir> <output>
   terraform -chdir="$TF/$1" output -raw "$2" || die "terraform/$1 output $2 is absent from state"
 }
 
-alb="$(out aws alb_url)"
-env_id="$(out cloud environment_id)"
-cluster_id="$(out cloud kafka_cluster_id)"
-vm_ip="$(out vm public_ip)"
+LOCAL=0
+if [ "${MODE:-cloud}" = dev ]; then
+  LOCAL=1
+  alb="${LOCAL_BASE_URL:?publish-links: LOCAL_BASE_URL must be set in local mode (the Makefile sets it)}"
+  env_id=local; cluster_id=local; vm_ip=localhost
+else
+  [ "${TOPOLOGY:-hybrid}" = hybrid ] || die "only the hybrid stack has a control panel on AWS (TOPOLOGY=${TOPOLOGY})"
+
+  alb="$(out aws alb_url)"
+  env_id="$(out cloud environment_id)"
+  cluster_id="$(out cloud kafka_cluster_id)"
+  vm_ip="$(out vm public_ip)"
+fi
 dd_links="$(STACK="$STACK" TOPOLOGY="$TOPOLOGY" "$HERE/links.sh")" || die "links.sh failed"
 
-json="$(ALB="$alb" ENV_ID="$env_id" CLUSTER_ID="$cluster_id" REGION="$region" STACK="$STACK" DD_LINKS="$dd_links" python3 - <<'PY'
+json="$(LOCAL="$LOCAL" ALB="$alb" ENV_ID="$env_id" CLUSTER_ID="$cluster_id" REGION="$region" STACK="$STACK" DD_LINKS="$dd_links" python3 - <<'PY'
 import json, os, sys
 dd = {}
 for line in os.environ["DD_LINKS"].splitlines():
     label, sep, url = line.partition(": ")
     if sep:
         dd[label.strip()] = url.strip()
-need = ["stock dashboard", "online dashboard", "account-cost dashboard", "APM inventory-api 1.1.0", "DSM map"]
+local = os.environ["LOCAL"] == "1"
+need = (["APM inventory-api 1.1.0", "DSM map"] if local else
+        ["overview dashboard", "stock dashboard", "online dashboard", "account-cost dashboard", "APM inventory-api 1.1.0", "DSM map"])
 missing = [k for k in need if k not in dd]
 if missing:
     sys.exit(f"publish-links: make links did not print {missing}")
 alb, region, stack = os.environ["ALB"].rstrip("/"), os.environ["REGION"], os.environ["STACK"]
+if local:  # local mode: no AWS, no Confluent Cloud; dashboards only when terraform/datadog was applied for the stack
+    links = [
+        ("overview-dashboard", "Datadog", "Demo home", "Start here: the six Chapters, each with its key charts and links to the deeper views", dd.get("overview dashboard")),
+        ("shop", "Shop", "Online shop", "Product page of P0042, the product the labs follow", f"{alb}/#/product/P0042"),
+        ("shop-home", "Shop", "Online shop home", "All models, as a shopper sees them", f"{alb}/#/"),
+        ("stock-dashboard", "Datadog", "Stock dashboard", "Freshness, pipeline, service objective, restock and offers", dd.get("stock dashboard")),
+        ("apm", "Datadog", "APM: inventory-api", "Latency by release (Deployments)", dd["APM inventory-api 1.1.0"]),
+        ("dsm", "Datadog", "Data Streams Monitoring", "Which services read and write which Kafka topics", dd["DSM map"]),
+    ]
+    print(json.dumps([dict(zip(("id", "group", "name", "desc", "url"), l)) for l in links if l[4]]))
+    sys.exit(0)
 links = [
+    ("overview-dashboard", "Datadog", "Demo home", "Start here: the six Chapters, each with its key charts and links to the deeper views", dd["overview dashboard"]),
     ("shop", "Shop", "Online shop", "Product page of P0042, the product the labs follow", f"{alb}/#/product/P0042"),
     ("shop-home", "Shop", "Online shop home", "All models, as a shopper sees them", f"{alb}/#/"),
     ("stock-dashboard", "Datadog", "Stock dashboard", "Freshness, pipeline, service objective, restock and offers", dd["stock dashboard"]),
@@ -57,6 +82,13 @@ links = [
     ("cost-dashboard", "Datadog", "Cost dashboard", "AWS and Confluent Cloud cost for every stack", dd["account-cost dashboard"]),
     ("confluent", "Confluent", "Confluent Cloud cluster", "Topics, messages and Stream Lineage",
      f"https://confluent.cloud/environments/{os.environ['ENV_ID']}/clusters/{os.environ['CLUSTER_ID']}/overview"),
+]
+# One-click pages inside the cluster (console URL patterns checked in the console: stream-lineage, and topics/<name>/...)
+ccloud = f"https://confluent.cloud/environments/{os.environ['ENV_ID']}/clusters/{os.environ['CLUSTER_ID']}"
+links += [
+    ("stream-lineage", "Confluent", "Stream Lineage", "Who writes to and reads from each topic, as a graph", f"{ccloud}/stream-lineage"),
+    ("topic-inventory-cdc", "Confluent", "Topic inventory.cdc", "The Debezium change events, Messages tab", f"{ccloud}/topics/inventory.cdc/message-viewer"),
+    ("topic-stock-sellable", "Confluent", "Topic stock.sellable", "The Flink sellable totals; Query with Flink is on this page", f"{ccloud}/topics/stock.sellable/overview"),
 ]
 if "control-center" in dd:
     links.append(("control-center", "Confluent", "Control Center", "The self-managed Connect worker on the VM", dd["control-center"]))
@@ -83,6 +115,17 @@ print(json.dumps({**stack, "links": ordered}, indent=2))
   exit 0
 fi
 
+if [ "$LOCAL" = 1 ]; then # the local Redis container, the same path as layer.sh and apply-routing.sh in dev
+  for pair in "demo:links=$json" "demo:stack=$stack_json"; do
+    key="${pair%%=*}"
+    # -x: value from stdin, so quoting never depends on how the docker command is wrapped (limactl shell)
+    # shellcheck disable=SC2086
+    res="$(printf '%s' "${pair#*=}" | $DC exec -T redis redis-cli -x SET "$key")" || die "could not write $key to the local redis"
+    [ "$res" = OK ] || die "redis SET $key answered '$res', expected OK"
+  done
+  echo "   demo:links = $(printf '%s' "$json" | python3 -c 'import json,sys; print(len(json.load(sys.stdin)), "links")') (local)"
+  exit 0
+fi
 # shellcheck disable=SC2086
 res="$($DC --profile tools run --rm -T --entrypoint python scenario -c \
   'import os,sys; from redis import Redis; print("OK" if Redis.from_url(os.environ["REDIS_URL"]).set("demo:links", sys.argv[1]) else "FAIL")' "$json")" \

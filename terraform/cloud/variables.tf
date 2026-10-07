@@ -57,25 +57,25 @@ variable "restock_sink_group_id" {
 variable "enable_restock" {
   description = "Layer restock: topic restock.requests, Flink statements of overlay/flink/restock.sql (needs the file), Connect read access for the JDBC sink."
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "enable_offers" {
   description = "Layer offers: topics offers and carts.at-risk, offer-worker/storefront access, Flink statements of overlay/flink/cart_at_risk.sql (needs the file)."
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "enable_dd_streams" {
   description = "Layer dd-streams: read-only (MetricsViewer) service account and Cloud resource management API key for the Datadog Confluent Cloud integration. Exposed as sensitive outputs."
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "enable_control_center" {
   description = "Layer control-center: dedicated Legacy Control Center identity, keys, ACLs, and Basic-cluster internal topics."
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "enable_catalog_tags" {

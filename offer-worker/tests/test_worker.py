@@ -332,7 +332,13 @@ def test_config_fails_loudly():
     with pytest.raises(SystemExit, match="KAFKA_BOOTSTRAP"):
         Config.from_env({})
     base = {"KAFKA_BOOTSTRAP": "k", "SR_URL": "s", "REDIS_URL": "r", "DD_AGENT_HOST": "a", "DD_ENV": "e", "DD_SERVICE": "s",
-            "DD_VERSION": "v", "KAFKA_SECURITY_PROTOCOL": "PLAINTEXT"}
+            "DD_VERSION": "v", "KAFKA_SECURITY_PROTOCOL": "PLAINTEXT", "STORE_HOSTS": "S01=store-s01,S02=store-s02"}
+    with pytest.raises(SystemExit, match="STORE_HOSTS"):
+        Config.from_env({k: v for k, v in base.items() if k != "STORE_HOSTS"})
+    for bad in ("S01", "S01=", "X1=a", "S01=a,S01=b"):
+        with pytest.raises(SystemExit, match="STORE_HOSTS"):
+            Config.from_env({**base, "STORE_HOSTS": bad})
+    assert Config.from_env(base).store_ids == ("S01", "S02")
     with pytest.raises(SystemExit, match="BEDROCK_MODEL_ID"):
         Config.from_env({**base, "BEDROCK_ENABLED": "true", "AWS_REGION": "eu-west-1"})
     with pytest.raises(SystemExit, match="OFFER_DISCOUNT_PCT"):

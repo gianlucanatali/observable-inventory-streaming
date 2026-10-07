@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Mapping
 
 NAME = "offer-worker"
-REQUIRED = ("KAFKA_BOOTSTRAP", "SR_URL", "REDIS_URL", "DD_AGENT_HOST", "DD_ENV", "DD_SERVICE", "DD_VERSION")
+REQUIRED = ("KAFKA_BOOTSTRAP", "SR_URL", "REDIS_URL", "DD_AGENT_HOST", "DD_ENV", "DD_SERVICE", "DD_VERSION", "STORE_HOSTS")
 # Required unless KAFKA_SECURITY_PROTOCOL=PLAINTEXT (local rehearsal broker and Schema Registry have no auth).
 REQUIRED_AUTH = ("KAFKA_API_KEY", "KAFKA_API_SECRET", "SR_API_KEY", "SR_API_SECRET")
 PROTOCOLS = ("SASL_SSL", "PLAINTEXT")
@@ -12,6 +13,20 @@ TRUE = ("1", "true", "yes", "on")
 FALSE = ("", "0", "false", "no", "off")
 # Fixed policy terms. The worker can never offer more than this, whatever Jev or Bedrock say.
 MAX_DISCOUNT_PCT = 15
+
+
+def parse_store_hosts(raw: str) -> tuple[str, ...]:
+    """STORE_HOSTS `S01=store-s01,S02=store-s02` -> store ids in order (only the ids are used: the confirmed-minimum
+    check reads feed:status:{store} and stock:{ns}:{store}:{product} for every store). Strict."""
+    ids: list[str] = []
+    for part in raw.split(","):
+        sid, sep, host = part.strip().partition("=")
+        if not sep or not re.fullmatch(r"S\d{2}", sid) or not host.strip():
+            raise SystemExit(f"{NAME}: STORE_HOSTS entry {part!r} must look like S01=store-s01 (value {raw!r})")
+        if sid in ids:
+            raise SystemExit(f"{NAME}: STORE_HOSTS lists store {sid!r} twice")
+        ids.append(sid)
+    return tuple(ids)
 
 
 def _bool(env: Mapping[str, str], name: str) -> bool:
@@ -47,6 +62,7 @@ class Config:
     dd_env: str
     dd_service: str
     dd_version: str
+    store_ids: tuple[str, ...]
     security_protocol: str = "SASL_SSL"
     group_id: str = "offer-worker"
     risk_topic: str = "carts.at-risk"
@@ -85,6 +101,7 @@ class Config:
             env["KAFKA_BOOTSTRAP"], env.get("KAFKA_API_KEY") or None, env.get("KAFKA_API_SECRET") or None,
             env["SR_URL"], env.get("SR_API_KEY") or None, env.get("SR_API_SECRET") or None, env["REDIS_URL"],
             env["DD_AGENT_HOST"], env["DD_ENV"], env["DD_SERVICE"], env["DD_VERSION"],
+            parse_store_hosts(env["STORE_HOSTS"]),
             security_protocol=protocol,
             group_id=env.get("KAFKA_GROUP_ID", "offer-worker"),
             risk_topic=env.get("RISK_TOPIC", "carts.at-risk"),

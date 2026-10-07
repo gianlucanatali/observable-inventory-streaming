@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Recap | Observable inventory streaming</title>
+<meta name="description" content="Hands-on workshop: stream stock changes from five PostgreSQL store databases through Debezium and Confluent Cloud into Redis on AWS, then find and fix a slow release with Datadog.">
+<meta name="color-scheme" content="light dark">
+<!-- Generated from workshop/README.md by workshop/site/build.py. Do not edit by hand. -->
+<script>
+// Set the lab path before the first paint, so the page never shows both paths and then hides one.
+(function () {
+  var d = document.documentElement, p = null;
+  d.classList.add("js");
+  var m = /[?&]path=(panel|terminal)(?:&|$)/.exec(location.search);
+  try {
+    if (m) { p = m[1]; localStorage.setItem("workshop-path", p); }
+    else { p = localStorage.getItem("workshop-path"); }
+  } catch (e) {
+    console.warn("workshop: localStorage unavailable, the path choice is not remembered:", e);
+    if (m) p = m[1];
+  }
+  if (p !== "panel" && p !== "terminal") p = null;
+  d.setAttribute("data-path-mode", p || "panel");
+  if (p) d.setAttribute("data-path-chosen", "");
+})();
+</script>
+<link rel="stylesheet" href="assets/fonts.css?v=471d416a0c">
+<link rel="stylesheet" href="assets/site.css?v=84305200bf">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23632CA6'/%3E%3Cpath d='M8 21h4v-6H8zm6 0h4V10h-4zm6 0h4v-9h-4z' fill='white'/%3E%3C/svg%3E">
+</head>
+<body data-connect-href="setup.html#connect-box">
+<a class="skip" href="#content">Skip to content</a>
+<header class="topbar">
+  <button type="button" class="toc-toggle" aria-controls="toc" aria-expanded="false">
+    <span class="burger" aria-hidden="true"></span><span class="sr-only">Table of contents</span>
+  </button>
+  <a class="brand" href="intro.html" title="Start of the workshop"><span class="brand-mark" aria-hidden="true"></span><span>Observable inventory streaming</span></a>
+  <div class="path-switch" role="group" aria-label="Lab path">
+    <span class="path-switch-label" aria-hidden="true">Path</span>
+    <button type="button" data-set-path="panel" aria-pressed="true" title="Show the control panel steps">Panel</button>
+    <button type="button" data-set-path="terminal" aria-pressed="false" title="Show the terminal (make) steps">Terminal</button>
+  </div>
+  <a class="stack-badge" id="stack-badge" href="setup.html#connect-box" hidden title="Your stack is connected to this guide. Open the Connect box."><span class="stack-dot" aria-hidden="true"></span><span class="stack-badge-text">Connected<span class="stack-badge-name"></span></span></a>
+  <nav class="topbar-links" aria-label="Site">
+    <a class="topbar-home" href="index.html">Home</a>
+    <a class="topbar-current" href="intro.html" aria-current="page">Workshop</a><a class="topbar-extra" href="workshop.html">One-page guide</a>
+    <a class="topbar-extra topbar-md" href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/workshop/README.md" target="_blank" rel="noopener">Markdown source</a>
+    <a class="topbar-extra" href="https://github.com/gianlucanatali/observable-inventory-streaming" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+</header>
+<div class="layout">
+  <nav id="toc" class="toc" aria-label="Table of contents">
+    <p class="toc-title">Workshop</p><ol class="chapter-list"><li><a href="intro.html">Intro</a></li><li><a href="setup.html"><span class="cl-n">0</span>Setup</a></li><li><a href="chapter-1.html"><span class="cl-n">1</span>One honest number</a></li><li><a href="chapter-2.html"><span class="cl-n">2</span>Unknown is not zero</a></li><li><a href="chapter-3.html"><span class="cl-n">3</span>The incident</a></li><li><a href="chapter-4.html"><span class="cl-n">4</span>Canary the fix</a></li><li><a href="chapter-5.html"><span class="cl-n">5</span>The AI offer</a></li><li><a href="chapter-6.html"><span class="cl-n">6</span>Datadog on top</a></li></ol><p class="toc-title">Help and reference</p><ol class="chapter-list chapter-list-help"><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="teardown.html">Teardown</a></li><li><a href="recap.html" aria-current="page">Recap</a></li><li><a href="reference.html">Reference</a></li><li><a class="guide-link" href="workshop.html">One-page guide</a></li></ol><p class="toc-title toc-title-page">On this page</p><ol class="toc-list">
+<li class="toc-h2"><a href="#recap-and-further-reading">Recap and further reading</a>
+</li>
+</ol>
+  </nav>
+  <div class="scrim" hidden></div>
+  <main id="content" class="content" tabindex="-1">
+    <article id="top" class="doc">
+<nav class="chapter-progress" aria-label="Chapters"><ol><li class="cp-step cp-extra"><a href="intro.html"><span class="cp-dot" aria-hidden="true">&middot;</span><span class="cp-label">Intro</span></a></li><li class="cp-step cp-extra"><a href="setup.html"><span class="cp-dot" aria-hidden="true">0</span><span class="cp-label">Setup</span></a></li><li class="cp-step"><a href="chapter-1.html"><span class="cp-dot" aria-hidden="true">1</span><span class="cp-label">One honest number</span></a></li><li class="cp-step"><a href="chapter-2.html"><span class="cp-dot" aria-hidden="true">2</span><span class="cp-label">Unknown is not zero</span></a></li><li class="cp-step"><a href="chapter-3.html"><span class="cp-dot" aria-hidden="true">3</span><span class="cp-label">The incident</span></a></li><li class="cp-step"><a href="chapter-4.html"><span class="cp-dot" aria-hidden="true">4</span><span class="cp-label">Canary the fix</span></a></li><li class="cp-step"><a href="chapter-5.html"><span class="cp-dot" aria-hidden="true">5</span><span class="cp-label">The AI offer</span></a></li><li class="cp-step"><a href="chapter-6.html"><span class="cp-dot" aria-hidden="true">6</span><span class="cp-label">Datadog on top</span></a></li></ol></nav>
+<p class="chapter-kicker">Recap</p>
+<h2 id="recap-and-further-reading">Recap and further reading <a class="header-anchor" href="#recap-and-further-reading">#</a></h2>
+<p>You streamed changes out of five store databases without changing them. You built a serving view that never queries the stores and never shows unknown stock as zero, and you used a probe to show that it stays fresh. Then you shipped a slow release as a 10% canary; the gate failed it, and you rolled it back before most lookups reached it. You found the cause with version-tagged traces, and you rolled out the fix through the same gate, with a tested way back. Two optional layers used the same stream for restocking and for AI offers that follow rules.</p>
+<div class="table-wrap" tabindex="0"><table>
+<thead>
+<tr>
+<th>Question</th>
+<th>Datadog view that answered it</th>
+<th>Lab</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Is the stock in the Online shop current?</td>
+<td>Freshness group: probe age, feed state, apply delay, sellable age</td>
+<td>1, 2</td>
+</tr>
+<tr>
+<td>Which store stopped reporting?</td>
+<td><code>stock.feed.state</code> by store, per-store monitor</td>
+<td>2</td>
+</tr>
+<tr>
+<td>Should this release reach more shoppers?</td>
+<td>The <code>canary-check</code> gates on the canary's samples, errors, p95 and correctness</td>
+<td>3, 4</td>
+</tr>
+<tr>
+<td>Is the slowness in the release or in the stream?</td>
+<td>APM latency by version, <code>catalogue.prepare</code> span, unchanged freshness and DSM</td>
+<td>3</td>
+</tr>
+<tr>
+<td>Is the fix safe to roll out further?</td>
+<td>APM Deployments by version, plus the <code>canary-check</code> gates</td>
+<td>4</td>
+</tr>
+<tr>
+<td>Are restock orders flowing?</td>
+<td>Restock group, config-change events, restock monitors</td>
+<td>5</td>
+</tr>
+<tr>
+<td>Why did the shopper get this offer?</td>
+<td>LLM Observability span input and output, <code>offer.decision</code> by reason</td>
+<td>6</td>
+</tr>
+<tr>
+<td>Is the platform healthy, and what does it cost?</td>
+<td>AWS-native dashboard, Confluent consumer lag, Synthetics, monitors, cost dashboard</td>
+<td>7</td>
+</tr>
+</tbody>
+</table></div>
+<details>
+<summary>Further reading (official documentation)</summary>
+<ul>
+<li>Debezium: <a href="https://debezium.io/documentation/reference/stable/connectors/postgresql.html" rel="noopener" target="_blank">PostgreSQL connector</a></li>
+<li>Confluent Cloud: <a href="https://docs.confluent.io/cloud/current/get-started/index.html" rel="noopener" target="_blank">getting started</a>, <a href="https://docs.confluent.io/cloud/current/flink/overview.html" rel="noopener" target="_blank">Apache Flink</a>, <a href="https://docs.confluent.io/cloud/current/sr/index.html" rel="noopener" target="_blank">Schema Registry</a>, <a href="https://docs.confluent.io/cloud/current/billing/overview.html" rel="noopener" target="_blank">billing</a>, <a href="https://docs.confluent.io/cloud/current/multi-cloud/cluster-linking/index.html" rel="noopener" target="_blank">Cluster Linking</a></li>
+<li>Datadog APM: <a href="https://docs.datadoghq.com/tracing/" rel="noopener" target="_blank">tracing</a>, <a href="https://docs.datadoghq.com/getting_started/tagging/unified_service_tagging/" rel="noopener" target="_blank">unified service tagging</a>, <a href="https://docs.datadoghq.com/tracing/services/deployment_tracking/" rel="noopener" target="_blank">deployment tracking</a>, <a href="https://docs.datadoghq.com/tracing/other_telemetry/connect_logs_and_traces/python/" rel="noopener" target="_blank">connecting Python logs and traces</a></li>
+<li>Datadog <a href="https://docs.datadoghq.com/data_streams/" rel="noopener" target="_blank">Data Streams Monitoring</a>, <a href="https://docs.datadoghq.com/llm_observability/" rel="noopener" target="_blank">LLM Observability</a></li>
+<li>Datadog <a href="https://docs.datadoghq.com/integrations/ecs_fargate/" rel="noopener" target="_blank">Amazon ECS on AWS Fargate, including FireLens log collection</a></li>
+<li>Datadog integrations: <a href="https://docs.datadoghq.com/integrations/amazon_web_services/" rel="noopener" target="_blank">AWS</a>, <a href="https://docs.datadoghq.com/integrations/confluent_cloud/" rel="noopener" target="_blank">Confluent Cloud</a></li>
+<li>Datadog <a href="https://docs.datadoghq.com/synthetics/" rel="noopener" target="_blank">Synthetic Monitoring</a>, <a href="https://docs.datadoghq.com/real_user_monitoring/" rel="noopener" target="_blank">RUM</a>, <a href="https://docs.datadoghq.com/cloud_cost_management/setup/aws/" rel="noopener" target="_blank">Cloud Cost Management for AWS</a>, <a href="https://docs.datadoghq.com/account_management/api-app-keys/" rel="noopener" target="_blank">API and application keys</a>, <a href="https://docs.datadoghq.com/getting_started/site/" rel="noopener" target="_blank">sites</a></li>
+<li>AWS: <a href="https://docs.aws.amazon.com/AmazonECS/latest/developerguide/AWS_Fargate.html" rel="noopener" target="_blank">Amazon ECS on AWS Fargate</a>, <a href="https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-listeners.html" rel="noopener" target="_blank">ALB listeners and weighted forward actions</a>, <a href="https://aws.amazon.com/fargate/pricing/" rel="noopener" target="_blank">Fargate pricing</a>, <a href="https://aws.amazon.com/elasticache/pricing/" rel="noopener" target="_blank">ElastiCache pricing</a></li>
+</ul>
+</details>
+
+<nav class="pager" aria-label="Previous and next"><a class="pager-btn pager-prev" href="teardown.html"><span class="pager-dir">Previous</span><span class="pager-title">Teardown</span></a><a class="pager-btn pager-next" href="reference.html"><span class="pager-dir">Next</span><span class="pager-title">Reference</span></a></nav>
+    </article>
+    <footer class="doc-footer">
+      <p>Generated from <a href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/workshop/README.md" target="_blank" rel="noopener"><code>workshop/README.md</code></a>. Every product, store, sale and shopper in this workshop is synthetic.</p>
+      <p>Educational demo, not for production workloads. <a href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/LICENSE" target="_blank" rel="noopener">Apache License 2.0</a>, provided as is; trademarks and third-party notices in <a href="https://github.com/gianlucanatali/observable-inventory-streaming/blob/main/NOTICE" target="_blank" rel="noopener">NOTICE</a>.</p>
+      <p><a href="#top">Back to top</a> &middot; <a href="workshop.html">One-page guide</a></p>
+    </footer>
+  </main>
+</div>
+<dialog class="lightbox" aria-label="Enlarged image">
+  <form method="dialog"><button class="lightbox-close" aria-label="Close">&times;</button></form>
+  <img alt="">
+  <p class="lightbox-caption"></p>
+</dialog>
+<dialog class="path-dialog" aria-labelledby="path-dialog-title" aria-describedby="path-dialog-text">
+  <h2 id="path-dialog-title">Switch to the <span class="path-dialog-other">terminal</span> path?</h2>
+  <p id="path-dialog-text">Pick one path and use it from start to finish. The control panel and the terminal each remember their own last routing for Rollback, so mixing them in one run can roll back to the wrong state. Switch only if you are starting a lab from a reset.</p>
+  <div class="path-dialog-buttons">
+    <button type="button" class="path-keep" autofocus>Keep control panel</button>
+    <button type="button" class="path-switch-confirm">Switch to terminal</button>
+  </div>
+</dialog>
+<div class="sr-only" aria-live="polite" id="live"></div>
+<script src="assets/stack.js?v=ec6a04c228"></script>
+<script src="assets/site.js?v=1de1666aca" defer></script>
+</body>
+</html>

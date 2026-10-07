@@ -14,8 +14,8 @@ required = [
     'cpu_architecture        = "ARM64"',
     'gcr.io/datadoghq/agent:7.83.3@sha256:c5bf5ec9be0c51d3d2d47bdadbb82680b5c83ceb9cae8457fe44aa736a1784ad',
     'values = ["/api/availability/*"]', 'values = ["/control", "/control/*"]',
-    'output "alb_listener_arn"', 'output "ecr_repositories"', 'output "ecs_services"',
-    'image_tag', 'default     = "dev"', 'on_prem_private_ip',
+    'output "alb_listener_arn"', 'output "ecs_services"',
+    'variable "image_tags"', 'local.image_uri[each.value.image]', 'on_prem_private_ip',
     'PROJECTOR_KAFKA_API_KEY', 'DEMO_CONTROL_KAFKA_API_KEY', 'COST_METER_API_KEY',
     'KAFKA_BOOTSTRAP', 'SR_URL', 'KAFKA_SECURITY_PROTOCOL', 'STORE_HOSTS',
     'CONFLUENT_ENVIRONMENT_ID', 'KAFKA_CLUSTER_ID', 'FLINK_COMPUTE_POOL_ID',
@@ -68,7 +68,7 @@ if '[{ name = "DD_LOGS_INJECTION", value = "true" }],' not in text:
 # while the injected Python correlation fields remain enabled for every app.
 required_q8_logging = [
     '"log-router"',
-    'aws_ecr_repository.app["log-router"].repository_url',
+    'local.image_uri["log-router"]',
     'logDriver = "awsfirelens"',
     'Name           = "datadog"',
     'Host           = "http-intake.logs.datadoghq.eu"',

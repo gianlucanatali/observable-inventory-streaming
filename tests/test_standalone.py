@@ -102,7 +102,7 @@ class StandaloneOverlayTest(unittest.TestCase):
                 "sellable-dev",
                 "cost-meter",
                 "scenario",
-                "watchdog",
+                "freshness-probe",
                 "supplier-sim",
                 "demo-control",
             )

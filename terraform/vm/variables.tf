@@ -68,7 +68,7 @@ variable "enable_dd_synthetics" {
 variable "enable_control_center" {
   description = "Layer control-center: expose Legacy Control Center TCP 9021 only to presenter_cidr."
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "synthetics_location" {

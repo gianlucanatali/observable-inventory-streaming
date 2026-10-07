@@ -172,12 +172,14 @@ terraform_step() { # terraform_step <layer> <on|off> : cloud only; stack.sh appl
   if [ -z "$(tf_dir_of "$1")" ]; then echo "   (layer $1 has no Terraform resources)"; return 0; fi
   if [ "$MODE" != cloud ]; then echo "   (MODE=dev: Terraform skipped; the layer's cloud resources are not needed locally)"; return 0; fi
   if [ "${LAYER_SKIP_TF:-}" = 1 ]; then echo "   (LAYER_SKIP_TF=1: Terraform handled by the caller)"; return 0; fi
-  "$OVERLAY/compose/scripts/stack.sh" layer-tf "$1" "$2"
+  # shellcheck disable=SC2086  # LAYER_STACK_ENV: demo.yaml AWS_PROFILE/AWS_REGION for stack.sh only (Makefile)
+  env ${LAYER_STACK_ENV:-} "$OVERLAY/compose/scripts/stack.sh" layer-tf "$1" "$2"
 }
 
 post_step() { # post_step <layer> <on|off> : cloud only, e.g. Flink statements whose inputs need a first record (restock), RUM ids (dd-rum)
   if [ "$MODE" != cloud ] || [ "${LAYER_SKIP_TF:-}" = 1 ]; then echo "   (nothing to do)"; return 0; fi
-  "$OVERLAY/compose/scripts/stack.sh" layer-post "$1" "$2"
+  # shellcheck disable=SC2086  # LAYER_STACK_ENV: demo.yaml AWS_PROFILE/AWS_REGION for stack.sh only (Makefile)
+  env ${LAYER_STACK_ENV:-} "$OVERLAY/compose/scripts/stack.sh" layer-post "$1" "$2"
 }
 
 connect_py() { # run a python snippet in the connect container
@@ -212,6 +214,13 @@ health_check() { # health_check <layer>
   esac
 }
 
+require_control_center_keys() { # compose.hybrid.yaml takes these with ':-' (every stack interpolates the service)
+  local f="${ENV_DIR:?layer.sh: ENV_DIR must be set}/.env.cloud-$STACK" n
+  for n in CONTROL_CENTER_KAFKA_API_KEY CONTROL_CENTER_KAFKA_API_SECRET CONTROL_CENTER_SR_API_KEY CONTROL_CENTER_SR_API_SECRET; do
+    grep -q "^$n=." "$f" || { echo "layer.sh: $n is missing in $f: terraform/cloud did not create the Control Center keys (enable_control_center)" >&2; return 1; }
+  done
+}
+
 layer_on() {
   local layer="$1" svcs
   svcs="$(services_of "$layer")"
@@ -219,6 +228,7 @@ layer_on() {
   if hybrid_ecs_layer "$layer"; then
     echo "   ($layer runs on ECS for hybrid; no VM containers started)"
   elif [ -n "$svcs" ]; then
+    if [ "$layer" = control-center ]; then step "Control Center keys in .env.cloud-$STACK" require_control_center_keys; fi
     # shellcheck disable=SC2086
     step "compose up $svcs" $DC --profile "$layer" up -d $svcs
     if [ "$layer" = restock ]; then
@@ -264,9 +274,16 @@ for n in ('restock-procurement', 'procurement-orders'):
   step "publish demo:layers" publish_layers
 }
 
+publish_links() { # hybrid cloud: refresh demo:links so the panel's Links card matches the layers (stack-up does its own)
+  if [ "$MODE" != cloud ] || [ "$TOPOLOGY" != hybrid ] || [ "${LAYER_SKIP_TF:-}" = 1 ]; then echo "   (nothing to do)"; return 0; fi
+  DC="$DC" STACK="$STACK" TOPOLOGY="$TOPOLOGY" "$OVERLAY/compose/scripts/publish-links.sh"
+}
+
 case "${1:-}" in
-  on)  : "${2:?layer.sh on <layer>}"; services_of "$2" >/dev/null; layer_on "$2"; echo "== layer $2 ON for stack $STACK, total $(( $(date +%s) - T0 )) s";;
-  off) : "${2:?layer.sh off <layer>}"; services_of "$2" >/dev/null; layer_off "$2"; echo "== layer $2 OFF for stack $STACK, total $(( $(date +%s) - T0 )) s";;
+  on)  : "${2:?layer.sh on <layer>}"; services_of "$2" >/dev/null; layer_on "$2"; step "publish demo:links" publish_links
+       echo "== layer $2 ON for stack $STACK, total $(( $(date +%s) - T0 )) s";;
+  off) : "${2:?layer.sh off <layer>}"; services_of "$2" >/dev/null; layer_off "$2"; step "publish demo:links" publish_links
+       echo "== layer $2 OFF for stack $STACK, total $(( $(date +%s) - T0 )) s";;
   running) running_layers;;
   sync)
     # Called after `make up-*`: redis may still be starting, retry briefly. Layers and routing are what is actually running.

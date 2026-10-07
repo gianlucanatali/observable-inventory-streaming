@@ -18,7 +18,6 @@ LINKS_KEY = "demo:links"
 STACK_KEY = "demo:stack"
 STACK_FIELDS = ("stack", "env", "alb", "vm_public_ip", "confluent_env", "kafka_cluster")
 THUMBS = Path(__file__).parent / "thumbs"
-GROUPS = ("Shop", "Datadog", "Confluent", "AWS")
 NOT_PUBLISHED = "No links published for this stack yet: run make links-publish on your computer."
 
 
@@ -54,7 +53,7 @@ def load(redis_client) -> list[dict]:
 
 
 def guide_json(redis_client) -> dict:
-    """The JSON the workshop guide's 4.4 form takes: demo:stack plus every link url keyed by id, plus `control`.
+    """The JSON the workshop guide's 0.2.4 form takes: demo:stack plus every link url keyed by id, plus `control`.
     Raises LinksError (with the reason) when demo:stack or demo:links is missing or malformed."""
     try:
         raw = redis_client.get(STACK_KEY)
@@ -91,8 +90,8 @@ def card_html(redis_client) -> str:
         guide, guide_error = json.dumps(guide_json(redis_client), indent=2), None
     except LinksError as exc:
         guide, guide_error = "", str(exc)
-    groups = [(g, [l for l in links if l["group"] == g]) for g in GROUPS]
-    groups += [(g, [l for l in links if l["group"] == g]) for g in dict.fromkeys(l["group"] for l in links) if g not in GROUPS]
+    # Groups in the order the list publishes them, so the first published link (the overview dashboard) is the first tile.
+    groups = [(g, [l for l in links if l["group"] == g]) for g in dict.fromkeys(l["group"] for l in links)]
     return render_template_string(CARD, groups=[(g, ls) for g, ls in groups if ls], error=error,
                                   guide=guide, guide_error=guide_error)
 
@@ -136,7 +135,7 @@ CARD = """<!-- links card (demo_control/links_card.py) -->
 <details class="control-card actions-card" id="links-card" open><summary><h2>Links</h2><span class="meta">Every page of this stack, each in a new tab. Pictures are example views from the workshop guide.</span></summary>
 {% if error %}<p class="msg err">{{ error }}</p>{% endif %}
 <div class="guide-copy"><button type="button" id="guide-copy"{% if not guide %} disabled{% endif %}>Copy for the workshop guide</button>
-<span id="guide-msg" class="meta" role="status">{% if guide_error %}Copy unavailable: {{ guide_error }}{% else %}Copies this stack as JSON; paste it in the guide, section 4.4.{% endif %}</span></div>
+<span id="guide-msg" class="meta" role="status">{% if guide_error %}Copy unavailable: {{ guide_error }}{% else %}Copies this stack as JSON; paste it in the guide, 0.2.4.{% endif %}</span></div>
 <textarea id="guide-json" readonly hidden aria-label="Stack JSON for the workshop guide">{{ guide }}</textarea>
 <div class="links-grid">{% for group, links in groups %}{% for l in links %}
 <a class="link-tile" href="{{ l.url }}" target="_blank" rel="noopener noreferrer" data-link="{{ l.id }}" title="{{ l.url }}">
@@ -153,13 +152,13 @@ CARD = """<!-- links card (demo_control/links_card.py) -->
     box.hidden = false; box.focus(); box.select();
     var ok = false;
     try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
-    if (ok) say("Copied: paste it in the guide, section 4.4.");
-    else say("Could not copy automatically. The JSON is selected below: press Ctrl+C (Cmd+C on Mac), then paste it in the guide, section 4.4.", true);
+    if (ok) say("Copied: paste it in the guide, 0.2.4.");
+    else say("Could not copy automatically. The JSON is selected below: press Ctrl+C (Cmd+C on Mac), then paste it in the guide, 0.2.4.", true);
   }
   btn.addEventListener("click", function () {
     var text = box.value;
     if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(text).then(function () { say("Copied: paste it in the guide, section 4.4."); },
+      navigator.clipboard.writeText(text).then(function () { say("Copied: paste it in the guide, 0.2.4."); },
         function (err) { say("Clipboard refused (" + err + "), trying the fallback."); viaTextarea(); });
     } else viaTextarea();
   });

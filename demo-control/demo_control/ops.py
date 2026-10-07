@@ -9,15 +9,15 @@ from flask import Flask, jsonify
 
 from . import checks_card
 from .actions import ActionError, Operation
-from .routing import PRESETS, ROLLBACK, AlbRouting, RoutingError
+from .routing import PRESETS, ROLLBACK, RoutingError, WeightedRouting
 from .store_feed import FEED_ACTIONS, STORES, ConnectFeeds, FeedError
 
-ROUTING_OFF = ("Release routing is not configured in this deployment (ALB_INVENTORY_* variables absent). "
-               "It is available on the hybrid stack, where demo-control runs on ECS next to the ALB.")
+ROUTING_OFF = ("Release routing is not configured in this deployment (neither ALB_INVENTORY_* nor NGINX_ROUTING_DIR "
+               "is set). It is available on the hybrid stack (ALB rule) and in local mode (nginx upstream).")
 FEEDS_OFF = "Store feed control is not configured in this deployment (CONNECT_URL absent)."
 
 
-def make_operations(alb: AlbRouting | None, feeds: ConnectFeeds | None, checks=None, sales=None,
+def make_operations(alb: WeightedRouting | None, feeds: ConnectFeeds | None, checks=None, sales=None,
                     reset=None, restock=None) -> dict[str, Operation]:
     def routing_op(name: str) -> Operation:
         def parse(body: dict) -> dict:
@@ -66,7 +66,8 @@ def register(app: Flask, control) -> None:
 
 
 def cards_html(control) -> str:
-    routing_on, feeds_on = getattr(control, "alb", None) is not None, getattr(control, "feeds", None) is not None
+    backend = getattr(control, "alb", None)  # routing backend: AlbRouting (hybrid) or NginxRouting (local mode)
+    routing_on, feeds_on = backend is not None, getattr(control, "feeds", None) is not None
     buttons = "".join(
         f'<button class="ops-btn ops-route{" secondary" if name == "route-baseline" else ""}" data-action="{name}" '
         f'data-weights="{"/".join(map(str, w))}" data-why="{why}"{"" if routing_on else " disabled"}>{label}</button>'
@@ -79,7 +80,9 @@ def cards_html(control) -> str:
             .replace("{{FEED_DISABLED}}", dis)
             .replace("{{ROUTING_ON}}", "true" if routing_on else "false")
             .replace("{{FEEDS_ON}}", "true" if feeds_on else "false")
-            .replace("{{ROUTING_OFF}}", ROUTING_OFF).replace("{{FEEDS_OFF}}", FEEDS_OFF)) + checks_card.card_html(control)
+            .replace("{{ROUTING_OFF}}", ROUTING_OFF).replace("{{FEEDS_OFF}}", FEEDS_OFF)
+            .replace("{{ROUTING_TEXT}}", backend.card_text if backend else "Changes the release traffic split, then reads it back.")
+            .replace("{{ROUTING_LIVE}}", f"Live {backend.label}" if backend else "Live weights")) + checks_card.card_html(control)
 
 
 OPS_HTML = """<!-- ops cards: release routing + store feed (demo_control/ops.py) -->
@@ -95,9 +98,9 @@ OPS_HTML = """<!-- ops cards: release routing + store feed (demo_control/ops.py)
 select.ops-store { min-height:44px; font:inherit; padding:8px 10px; background:#fff; color:var(--ink); border:1px solid #cdb9e8; border-radius:10px; }
 .ops-card .action-progress { display:grid; gap:6px; }
 </style>
-<section class="control-card actions-card ops-card" id="ops-routing"><div class="actions-layout"><div><h2>Release routing</h2><div class="label">Inventory API traffic split</div><p class="meta">Changes the weighted forward action of this stack's ALB inventory rule, then reads it back. Same weights as <code>make canary-110-10</code>, <code>incident</code>, <code>canary-10/50/100</code>, <code>rollback</code>, <code>route-baseline</code>. Rollback restores the routing in effect before the last change.</p></div>
+<section class="control-card actions-card ops-card" id="ops-routing"><div class="actions-layout"><div><h2>Release routing</h2><div class="label">Inventory API traffic split</div><p class="meta">{{ROUTING_TEXT}} Same weights as <code>make canary-110-10</code>, <code>incident</code>, <code>canary-10/50/100</code>, <code>rollback</code>, <code>route-baseline</code>. Rollback restores the routing in effect before the last change.</p></div>
 <div><div class="ops-buttons">{{ROUTE_BUTTONS}}<button class="secondary ops-refresh" id="ops-route-refresh">Refresh weights</button></div></div></div>
-<div class="action-progress"><div class="meta">Live ALB weights</div><div class="ops-weights" id="ops-weights"><div class="ops-weight"><b>&mdash;</b><span>1.0.0</span></div><div class="ops-weight"><b>&mdash;</b><span>1.1.0</span></div><div class="ops-weight"><b>&mdash;</b><span>1.2.0</span></div></div>
+<div class="action-progress"><div class="meta">{{ROUTING_LIVE}}</div><div class="ops-weights" id="ops-weights"><div class="ops-weight"><b>&mdash;</b><span>1.0.0</span></div><div class="ops-weight"><b>&mdash;</b><span>1.1.0</span></div><div class="ops-weight"><b>&mdash;</b><span>1.2.0</span></div></div>
 <div class="meta" id="ops-route-prev">Previous: unknown</div><div class="msg" id="ops-route-msg"></div></div></section>
 <section class="control-card actions-card ops-card" id="ops-feeds"><div class="actions-layout"><div><h2>Store feed</h2><div class="label">Debezium store connectors</div><p class="meta">Pauses or resumes one store's change feed through the Kafka Connect REST API on the on-prem VM (same as <code>make store-pause|store-resume STORE=Sxx</code>). A paused store stops sending stock changes; its source keeps selling.</p></div>
 <div class="action-controls"><div class="field"><label for="ops-store">Store</label><select class="ops-store" id="ops-store"{{FEED_DISABLED}}>{{STORE_OPTIONS}}</select></div>
@@ -127,7 +130,7 @@ select.ops-store { min-height:44px; font:inherit; padding:8px 10px; background:#
       ['1.0.0', '1.1.0', '1.2.0'].forEach((r, i) => { cells[i].querySelector('b').textContent = j.weights[r] + '%'; cells[i].classList.toggle('hot', j.weights[r] > 0); });
       prev = j.previous;
       q('#ops-route-prev').textContent = 'Live ' + j.current.split(' ').join('/') + ' · previous (for Rollback): ' + (j.previous ? j.previous.split(' ').join('/') : 'none recorded');
-    } catch (e) { msg(q('#ops-route-msg'), 'err', 'Could not read the ALB rule: ' + e.message); }
+    } catch (e) { msg(q('#ops-route-msg'), 'err', 'Could not read the live routing: ' + e.message); }
   }
   async function loadFeeds() {
     if (!FEEDS_ON) { msg(q('#ops-feed-msg'), '', '{{FEEDS_OFF}}'); q('#ops-feed-table tbody').innerHTML = ''; return; }
@@ -160,8 +163,8 @@ select.ops-store { min-height:44px; font:inherit; padding:8px 10px; background:#
     poll();
   }
   document.querySelectorAll('.ops-route').forEach(b => b.onclick = () => run(b.dataset.action, {},
-    b.dataset.action === 'rollback' ? 'Restore the previous ALB routing (' + (prev ? prev.split(' ').join('/') : 'none recorded') + ')?'
-      : 'Route ' + b.dataset.weights + ' to 1.0.0/1.1.0/1.2.0 (' + b.dataset.why + ')? This changes the live ALB rule.', q('#ops-route-msg')));
+    b.dataset.action === 'rollback' ? 'Restore the previous routing (' + (prev ? prev.split(' ').join('/') : 'none recorded') + ')?'
+      : 'Route ' + b.dataset.weights + ' to 1.0.0/1.1.0/1.2.0 (' + b.dataset.why + ')? This changes the live routing.', q('#ops-route-msg')));
   document.querySelectorAll('.ops-feed').forEach(b => b.onclick = () => { const s = q('#ops-store').value;
     run(b.dataset.action, {store: s}, (b.dataset.action === 'store-pause' ? 'Pause' : 'Resume') + ' the Debezium feed of store ' + s + ' (inventory-' + s.toLowerCase() + ')?', q('#ops-feed-msg')); });
   q('#ops-route-refresh').onclick = loadRouting; q('#ops-feed-refresh').onclick = loadFeeds;
