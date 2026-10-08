@@ -518,3 +518,83 @@ def test_config_time_compression_live_and_fallback(make, caplog):
     assert client.get("/config").get_json()["time_compression"] == 120
     deps.redis.data["demo:config"]["time_compression"] = "0"  # out of range
     assert client.get("/config").get_json()["time_compression"] == 60
+
+
+# --- Restock notice for an offer built before its purchase order existed -------------------------------------------
+NOW = datetime(2026, 10, 9, 10, 0, tzinfo=timezone.utc)
+
+
+def _put_offer(deps, product="P0042", alt="P0061", restock_eta=None):
+    deps.offer_store.put(dict(offer_id="o", cart_id="c", scenario_id="sc-1", original_store_id="ONLINE",
+                              original_product_id=product, product_id=alt, offer_type="ALTERNATIVE_PRODUCT",
+                              discount_pct=10, headline="h", body="b", decision_route="JEV", text_route="TEMPLATE",
+                              chosen_choice=f"alt:{alt}" if alt else None, restock_eta=restock_eta))
+
+
+def _offer(client):
+    return client.get("/api/offers?cart_id=c").get_json()["offers"][0]
+
+
+def _eta_ms(seconds_from_now):
+    return str(int((NOW.timestamp() + seconds_from_now) * 1000))
+
+
+def test_late_purchase_order_near_gives_restock_notice(make):
+    client, deps = make(now=NOW)
+    _put_offer(deps)
+    # 17 real minutes x default compression 60 = 17 business hours: within 7 days
+    deps.redis.data["restock:eta:P0042"] = _eta_ms(17 * 60)
+    offer = _offer(client)
+    assert offer["restock_eta"] == datetime.fromtimestamp(NOW.timestamp() + 17 * 60, tz=timezone.utc).isoformat()
+    assert offer["restock_notice"] is True and offer["no_offer"] is False and offer["alternative"] is not None
+
+
+def test_late_purchase_order_without_alternative_still_gives_notice(make):
+    client, deps = make(now=NOW)
+    _put_offer(deps, alt=None)
+    deps.redis.data["restock:eta:P0042"] = _eta_ms(60)
+    offer = _offer(client)
+    assert offer["restock_notice"] is True and offer["no_offer"] is False and offer["alternative"] is None
+
+
+def test_late_purchase_order_far_gives_no_notice(make):
+    client, deps = make(now=NOW)
+    _put_offer(deps)
+    deps.redis.data["restock:eta:P0042"] = _eta_ms(3 * 3600)  # 3 h x 60 = 7.5 business days > 7
+    offer = _offer(client)
+    assert offer["restock_eta"] is None and offer["restock_notice"] is False
+
+
+def test_live_config_changes_the_near_limit(make):
+    client, deps = make(now=NOW)
+    _put_offer(deps)
+    deps.redis.data["restock:eta:P0042"] = _eta_ms(3 * 3600)
+    deps.redis.data["demo:config"] = {"time_compression": "30"}  # 3 h x 30 = 3.75 business days
+    assert _offer(client)["restock_notice"] is True
+    deps.redis.data["demo:config"] = {"time_compression": "30", "notify_me_near_days": "3"}
+    assert _offer(client)["restock_notice"] is False
+
+
+def test_no_purchase_order_leaves_the_offer_unchanged(make):
+    client, deps = make(now=NOW)
+    _put_offer(deps)
+    offer = _offer(client)
+    assert offer["restock_eta"] is None and offer["restock_notice"] is False
+
+
+def test_malformed_restock_key_gives_no_notice_and_logs_error(make, caplog):
+    client, deps = make(now=NOW)
+    _put_offer(deps)
+    deps.redis.data["restock:eta:P0042"] = "soon"
+    with caplog.at_level("ERROR"):
+        offer = _offer(client)
+    assert offer["restock_eta"] is None and offer["restock_notice"] is False
+    assert any("restock:eta:P0042" in r.getMessage() for r in caplog.records if r.levelname == "ERROR")
+
+
+def test_stored_restock_eta_is_not_overridden(make):
+    client, deps = make(now=NOW)
+    stored = datetime(2026, 10, 9, 12, 0, tzinfo=timezone.utc)
+    _put_offer(deps, restock_eta=stored)
+    deps.redis.data["restock:eta:P0042"] = _eta_ms(60)
+    assert _offer(client)["restock_eta"] == stored.isoformat()

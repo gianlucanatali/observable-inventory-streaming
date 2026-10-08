@@ -3,7 +3,7 @@
 # here" note, then one group per Chapter: a story line, links to the deeper views, and 2-3 key widgets.
 # Queries are reused from the stock dashboard (main.tf local.ts), the online dashboard (fargate.tf), the account cost
 # dashboard (overlay/terraform/account/cost.tf) or the monitors in this directory; the Chapter 3 saturation queries were
-# checked with data for the all-traffic 1.1.0 run of 2026-10-06 18:10-18:30 UTC.
+# checked with data for the all-traffic 1.1.0 run of 2026-10-08 10:10-10:30 UTC.
 # Widgets of a Layer that is off stay on the dashboard and show no data: they query tags, or reference monitors that
 # always exist, so the apply never depends on a Layer.
 #
@@ -13,10 +13,10 @@
 # paths, so they work on any Datadog site.
 
 locals {
-  # The night of the 1.1.0 saturation on stack hybrid: 2026-10-06 18:10-18:30 UTC, in Unix ms (from_ts/to_ts, live=false:
+  # The night of the 1.1.0 saturation on stack hybrid: 2026-10-08 10:10-10:30 UTC, in Unix ms (from_ts/to_ts, live=false:
   # https://docs.datadoghq.com/dashboards/guide/custom_time_frames/). Meaningful only for dd-demo-hybrid.
-  home_incident_from_ms = 1791310200000
-  home_incident_to_ms   = 1791311400000
+  home_incident_from_ms = 1791454200000
+  home_incident_to_ms   = 1791455400000
 
   # Amazon ECS service events of this stack (task started, unhealthy, stopped, steady state). The integration tags them
   # source:amazon_ecs plus the AWS resource tags project/stack (Events Explorer, 2026-10-07).
@@ -138,7 +138,10 @@ locals {
     slow_lookups = {
       definition = {
         type  = "list_stream"
-        title = "Slowest lookups in the window (over 1 s): version, duration, resource; click a row to open the trace"
+        # The Spans list stream has no sort option: "These data sources support a search query but do not provide a sort
+        # option" (https://docs.datadoghq.com/dashboards/widgets/list/). The API schema has a generic query.sort, but the docs do
+        # not say it applies to trace_stream, so the title says what is shown: the newest matching spans.
+        title = "Lookups over 1 s in the window, newest first (50 shown): version, duration, resource; click a row to open the trace"
         requests = [{
           response_format = "event_list"
           columns = [
@@ -252,7 +255,7 @@ locals {
         "Deeper: [store-feed monitor](${local.home_link.feed_monitor}) · [stock dashboard](${local.home_link.stock}) · [all monitors of this stack](${local.home_link.monitors}) · ${local.home_panel_md}",
       ])
       c3 = join("\n", [
-        "**Chapter 3: the incident.** [The night of the incident](${local.home_link.night}) (2026-10-06 18:10-18:30 UTC, all traffic on 1.1.0; data only on `dd-demo-hybrid`): CPU flat at 100% for about four minutes, p95 above 3 s, the target unhealthy, ECS replaced the task. Live view: p95 per release, the CPU of each ECS service against its whole vCPU, and unhealthy targets; markers are ECS events and control-panel actions, listed beside the p95 chart. Two span views show where the time goes: `catalogue.prepare` against the whole lookup by version (only 1.1.0 prepares the catalogue on every request) and the slowest lookups, each opening its trace. At 10% the gate stops 1.1.0 while it is only slow.",
+        "**Chapter 3: the incident.** Live view: p95 per release, the CPU of each ECS service against its whole vCPU, and unhealthy targets; markers are ECS events and control-panel actions, listed beside the p95 chart. [The night of the incident](${local.home_link.night}) (2026-10-08 10:10-10:30 UTC, all traffic on 1.1.0; data only on `dd-demo-hybrid`): CPU flat at 100% for about four minutes, p95 above 3 s, the target unhealthy, ECS replaced the task. Two span views show where the time goes: `catalogue.prepare` against the whole lookup by version (only 1.1.0 prepares the catalogue on every request) and the newest lookups over 1 s, each opening its trace. At 10% the gate stops 1.1.0 while it is only slow.",
         "",
         "Deeper: [APM inventory-api, compare versions (Deployments)](${local.home_link.apm}) · [1.1.0 spans of `catalogue.prepare`](${local.home_link.trace_110}) · [Amazon ECS events](${local.home_link.ecs_events}) · ${local.home_online_md} · ${local.home_panel_md}",
       ])

@@ -8,7 +8,7 @@ import time
 
 from .demo_config import read_param
 from .config import ConfigError, open_sources, redis_connect
-from .procurement import (cancel_open_orders, clear_eta_keys, procurement_connect,
+from .procurement import (DEFAULT_LEAD_TIME_S, cancel_open_orders, clear_eta_keys, procurement_connect,
                           restock_layer_on, set_lead_time)
 from .redisview import ResetTimeout, reset
 from .canary import LOW_SHARE_MIN_SAMPLES, gate_for_routing, parse_routing
@@ -36,15 +36,17 @@ def cmd_seed(args) -> int:
 def cmd_reset(args) -> int:
     layer = restock_layer_on()
     cancelled = None
-    if layer:  # restock layer on: close open purchase orders first so nothing is delivered onto the baseline
+    if layer:  # restock layer on: restore the lead time, then close open purchase orders so nothing is delivered onto the baseline
+        # `make lead-time` writes procurement_config only (supplier-sim's source), so that is all this restores.
         with contextlib.closing(procurement_connect()) as pc:
+            set_lead_time(pc, DEFAULT_LEAD_TIME_S)
             cancelled = cancel_open_orders(pc)
     r = redis_connect()
     with open_sources() as conns:
         result = reset(conns, r, args.timeout)
     extra = ""
     if layer:
-        extra = f", {cancelled} open purchase order(s) cancelled, {clear_eta_keys(r)} restock:eta key(s) cleared"
+        extra = f", lead time restored to {DEFAULT_LEAD_TIME_S} s, {cancelled} open purchase order(s) cancelled, {clear_eta_keys(r)} restock:eta key(s) cleared"
     print(f"reset ok: scenario {result.scenario_id}, {result.positions} positions at baseline, "
           f"sellable caught up, feed ok{extra}")
     return 0

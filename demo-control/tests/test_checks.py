@@ -156,9 +156,10 @@ def parts(tmp_path):
                             clock=lambda: clock["t"])
     resets = []
     rtext = fakeredis.FakeRedis(decode_responses=True)
-    proc, layers = FakeProcurement(), {"now": ["core", "restock"]}
+    proc, layers, lead_writes = FakeProcurement(), {"now": ["core", "restock"]}, []
     restock = RestockReset(proc.connect, rtext, lambda: layers["now"],
-                           sleep=lambda s: [rtext.set(f"restock:eta:{p}", "1") for p in proc.reopened])  # supplier-sim cycle
+                           sleep=lambda s: [rtext.set(f"restock:eta:{p}", "1") for p in proc.reopened],  # supplier-sim cycle
+                           set_lead_time_setting=lambda seconds: lead_writes.append((seconds, proc.open)))  # (value, orders open then)
 
     def reset(progress):
         resets.append(("reset", proc.open, sorted(rtext.keys("restock:eta:*"))))  # state seen by the data reset
@@ -171,7 +172,7 @@ def parts(tmp_path):
     client = create_app(control, PASSWORD).test_client()
     client.actions = actions
     yield dict(vm=vm, redis=r, elb=elb, statsd=statsd, sales=fake_sales, client=client, resets=resets,
-               checks=checks, actions=actions, proc=proc, layers=layers, rtext=rtext)
+               checks=checks, actions=actions, proc=proc, layers=layers, rtext=rtext, lead_writes=lead_writes)
     vm.close()
 
 
@@ -499,12 +500,14 @@ def test_full_reset_runs_sales_off_baseline_and_reset_in_order(parts):
     done = go(parts, "full-reset")
     # orders are cancelled before the data reset (nothing delivered onto the baseline), eta keys cleared after it
     assert parts["sales"].rate == 0 and parts["elb"].weights == [100, 0, 0]
+    # the lead time is restored (through the setting path: procurement_config and demo.config) while the 2 orders are still open
+    assert parts["lead_writes"] == [(172800, 2)]
     assert parts["resets"] == [("reset", 0, ["restock:eta:P0042"])]
     assert parts["proc"].open == 0 and parts["rtext"].keys("restock:eta:*") == []
     assert done["result"]["routing"]["weights"] == {"1.0.0": 100, "1.1.0": 0, "1.2.0": 0}
-    assert done["result"]["restock"] == {"cancelled_orders": 2, "eta_keys_cleared": 1}
+    assert done["result"]["restock"] == {"lead_time_s": 172800, "cancelled_orders": 2, "eta_keys_cleared": 1}
     assert done["progress"].startswith("Full demo reset done")
-    assert "2 open purchase order(s) cancelled, 1 restock:eta key(s) cleared" in done["progress"]
+    assert "lead time restored to 172800 s, 2 open purchase order(s) cancelled, 1 restock:eta key(s) cleared" in done["progress"]
     assert "weights:100/0/0" in parts["statsd"].events[-1]["tags"]
 
 
@@ -515,7 +518,7 @@ def test_full_reset_succeeds_when_flink_reopens_orders_for_seed_stock_below_the_
     parts["proc"].reopened = {"P0002"}
     done = go(parts, "full-reset")
     assert parts["rtext"].keys("restock:eta:*") == ["restock:eta:P0002"]
-    assert done["result"]["restock"] == {"cancelled_orders": 2, "eta_keys_cleared": 1}
+    assert done["result"]["restock"] == {"lead_time_s": 172800, "cancelled_orders": 2, "eta_keys_cleared": 1}
     assert done["progress"].startswith("Full demo reset done")
 
 
@@ -524,6 +527,7 @@ def test_full_reset_skips_procurement_when_the_restock_layer_is_off(parts):
     parts["rtext"].set("restock:eta:P0042", "1")
     done = go(parts, "full-reset")
     assert parts["proc"].connects == 0 and parts["rtext"].keys("restock:eta:*") == ["restock:eta:P0042"]
+    assert parts["lead_writes"] == []  # lead time untouched while the restock layer is off
     assert done["result"]["restock"] == {"skipped": "the restock layer is off (running layers: core)"}
     assert "purchase orders not touched: the restock layer is off" in done["progress"]
 

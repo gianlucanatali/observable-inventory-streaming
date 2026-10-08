@@ -22,6 +22,7 @@ log = logging.getLogger(__name__)
 
 SCENARIO_KEY = "scenario:current"
 DEFAULT_TIME_COMPRESSION = 60  # used (logged once) when demo:config has no valid time_compression
+DEFAULT_NOTIFY_ME_NEAR_DAYS = 7.0  # contracts/demo-params.json notify_me_near_days
 CONFIG_KEY = "demo:config"  # hash written by demo-control (contracts section 12)
 
 
@@ -72,12 +73,61 @@ def _jev_choice_label(choice: str | None, original_product_id: str) -> str | Non
     return product["name"]
 
 
-def _offer_json(offer: dict) -> dict:
+def _live_float(redis, name: str, default: float, lo: float, hi: float) -> float:
+    """demo:config field as a number; `default` when absent, unreadable or outside lo..hi (logged)."""
+    try:
+        raw = redis.hget(CONFIG_KEY, name)
+        if raw is None:
+            return default
+        value = float(raw.decode() if isinstance(raw, bytes) else raw)
+        if lo <= value <= hi:
+            return value
+        why = f"{value} outside {lo}..{hi}"
+    except Exception as exc:  # noqa: BLE001 - logged; the documented default applies
+        why = f"unreadable: {type(exc).__name__}: {exc}"
+    log.warning("live config %s unavailable (%s); using default %s", name, why, default)
+    return default
+
+
+def _late_restock_eta(redis, original_product_id: str, now: datetime) -> datetime | None:
+    """Restock date for an offer built before its purchase order existed (the order is raised a few seconds
+    after the sell-out). Same rule as offer-worker `_restock` + `policy.restock_notice_eligible`: an open purchase
+    order (restock:eta:{product_id}, epoch ms) whose business-time wait, (eta - now) x time_compression, is at most
+    notify_me_near_days. A missing key or an ineligible date gives None; a malformed key is logged and gives None."""
+    key = f"restock:eta:{original_product_id}"
+    try:
+        raw = redis.get(key)
+    except Exception:  # noqa: BLE001 - the card keeps the stored offer; failure logged with traceback
+        log.exception("restock ETA lookup failed", extra={"key": key})
+        return None
+    if raw is None:
+        return None
+    try:
+        eta_ms = int(raw)
+    except (TypeError, ValueError) as exc:
+        log.error("malformed restock ETA in %s; no Restock notice (value=%r, %s: %s)", key, raw, type(exc).__name__, exc,
+                  extra={"key": key})
+        return None
+    compression = _live_float(redis, "time_compression", DEFAULT_TIME_COMPRESSION, 1, 3600)
+    near_days = _live_float(redis, "notify_me_near_days", DEFAULT_NOTIFY_ME_NEAR_DAYS, 0, 60)
+    business_s = (eta_ms / 1000.0 - now.timestamp()) * compression
+    # Mirror of offer-worker policy.restock_notice_eligible(restock_business_s, near_days)
+    if business_s / 86_400 <= near_days:
+        return datetime.fromtimestamp(eta_ms / 1000.0, tz=timezone.utc)
+    return None
+
+
+def _offer_json(offer: dict, redis=None, now: datetime | None = None) -> dict:
     """Offer as served, plus the offered alternative's display facts from the catalogue (null without one),
     Jev's choice by name, `restock_notice` and `no_offer`. The Offer has two independent parts: the alternative
     (`product_id`) and the Restock notice (`restock_eta`; an older record marks it with chosen_choice "notify_me").
     Neither: no Offer (offer-worker README, "Card states")."""
     body = offer_to_json(offer)
+    if body["restock_eta"] is None and redis is not None and body.get("chosen_choice") != "notify_me":
+        # The offer was built before the purchase order existed: show the notice once the order is open.
+        late = _late_restock_eta(redis, body["original_product_id"], now or datetime.now(timezone.utc))
+        if late is not None:
+            body["restock_eta"] = late.isoformat()
     alt = get_product(body["product_id"]) if body.get("product_id") else None
     body["alternative"] = display(alt) if alt else None
     body["jev_choice_label"] = _jev_choice_label(body.get("jev_choice"), body["original_product_id"])
@@ -229,9 +279,10 @@ def create_app(cfg: Config, deps: Deps) -> Flask:
             log.exception("redis read of %s failed", SCENARIO_KEY)
             return _error(503, "redis_error", f"cannot read {SCENARIO_KEY}: {type(exc).__name__}: {exc}")
         # `offers`: one per sold-out cart item (oldest first). `offer`: the most recent one, kept for older readers.
-        offers = [_offer_json(o) for o in deps.offer_store.get_all(scenario, cart_id)]
+        now = deps.clock()
+        offers = [_offer_json(o, deps.redis, now) for o in deps.offer_store.get_all(scenario, cart_id)]
         latest = deps.offer_store.get(scenario, cart_id)
-        return jsonify({"offer": _offer_json(latest) if latest else None, "offers": offers})
+        return jsonify({"offer": _offer_json(latest, deps.redis, now) if latest else None, "offers": offers})
 
     @app.post("/api/beacon/display")
     def beacon():

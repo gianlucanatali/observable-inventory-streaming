@@ -27,8 +27,8 @@ required = [
     'max:aws.applicationelb.un_healthy_host_count{${local.online_scope}} by {targetgroup}',
     'ecs_events_query = "source:amazon_ecs project:dd-demo stack:${var.stack}"',
     'events  = [{ q = local.demo_panel_query }, { q = local.ecs_events_query }]',
-    'home_incident_from_ms = 1791310200000',
-    'home_incident_to_ms   = 1791311400000',
+    'home_incident_from_ms = 1791454200000',
+    'home_incident_to_ms   = 1791455400000',
     'night        = "?tpl_var_env=${local.env}&from_ts=${local.home_incident_from_ms}&to_ts=${local.home_incident_to_ms}&live=false"',
     'operation_name%3Acatalogue.prepare',
     '[local.overview_note.start]',
@@ -38,11 +38,16 @@ required = [
     'data_source = "spans"',
     'data_source  = "trace_stream"',
     'type  = "list_stream"',
+    'title = "Lookups over 1 s in the window, newest first (50 shown): version, duration, resource; click a row to open the trace"',
+    'aggregator  = "last"',
     '@duration:>1000000000',
     # span searches use the raw span resource; the normalised get_/... tag only exists on trace metrics
     'flask.request ${local.lookup_span} @duration:>1000000000',
     'resource "datadog_apm_retention_filter" "slow_lookups"',
     'filter_type = "spans-sampling-processor"',
+    # retention filter query must be in Datadog's normalised form (else "inconsistent result after apply")
+    'AND operation_name:flask.request AND @duration:>1000000000"',
+    'replace(var.service, "-", "\\\\-")',
     'label = "p95 objective (${var.p95_threshold_seconds} s)"',
     'local.overview_spans.breakdown,',
     'local.overview_spans.slow_lookups,',
@@ -147,6 +152,9 @@ for chapter_note in ("c1", "c2", "c3", "c4", "c5", "c6"):
     m = re.search(rf'{chapter_note} = join.*?\n      \]\)', overview, re.DOTALL)
     if not m or "${local.home_panel_md}" not in m.group(0):
         sys.exit(f"overview.tf: note {chapter_note} must link the control panel (local.home_panel_md)")
+c3 = re.search(r'c3 = join.*?\n      \]\)', overview, re.DOTALL).group(0)
+if c3.find("local.home_link.night") < 100:
+    sys.exit("overview.tf: note c3 must carry the night link after the first lines (a link at the top of the widget needs two clicks)")
 if re.search(r'(?m)^[^#\n]*http://[^$\n"]*(elb\.amazonaws|amazonaws\.com)', overview):
     sys.exit("overview.tf: hard-coded AWS host; the shop links must come from var.shop_url")
 print("Datadog Terraform static guards passed")

@@ -16,7 +16,7 @@
 
   // The fixed window of the night of the 1.1.0 saturation (stack hybrid): the same range the demo home's
   // "night of the incident" link uses (terraform/datadog/overview.tf, home_incident_from_ms / home_incident_to_ms).
-  var NIGHT = { from_ts: "1791310200000", to_ts: "1791311400000", live: "false" };
+  var NIGHT = { from_ts: "1791454200000", to_ts: "1791455400000", live: "false" };
 
   var title = document.getElementById("go-title");
   var message = document.getElementById("go-message");

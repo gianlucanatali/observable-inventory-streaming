@@ -104,10 +104,14 @@ variable "confluent_cluster_id" {
   default     = null
 }
 
+# Why 250: a demo reset re-seeds stock with randint(0,40) units per position against a reorder point of 6, so about 17 % of
+# the 1000 positions (roughly 170) qualify for a purchase order after every reset, with a new revision each time
+# (flink/restock.sql). Re-orders after a reset are expected, and a threshold of 5 alerted on every one of them.
+# Only a surge well above the reset burst (stores selling out faster than the supplier delivers) should alert.
 variable "restock_open_growth_threshold" {
-  description = "Increase of restock.orders.open over 15 minutes above which the restock monitor alerts."
+  description = "Increase of restock.orders.open over 15 minutes above which the restock monitor alerts. Must stay above the burst of about 170 re-orders that follows every demo reset."
   type        = number
-  default     = 5
+  default     = 250
 }
 
 variable "synthetics_latency_budget_ms" {

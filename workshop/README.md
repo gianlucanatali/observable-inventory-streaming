@@ -1713,7 +1713,7 @@ make route-baseline
 
 </div>
 
-While the load runs, every lookup goes to 1.1.0 and requests queue up. On 0.5 vCPU, 1.1.0 cannot keep up with 5 requests per second. In our run (2026-10-06) 532 of the 600 requests timed out on the client, the 15 that were answered had a p95 of about 9.4 s, the task used its whole 0.5 vCPU, and ECS replaced it after it failed its health check. This is what the 10% canary kept away from 90% of the lookups. To see it in Datadog, open the [demo home](#3-open-the-datadog-stock-dashboard "stack-link:overview-dashboard"), group "3. The incident", and use its link "The night of the incident": it opens the same dashboard on 2026-10-06 18:10-18:30 UTC, our run, where ECS CPU of 1.1.0 stays at 100% for about four minutes, the target turns unhealthy and the Amazon ECS events show the task being replaced. That fixed window has data only on the stack `hybrid`; for your own run, set the time picker to the minutes of your load. ECS starts a new 1.1.0 task by itself; Lab 4 does not need it. This run also gives you the CPU comparison under the same load that you use at the end of [Lab 4](#5-prove-it-latency-cpu-and-cost).
+While the load runs, every lookup goes to 1.1.0 and requests queue up. On 0.5 vCPU, 1.1.0 cannot keep up with 5 requests per second. In our run (2026-10-06) 532 of the 600 requests timed out on the client, the 15 that were answered had a p95 of about 9.4 s, the task used its whole 0.5 vCPU, and ECS replaced it after it failed its health check. This is what the 10% canary kept away from 90% of the lookups. To see it in Datadog, open the [demo home](#3-open-the-datadog-stock-dashboard "stack-link:overview-dashboard"), group "3. The incident", and use its link "The night of the incident": it opens the same dashboard on 2026-10-08 10:10-10:30 UTC, our run, where ECS CPU of 1.1.0 stays at 100% for about four minutes, the target turns unhealthy and the Amazon ECS events show the task being replaced. That fixed window has data only on the stack `hybrid`; for your own run, set the time picker to the minutes of your load. ECS starts a new 1.1.0 task by itself; Lab 4 does not need it. This run also gives you the CPU comparison under the same load that you use at the end of [Lab 4](#5-prove-it-latency-cpu-and-cost).
 
 </details>
 
@@ -2183,11 +2183,11 @@ The Pathfinder Lite costs EUR 119.90. No other footwear in EU 42 is priced withi
 
 #### 5. Open the cart
 
-Click the cart badge. You should see three items marked "Sold out": the boot with its offer (Dolomia Evo in Glacier blue, −10%, "Decided by: AI") and a **Swap** button, the trail shoe with "No good substitute · Decided by: AI" and no offer, and the Pathfinder Lite with "No comparable product in stock".
+Click the cart badge. You should see three items marked "Sold out": the boot with its offer (Dolomia Evo in Glacier blue, −10%, "Decided by: AI") and an **Or switch to …** button (**Switch to …** when there is no restock line), the trail shoe with "No good substitute · Decided by: AI" and no offer, and the Pathfinder Lite with "No comparable product in stock".
 
-<details><summary>What the cart shows, and what Swap does</summary>
+<details><summary>What the cart shows, and what Switch does</summary>
 
-The offer is the one alternative picked for that item; "AI: 0.9" next to an alternative is Jev's confidence for the option it chose. For the trail shoe the AI chose none, so both eligible alternatives are listed at full price, without an offer. The other eligible alternative of the boot is listed at full price, the way the worker found it: same category and size, in stock now. **Swap** removes the sold-out item and adds the alternative through the normal cart events (`ABANDON`, then `ADD`); swapping to the offer's alternative is recorded in RUM as the action `offer_accepted`. When a purchase order is due within 7 days, a line "Back in about N hours" with **Notify me** sits under the offer line; **Notify me** is recorded in RUM as `restock_notice_confirmed`.
+The offer is the one alternative picked for that item; "AI: 0.9" next to an alternative is Jev's confidence for the option it chose. For the trail shoe the AI chose none, so both eligible alternatives are listed at full price, without an offer. The other eligible alternative of the boot is listed at full price, the way the worker found it: same category and size, in stock now. The **Or switch to …** / **Switch to …** button removes the sold-out item and adds the alternative through the normal cart events (`ABANDON`, then `ADD`); swapping to the offer's alternative is recorded in RUM as the action `offer_accepted`. When a purchase order is due within 7 days, a line "Back in about N hours" with **Notify me** sits under the offer line; **Notify me** is recorded in RUM as `restock_notice_confirmed`.
 
 </details>
 
@@ -2297,9 +2297,11 @@ Flink bills for the statements while they run; the pool stays capped at 5 CFU. T
 
 <details><summary>Why Full demo reset, not Reset demo data</summary>
 
-When the restock layer is on, it also cancels open purchase orders and clears the restock ETA keys in Redis. **Reset demo data** does neither of these, so use **Full demo reset**.
+When the restock layer is on, it also restores the supplier lead time to 172800 s (48 h), cancels open purchase orders and clears the restock ETA keys in Redis. **Reset demo data** does none of these, so use **Full demo reset**.
 
 </details>
+
+After a reset, wait about 90 seconds before you sell out `P0042`. New purchase orders right after a reset are normal, not a fault: the reset re-seeds stock at random (0 to 40 units per position), about one position in six is at or below the reorder point, and Flink opens an order for each of them.
 
 2. In the [Online shop](#hop-5-the-shop-page "stack-link:shop"), open `P0042` and click **Add to cart**.
 3. In the [control panel](#2-open-the-control-panel "stack-link:control"), on the **Actions** card, keep `P0042` in the **Product ID** field and press **Sell out product**. Wait for `succeeded: Source and Redis verification completed`.
@@ -2314,7 +2316,7 @@ When the restock layer is on, it also cancels open purchase orders and clears th
 make reset
 ```
 
-In the [Online shop](#hop-5-the-shop-page "stack-link:shop"), open `P0042` and click **Add to cart**. Then:
+Wait about 90 seconds: new purchase orders right after a reset are normal (about one position in six is seeded at or below the reorder point), and the reset restores the supplier lead time to 172800 s. In the [Online shop](#hop-5-the-shop-page "stack-link:shop"), open `P0042` and click **Add to cart**. Then:
 
 ```sh
 make sell-out PRODUCT=P0042 GAP=1.5
@@ -2358,7 +2360,7 @@ Each change you save is also sent to Datadog as an event.
 
 #### 4. Shorten the lead time
 
-Set the supplier lead time to 2 business hours, which is 2 real minutes with the default clock.
+Set the supplier lead time to 2 business hours, which is 2 real minutes with the default clock. Do this after the reset in step 1: a reset restores the lead time to 172800 s.
 
 <div data-path="panel" markdown="1">
 
@@ -2433,7 +2435,7 @@ Optional: in the Confluent Cloud console, open the environment's Flink section. 
 #### Checkpoint
 
 - [ ] The page shows P0042 available again ([step 5](#5-watch-the-delivery)).
-- [ ] Verify passes. **Control panel:** **Verify** on the **Checks** card shows `VERIFY PASSED` · **Terminal:** `make verify` prints zero mismatches ([how in Lab 1.1](#hop-1-the-store-table)).
+- [ ] Verify passes, run after the deliveries have settled (the open orders from the reset are delivered or cancelled). **Control panel:** **Verify** on the **Checks** card shows `VERIFY PASSED` · **Terminal:** `make verify` prints zero mismatches ([how in Lab 1.1](#hop-1-the-store-table)).
 
 The stream triggered the reorder directly, with no batch job, and you could change its parameters from the panel while it ran. The restock numbers come from a simulation. They are not a forecast. **Next:** [Lab 6](#lab-6-datadog-on-top-of-the-solution).
 

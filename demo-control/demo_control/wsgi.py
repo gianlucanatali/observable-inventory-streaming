@@ -86,7 +86,10 @@ def build() -> "object":
     sales = (BackgroundSales(read_rate, lambda v: control.set(RATE_KEY, v).reading.value, registry[RATE_KEY].default,
                              r, store_probe(cfg.stores, store_conn)) if cfg.stores else None)
     # Full demo reset's restock part (same as `make reset`): skipped when PROCUREMENT_HOST is absent or demo:layers lacks restock.
-    restock = RestockReset(procurement_conn if cfg.procurement_host else None, r_text, lambda: control.layers())
+    # The lead time goes back through the panel's own setting path, so procurement_config (supplier-sim) and Kafka demo.config
+    # (Flink restock.sql, sellable-dev) agree again.
+    restock = RestockReset(procurement_conn if cfg.procurement_host else None, r_text, lambda: control.layers(),
+                           set_lead_time_setting=lambda seconds: control.set("lead_time_s", seconds))
     actions = Actions(sell_out, reset_data, event_sink=statsd, stack=cfg.stack,
                       operations=make_operations(alb, feeds, checks, sales, reset_data, restock))
     control = Control(registry, backends, r, statsd, cfg.stack,

@@ -9,6 +9,9 @@ resource "datadog_apm_retention_filter" "slow_lookups" {
   filter_type = "spans-sampling-processor"
 
   filter {
-    query = "service:${var.service} env:${local.env} operation_name:flask.request @duration:>1s"
+    # Datadog stores a normalised query: AND between terms, hyphens in values backslash-escaped, @duration in nanoseconds.
+    # Writing any other form makes the provider fail with "inconsistent result after apply" (new value differs from plan).
+    # So the query is written exactly as the API returns it. "\\-" in HCL is a backslash plus a hyphen.
+    query = "service:${replace(var.service, "-", "\\-")} AND env:${replace(local.env, "-", "\\-")} AND operation_name:flask.request AND @duration:>1000000000"
   }
 }

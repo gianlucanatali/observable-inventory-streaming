@@ -63,14 +63,15 @@ def make_check_operations(checks: Checks | None, sales: BackgroundSales | None, 
         out["routing"] = alb.run(BASELINE, progress)
         skip = "not configured in this deployment" if restock is None else restock.skip_reason()
         if skip is None:
+            lead_time_s = restock.restore_lead_time(progress)
             cancelled = restock.cancel_orders(progress)  # before the data reset: nothing delivered onto the baseline
         else:
             progress(f"Purchase orders and restock:eta keys not touched: {skip}")
         reset(progress)  # type: ignore[misc]
         if skip is None:
             cleared = restock.clear_etas(progress)
-            out["restock"] = {"cancelled_orders": cancelled, "eta_keys_cleared": cleared}
-            restock_note = f"{cancelled} open purchase order(s) cancelled, {cleared} restock:eta key(s) cleared"
+            out["restock"] = {"lead_time_s": lead_time_s, "cancelled_orders": cancelled, "eta_keys_cleared": cleared}
+            restock_note = f"lead time restored to {lead_time_s} s, {cancelled} open purchase order(s) cancelled, {cleared} restock:eta key(s) cleared"
         else:
             out["restock"] = {"skipped": skip}
             restock_note = f"purchase orders not touched: {skip}"

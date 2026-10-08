@@ -790,3 +790,45 @@ def test_verdict_lists_every_failed_reason():
     assert verdict(gates) == ("CANARY GATES FAILED: 1.2.0 10 samples < 100; p95 1.2.0 250 ms > budget 200 ms; "
                               "no verify result; roll back")
     assert verdict(evaluate(summary(), "1.1.0", "1.2.0", 100, 0.0, 200.0, {"ok": True})) == "CANARY GATES PASSED"
+
+
+# --- lead time restore on reset ----------------------------------------------------------------------------------
+def test_default_lead_time_matches_the_contract():
+    from pathlib import Path
+    from scenario.procurement import DEFAULT_LEAD_TIME_S
+    params = json.loads((Path(__file__).resolve().parents[2] / "contracts" / "demo-params.json").read_text())
+    entries = params["params"] if isinstance(params, dict) else params
+    lead = next(p for p in entries if p["key"] == "lead_time_s")
+    assert DEFAULT_LEAD_TIME_S == lead["default"] == 172800
+
+
+def test_cli_reset_restores_lead_time_when_layer_on(monkeypatch, capsys):
+    monkeypatch.setenv("PROCUREMENT_HOST", "procurement-db")
+    conn = FakeConn(rowcount=2)
+    _patch_cli(monkeypatch, conn, fakeredis.FakeRedis(decode_responses=True))
+    assert cli.cmd_reset(type("A", (), {"timeout": 5})()) == 0
+    sql, params = conn.executed[0]  # restored before the orders are cancelled
+    assert "lead_time_s" in sql and params == ("172800",) and conn.executed[1][0].startswith("UPDATE purchase_order")
+    assert "lead time restored to 172800 s" in capsys.readouterr().out
+
+
+def test_cli_reset_skips_lead_time_when_layer_off(monkeypatch, capsys):
+    monkeypatch.delenv("PROCUREMENT_HOST", raising=False)
+    conn = FakeConn()
+    _patch_cli(monkeypatch, conn, fakeredis.FakeRedis(decode_responses=True))
+    monkeypatch.setattr(cli, "procurement_connect", lambda: pytest.fail("procurement must not be touched"))
+    assert cli.cmd_reset(type("A", (), {"timeout": 5})()) == 0
+    assert conn.executed == [] and "lead time" not in capsys.readouterr().out
+
+
+def test_restock_reset_restores_lead_time_through_procurement_or_the_setting_hook():
+    from scenario.presenter_actions import RestockReset
+    conn, progress = FakeConn(), []
+    rr = RestockReset(lambda: conn, fakeredis.FakeRedis(decode_responses=True), lambda: ["core", "restock"])
+    assert rr.restore_lead_time(progress.append) == 172800 and conn.closed and conn.executed[0][1] == ("172800",)
+    assert progress == ["Lead time restored to 172800 s (procurement_config)"]
+    written, progress = [], []
+    rr = RestockReset(lambda: pytest.fail("the setting hook owns the write"), fakeredis.FakeRedis(decode_responses=True),
+                      lambda: ["core", "restock"], set_lead_time_setting=written.append)
+    assert rr.restore_lead_time(progress.append) == 172800 and written == [172800]
+    assert "demo.config" in progress[0]

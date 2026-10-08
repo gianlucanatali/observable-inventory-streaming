@@ -1075,14 +1075,43 @@ while True:
     time.sleep(5)
 PY
 }
+flink_dml_pending() { # flink_dml_pending "<file groups>" "<terraform state list>": enabled files whose DML is not in state yet
+  local groups="$1" state="$2" f present
+  for f in $groups; do
+    case "$f" in
+      sellable) ;;
+      offers) has offers || continue;;
+      *) has restock || continue;;
+    esac
+    present=0
+    if printf '%s\n' "$state" | grep -Eq "^confluent_flink_statement\.(dml|dml_late)\[\"$f-[0-9]+\"\]"; then present=1; fi
+    # With the offers layer on, sellable's and offers' INSERTs run as one statement set.
+    if [ "$present" = 0 ] && { [ "$f" = sellable ] || [ "$f" = offers ]; } \
+      && printf '%s\n' "$state" | grep -Fq 'confluent_flink_statement.dml_late["offers-set"]'; then present=1; fi
+    [ "$present" = 1 ] || printf '%s\n' "$f"
+  done
+}
 apply_flink_statements() { # apply_flink_statements "<file groups>" "<created table topics>"
-  local groups="$1" flink_tables="$2"
-  FLINK_DML_DEFERRED="$groups"; export FLINK_DML_DEFERRED
-  step "terraform cloud (Flink CREATE TABLE only)" tf_apply cloud
-  # A successful CREATE statement API call precedes catalogue propagation. The output subjects are
-  # created by CREATE TABLE, so each subject is a bounded query-path readiness signal for its table.
-  # shellcheck disable=SC2086
-  step "wait for Flink CREATE TABLE readiness" wait_subjects 300 $flink_tables
+  local groups="$1" flink_tables="$2" state pending
+  # Deferring a file whose DML already runs makes Terraform destroy it, and the INSERT pass recreates it:
+  # a restart that replays history. Defer only the files whose DML is not in state (all of them on a first create).
+  tf_workspace cloud
+  state="$(tf cloud state list)" || die "apply_flink_statements: terraform state list failed in terraform/cloud"
+  pending="$(flink_dml_pending "$groups" "$state" | tr '\n' ' ')"
+  pending="${pending% }"
+  if [ -z "$pending" ]; then
+    echo "   Flink statements already running: skipping the CREATE-only pass (no restart)"
+  else
+    if printf '%s\n' "$state" | grep -Eq '^confluent_flink_statement\.(dml|dml_late)\['; then
+      echo "   Flink statements partly running: CREATE-only pass defers only the new ones ($pending); the others keep running"
+    fi
+    FLINK_DML_DEFERRED="$pending"; export FLINK_DML_DEFERRED
+    step "terraform cloud (Flink CREATE TABLE only)" tf_apply cloud
+    # A successful CREATE statement API call precedes catalogue propagation. The output subjects are
+    # created by CREATE TABLE, so each subject is a bounded query-path readiness signal for its table.
+    # shellcheck disable=SC2086
+    step "wait for Flink CREATE TABLE readiness" wait_subjects 300 $flink_tables
+  fi
   FLINK_DML_DEFERRED=""; export FLINK_DML_DEFERRED
   step "terraform cloud (Flink INSERT statements)" tf_apply cloud
   unset FLINK_DML_DEFERRED

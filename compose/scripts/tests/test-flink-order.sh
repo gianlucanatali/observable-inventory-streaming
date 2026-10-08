@@ -14,7 +14,7 @@ grep -Fq 'variable "flink_dml_deferred"' "$VARIABLES" \
   || fail "cloud Terraform needs a DDL-only phase switch"
 grep -Fq '!contains(var.flink_dml_deferred, f)' "$FLINK" \
   || fail "the DDL-only phase must omit DML for newly created table groups"
-grep -Fq 'FLINK_DML_DEFERRED="$groups"' "$STACK" \
+grep -Fq 'FLINK_DML_DEFERRED="$pending"' "$STACK" \
   || fail "stack-up must create Flink tables before DML"
 grep -Fq 'apply_flink_statements "$ALL_FLINK" "$flink_tables"' "$STACK" \
   || fail "stack-up must gate every enabled Flink table group"

@@ -6,6 +6,8 @@ import os
 from .config import require
 
 ETA_PATTERN = "restock:eta:*"
+# Base supplier lead time (48 h). Must equal "lead_time_s".default in contracts/demo-params.json (tests assert it).
+DEFAULT_LEAD_TIME_S = 172800
 
 
 def restock_layer_on(env=None) -> bool:
