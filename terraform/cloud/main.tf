@@ -223,7 +223,7 @@ locals {
     # CREATE TABLE over an existing topic: verify that DeveloperManage is sufficient during the first apply.
     flink-manage-sellable   = { sa = "flink", role = "DeveloperManage", crn = "${local.kafka_crn}/topic=stock.sellable" }
     flink-sr-write-sellable = { sa = "flink", role = "DeveloperWrite", crn = "${local.sr_crn}/subject=stock.sellable-*" }
-    # carts.at-risk-value is registered on every stack (flink_statements.tf), so this binding is core, not offers.
+    # carts.at-risk-key/-value are registered by the offers CREATE TABLE (sa-flink is the statement principal).
     flink-sr-write-at-risk = { sa = "flink", role = "DeveloperWrite", crn = "${local.sr_crn}/subject=carts.at-risk-*" }
     flink-sr-read          = { sa = "flink", role = "DeveloperRead", crn = "${local.sr_crn}/subject=*" }
     flink-assigner         = { sa = "flink", role = "Assigner", crn = "${data.confluent_organization.main.resource_name}/service-account=${confluent_service_account.app["flink"].id}" }

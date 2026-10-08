@@ -12,10 +12,6 @@ locals {
       title = "Burn now (estimate), all vendors (USD/h, pre-tax)"
       query = "max:dd_demo.cost.aggregate_usd_per_hour{${local.cost_scope},vendor:all}"
     }
-    spent = {
-      title = "Spent since start, all vendors (USD, pre-tax estimate)"
-      query = "max:dd_demo.cost.aggregate_usd_total{${local.cost_scope},vendor:all}"
-    }
     billed = {
       title = "Confluent billed so far (USD, pre-tax actual bill after credits, about 1 h behind)"
       query = "max:dd_demo.cost.aggregate_billed_usd_total{${local.cost_scope}}"
@@ -36,6 +32,27 @@ locals {
   confluent_credit_used_query = "max:dd_demo.cost.aggregate_org_billed_list_usd_total{project:dd-demo}"
 
   cost_widgets = concat(
+    [
+      {
+        # Billing data only, never the cost-meter's in-process estimate (that resets whenever a stack is recreated).
+        definition = {
+          type        = "query_value"
+          title       = "Spent so far, all vendors (USD, pre-tax actual bills: AWS this month via CCM 24-72 h behind + Confluent gross billed last 30 days about 1 h behind)"
+          precision   = 2
+          autoscale   = false
+          custom_unit = "$"
+          time        = { live_span = "month_to_date" }
+          requests = [{
+            response_format = "scalar"
+            queries = [
+              { data_source = "cloud_cost", name = "aws", query = "sum:aws.cost.unblended{!aws_cost_type:Tax}", aggregator = "sum" },
+              { data_source = "metrics", name = "confluent", query = local.confluent_credit_used_query, aggregator = "last" },
+            ]
+            formulas = [{ formula = "aws + confluent" }]
+          }]
+        }
+      },
+    ],
     [for k, v in local.cost_value : {
       definition = {
         type        = "query_value"
@@ -43,6 +60,8 @@ locals {
         precision   = 2
         autoscale   = false
         custom_unit = "$"
+        # Billing metrics are gauges that only exist while a cost-meter runs; look back a day so a destroyed stack keeps the last value.
+        time = { live_span = "1d" }
         requests = [{
           response_format = "scalar"
           queries         = [{ data_source = "metrics", name = "q1", query = v.query, aggregator = "last" }]
@@ -58,6 +77,7 @@ locals {
           precision   = 2
           autoscale   = false
           custom_unit = "$"
+          time        = { live_span = "1d" }
           requests = [{
             response_format = "scalar"
             queries         = [{ data_source = "metrics", name = "used", query = local.confluent_credit_used_query, aggregator = "last" }]

@@ -132,7 +132,7 @@ def test_uncomputable_stock_is_never_eligible_and_is_counted(catalogue, redis_cl
     break_it(redis_client)
     w, out, m = make_worker(catalogue, redis_client)
     w.handle(risk())
-    assert out[0][1]["offer_type"] == "NOTIFY_ME"
+    assert out[0][1]["offer_type"] == "NOTIFY_ME" and out[0][1]["product_id"] is None
     assert ("stock_unconfirmed", reason) in m.calls
 
 
@@ -144,7 +144,7 @@ def test_redis_error_is_never_eligible_and_is_counted(catalogue, redis_client, m
 
     monkeypatch.setattr(w._stock, "read", down)
     w.handle(risk())
-    assert out[0][1]["offer_type"] == "NOTIFY_ME"
+    assert out[0][1]["offer_type"] == "NOTIFY_ME" and out[0][1]["product_id"] is None
     assert ("stock_unconfirmed", "redis_error") in m.calls
     assert any("stock lookup failed" in r.message for r in caplog.records)
 

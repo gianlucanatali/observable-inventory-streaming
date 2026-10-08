@@ -96,6 +96,9 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
 .offer-product img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 12px; background: var(--grey-bg); }
 .offer h2 { margin: 0 0 4px; font-size: 28px; line-height: 1.15; }
 .offer-body { margin: 0; color: var(--muted); }
+.offer-action { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 10px 0 0; font-weight: 700; }  /* Restock notice row, switch button */
+button.offer-button { padding: 8px 16px; }
+.offer-notified { color: var(--accent-dark); }
 .offer-decision { margin: 12px 0; padding: 8px 12px; border-radius: 10px; background: var(--grey-bg); color: var(--ink); font-size: 16px; font-weight: 700; line-height: 1.35; }
 .offer-empty, .offer-error { border-color: var(--line); color: var(--muted); }
 .offer-error { border-color: var(--amber); color: var(--amber); }
@@ -140,6 +143,7 @@ button.cart-badge { padding: 6px 10px; border: none; background: transparent; bo
 button.cart-remove { padding: 6px 12px; font-size: 15px; }
 .cart-offer { grid-column: 1 / -1; margin: 2px 0 0; padding: 10px 12px; border: 1px solid var(--accent); border-radius: 12px; background: var(--grey-bg); }
 .cart-offer-line { font-size: 15px; line-height: 1.35; }
+.cart-offer-restock { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 6px; font-size: 15px; font-weight: 700; }
 .cart-alts { list-style: none; margin: 6px 0 0; padding: 0; }
 .cart-alt { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 6px 0; border-top: 1px solid var(--line); }
 .cart-alt-title { font-size: 15px; font-weight: 700; }

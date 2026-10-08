@@ -146,6 +146,13 @@ def register(app: Flask, control) -> None:
             return jsonify({"error": str(exc)}), 502
 
 
+def reset_card_html(control) -> str:
+    """The Demo reset card, rendered first on the page; its button and message are driven by the script in CARDS."""
+    sales_on = getattr(control, "sales", None) is not None
+    full_on = sales_on and getattr(control, "alb", None) is not None
+    return RESET_CARD.replace("{{FULL_DIS}}", "" if full_on else " disabled")
+
+
 def card_html(control) -> str:
     checks_on = getattr(control, "checks", None) is not None
     sales_on = getattr(control, "sales", None) is not None
@@ -162,6 +169,11 @@ def card_html(control) -> str:
             .replace("{{LOAD_S}}", str(LOAD_DURATION_S)).replace("{{LOAD_RPS}}", str(LOAD_RPS)))
 
 
+RESET_CARD = """<section class="control-card actions-card ops-card" id="reset-card"><div class="actions-layout"><div><h2>Demo reset</h2><div class="label">Back to the start of the demo</div><p class="meta">Turns background sales off, sends all traffic to 1.0.0, cancels open purchase orders (restock layer) and writes the seeded stock back; offer settings (AI threshold, kill switch) are not reset.</p></div>
+<div><div class="ops-buttons"><button class="reset-btn" data-action="full-reset"{{FULL_DIS}}>Full demo reset</button></div></div></div>
+<div class="action-progress"><div class="msg" id="reset-msg"></div></div></section>
+"""
+
 CARDS = """<!-- checks + background sales cards (demo_control/checks_card.py) -->
 <style>
 .chk-result { margin-top:10px; display:grid; gap:8px; }
@@ -177,15 +189,15 @@ CARDS = """<!-- checks + background sales cards (demo_control/checks_card.py) --
 <div><div class="ops-buttons"><button class="chk-btn" data-action="load"{{CHECKS_DIS}}>{{LOAD_LABEL}}</button><button class="chk-btn secondary" data-action="verify"{{CHECKS_DIS}}>Verify</button><button class="chk-btn" data-action="canary-check"{{CHECKS_DIS}}>Check canary</button><button class="secondary ops-refresh" id="chk-refresh"{{CHECKS_DIS}}>Refresh</button></div>
 <p class="meta chk-gate-for" id="chk-gate-for">Gate for live routing: loading…</p></div></div>
 <div class="action-progress"><div class="msg" id="chk-msg"></div><div class="chk-result" id="chk-result"></div></div></section>
-<section class="control-card actions-card ops-card" id="sales-card"><div class="actions-layout"><div><h2>Background sales and reset</h2><div class="label">jr sales rate and full demo reset</div><p class="meta">Sales off sets <code>sales_per_min_per_store</code> to 0 in every store (remembering the rate); Sales on restores it, then waits for a real sale. The jr containers must be running: <code>make sales-on</code> starts them, <code>make sales-off</code> and <code>make reset</code> stop them. Full demo reset: sales off, all traffic to 1.0.0, stock back to the seed (new scenario, so old carts and offers drop out), and with the restock layer, open purchase orders cancelled. Offer settings (AI threshold, kill switch) are not reset.</p></div>
+<section class="control-card actions-card ops-card" id="sales-card"><div class="actions-layout"><div><h2>Background sales</h2><div class="label">jr sales rate</div><p class="meta">Sales off sets <code>sales_per_min_per_store</code> to 0 in every store (remembering the rate); Sales on restores it, then waits for a real sale. The jr containers must be running: <code>make sales-on</code> starts them, <code>make sales-off</code> and <code>make reset</code> stop them.</p></div>
 <div><div class="chk-rate"><b id="sales-rate">&mdash;</b><span class="meta" id="sales-meta">sales/min per store</span></div>
-<div class="ops-buttons"><button class="sales-btn secondary" data-action="sales-off"{{SALES_DIS}}>Sales off</button><button class="sales-btn" data-action="sales-on"{{SALES_DIS}}>Sales on</button><button class="sales-btn secondary" data-action="full-reset"{{FULL_DIS}}>Full demo reset</button></div></div></div>
+<div class="ops-buttons"><button class="sales-btn secondary" data-action="sales-off"{{SALES_DIS}}>Sales off</button><button class="sales-btn" data-action="sales-on"{{SALES_DIS}}>Sales on</button></div></div></div>
 <div class="action-progress"><div class="msg" id="sales-msg"></div></div></section>
 <script>
 (() => {
   const CHECKS_ON = {{CHECKS_ON}}, SALES_ON = {{SALES_ON}}, FULL_ON = {{FULL_ON}};
   const q = s => document.querySelector(s);
-  const checkNames = ['load', 'verify', 'canary-check'], salesNames = ['sales-off', 'sales-on', 'full-reset'];
+  const checkNames = ['load', 'verify', 'canary-check'], salesNames = ['sales-off', 'sales-on'], resetNames = ['full-reset'];
   let gate = null, seen = null;
   async function getJson(url, opts) {
     const r = await fetch(url, opts);
@@ -250,8 +262,9 @@ CARDS = """<!-- checks + background sales cards (demo_control/checks_card.py) --
     let j; try { j = await getJson('/control/api/actions'); } catch (e) { return; }
     const busy = ['queued', 'running'].includes(j.status);
     document.querySelectorAll('.chk-btn').forEach(b => b.disabled = busy || !CHECKS_ON);
-    document.querySelectorAll('.sales-btn').forEach(b => b.disabled = busy || !SALES_ON || (b.dataset.action === 'full-reset' && !FULL_ON));
-    const mine = checkNames.includes(j.name) ? q('#chk-msg') : salesNames.includes(j.name) ? q('#sales-msg') : null;
+    document.querySelectorAll('.sales-btn').forEach(b => b.disabled = busy || !SALES_ON);
+    document.querySelectorAll('.reset-btn').forEach(b => b.disabled = busy || !FULL_ON);
+    const mine = checkNames.includes(j.name) ? q('#chk-msg') : salesNames.includes(j.name) ? q('#sales-msg') : resetNames.includes(j.name) ? q('#reset-msg') : null;
     if (!mine) return;
     msg(mine, j.status === 'failed' ? 'err' : j.status === 'succeeded' ? 'ok' : '', j.name + ' ' + j.status + ': ' + (j.error ? j.error + ' (last step: ' + j.progress + ')' : j.progress));
     const key = j.id + ':' + j.status;
@@ -280,8 +293,9 @@ CARDS = """<!-- checks + background sales cards (demo_control/checks_card.py) --
     run(a, question, q('#chk-msg'));
   });
   document.querySelectorAll('.sales-btn').forEach(b => b.onclick = () => run(b.dataset.action, questions[b.dataset.action], q('#sales-msg')));
+  document.querySelectorAll('.reset-btn').forEach(b => b.onclick = () => run(b.dataset.action, questions[b.dataset.action], q('#reset-msg')));
   q('#chk-refresh').onclick = () => { loadChecks(); loadSales(); };
-  if (!FULL_ON && SALES_ON) q('[data-action="full-reset"]').title = '{{FULL_RESET_OFF}}';
+  if (!FULL_ON) { q('[data-action="full-reset"]').title = '{{FULL_RESET_OFF}}'; msg(q('#reset-msg'), '', SALES_ON ? '{{FULL_RESET_OFF}}' : '{{SALES_OFF}}'); }
   loadChecks(); loadSales(); poll(); setInterval(poll, 1000);
 })();
 </script>

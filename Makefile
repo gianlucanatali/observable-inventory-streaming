@@ -162,7 +162,7 @@ CHECK_ARGS ?=
 .PHONY: help links-publish links-json secrets build config config-all up-dev down-dev up-cloud down-cloud register-connector seed reset \
         sell-out verify load route-baseline canary-110-10 incident canary-10 canary-50 canary-100 rollback route-check route-show status \
         sales-on sales-off canary-check offers-on offers-off layer-on layer-off layers-status lead-time control \
-        store-pause store-resume smoke links local-preflight local-up local-down stack-preflight stack-up stack-down stack-leftovers stack-status account-up account-down
+        store-pause store-resume smoke links flink-check local-preflight local-up local-down stack-preflight stack-up stack-down stack-leftovers stack-status account-up account-down
 
 help:
 	 @echo "targets: secrets build config config-all up-dev down-dev up-cloud down-cloud register-connector seed reset"
@@ -175,7 +175,7 @@ help:
 
 	 @echo "         links   (MODE=cloud STACK=<s>; print state-derived Datadog dashboard, APM and DSM URLs)"
 	 @echo "  local:  local-preflight | local-up [LOCAL_LAYERS=core (default)|all|<comma list>] | local-down [PURGE=1]   (MODE=dev, or mode: local in demo.yaml)"
-	 @echo "  cloud:  stack-preflight | stack-up [LAYERS=core (default)|all|<comma list>] | stack-status | stack-down | stack-leftovers   (MODE=cloud STACK=<s>; up/down need CONFIRM=yes)"
+	 @echo "  cloud:  stack-preflight | stack-up [LAYERS=core (default)|all|<comma list>] | stack-status | stack-down | stack-leftovers | flink-check (read-only PASS/FAIL after create)   (MODE=cloud STACK=<s>; up/down need CONFIRM=yes)"
 	 @echo "  account-down: MODE=cloud STACK=account CONFIRM=yes ACCOUNT_DOWN_DESTROY=yes (permanently deletes account CCM resources after plan review)"
 	 @echo "  with demo.yaml (as ./demo): mode: cloud = MODE=cloud TOPOLOGY=hybrid STACK=<stack from demo.yaml> unless given on the command line;"
 	 @echo "                              mode: local = MODE=dev STACK=dev (as without demo.yaml); MODE=dev ignores demo.yaml"
@@ -456,3 +456,7 @@ stack-leftovers:
 stack-status:
 	 @test "$(MODE)" = cloud || { echo "stack-status: run with MODE=cloud STACK=<name>" >&2; exit 2; }
 	 $(STACK_SH) status
+# flink-check: read-only PASS/FAIL after create: offers statement RUNNING without the upsert-key warning, carts.at-risk-key fields.
+flink-check:
+	 @test "$(MODE)" = cloud || { echo "flink-check: run with MODE=cloud STACK=<name>" >&2; exit 2; }
+	 @$(COMPOSE_DIR)/scripts/flink-check.sh

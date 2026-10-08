@@ -25,7 +25,7 @@ class FakeMetrics:
 
     def decision(self, route, reason): self.calls.append(("decision", route, reason))
     def text(self, route, reason): self.calls.append(("text", route, reason))
-    def completed(self, offer_type): self.calls.append(("completed", offer_type))
+    def completed(self, offer_type, restock_included): self.calls.append(("completed", offer_type, restock_included))
     def stock_unconfirmed(self, reason): self.calls.append(("stock_unconfirmed", reason))
 
 

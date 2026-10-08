@@ -1,6 +1,8 @@
+import pytest
+
 from offer_worker import prompt
 from offer_worker.policy import Candidate, restock_notice_eligible
-from offer_worker.prompt import Cart, Restock, business_duration
+from offer_worker.prompt import Cart, business_duration
 
 ORIGINAL = {"product_id": "P0042", "name": "Trailrunner GTX", "brand": "Alpenpace", "category": "footwear", "size": "EU 42",
             "price_eur": 219.9, "colour": {"name": "Forest green"}, "kind": "trail running shoe", "waterproof": True,
@@ -14,21 +16,36 @@ CATALOGUE = {
               "description": "Durable and dependable, built for long ridge runs."},
 }
 CANDS = [Candidate("alt:P0061", "ALTERNATIVE_PRODUCT", "P0061", 10, 7),
-         Candidate("alt:P0070", "ALTERNATIVE_PRODUCT", "P0070", 10, 2),
-         Candidate("notify_me", "NOTIFY_ME", None, 0)]
+         Candidate("alt:P0070", "ALTERNATIVE_PRODUCT", "P0070", 10, 2)]
 DAY = 86_400
 
 
-def build(restock, cart=Cart(219.9, 1, True), near_days=7.0):
-    options = CANDS if restock.business_s is not None else CANDS[:2]  # policy drops notify-me without a date
-    return prompt.build(ORIGINAL, CATALOGUE, options, restock, cart, False, near_days)
+def build(cart=Cart(219.9, 1, True), alts=CANDS):
+    return prompt.build(ORIGINAL, CATALOGUE, alts, cart, False)
 
 
-def test_no_restock_date_leaves_notify_me_out_and_says_why():
-    state, instructions, criteria = build(Restock(None, "no open purchase order"))
-    assert list(criteria) == ["alt:P0061", "alt:P0070"]
-    assert "Restock: no date (no open purchase order)" in state
-    assert "notify-me" not in instructions
+def test_the_question_is_which_alternative_is_a_good_substitute_or_none():
+    state, instructions, criteria = build()
+    assert list(criteria) == ["alt:P0061", "alt:P0070", "none"]
+    assert criteria["none"] == ("None of these is a good substitute for Trailrunner GTX: offer no replacement "
+                                "for this shopper.")
+    assert "good substitute" in instructions and "Choose none if no alternative is a good substitute" in instructions
+
+
+def test_the_restock_date_is_not_part_of_the_question():
+    state, instructions, criteria = build()
+    text = state + instructions + " ".join(criteria.values())
+    assert "notify" not in text.lower() and "restock" not in text.lower() and "back in stock" not in text.lower()
+
+
+def test_one_alternative_is_still_a_question_with_none():
+    _, _, criteria = build(alts=CANDS[:1])
+    assert list(criteria) == ["alt:P0061", "none"]
+
+
+def test_no_alternative_is_not_a_question():
+    with pytest.raises(ValueError, match="at least one eligible alternative"):
+        build(alts=[])
 
 
 def test_restock_notice_needs_a_date_within_the_near_restock_limit():
@@ -37,22 +54,8 @@ def test_restock_notice_needs_a_date_within_the_near_restock_limit():
     assert not restock_notice_eligible(7.5 * DAY, 7)
 
 
-def test_near_restock_date_is_concrete_and_within_the_limit():
-    state, instructions, criteria = build(Restock(3 * DAY))
-    assert "Restock: expected in about 3 days" in state
-    assert criteria["notify_me"] == ("No replacement: tell the shopper when Trailrunner GTX is back in stock, "
-                                     "expected in about 3 days (within the 7-day limit).")
-    assert "Choose notify-me only if the restock is within 7 days" in instructions
-
-
-def test_far_restock_date_is_marked_beyond_the_limit():
-    _, instructions, criteria = build(Restock(12 * DAY), near_days=5)
-    assert "about 12 days (longer than the 5-day limit)" in criteria["notify_me"]
-    assert "within 5 days" in instructions
-
-
 def test_original_and_alternatives_share_one_attribute_set():
-    state, _, criteria = build(Restock(None))
+    state, _, criteria = build()
     assert ("Trailrunner GTX; brand Alpenpace; footwear; kind: trail running shoe; waterproof; use: long ridge runs; "
             "feel: light and quick; "
             "colour Forest green; size EU 42; EUR 219.90.") in state
@@ -62,7 +65,7 @@ def test_original_and_alternatives_share_one_attribute_set():
 
 
 def test_match_summary_compares_each_alternative_with_the_original():
-    _, instructions, criteria = build(Restock(None))
+    _, instructions, criteria = build()
     assert criteria["alt:P0061"].endswith(
         "Match: different kind: hiking shoe vs trail running shoe; not waterproof, the sold-out product is; "
         "different use: wet gravel descents vs long ridge runs; same feel; same brand; same size in stock (7 units); "
@@ -76,27 +79,27 @@ def test_match_summary_compares_each_alternative_with_the_original():
 
 def test_waterproofing_is_compared_both_ways():
     dry = {**ORIGINAL, "waterproof": False}
-    _, _, criteria = prompt.build(dry, CATALOGUE, CANDS[:2], Restock(None), Cart(1, 1, True), False, 7)
+    _, _, criteria = prompt.build(dry, CATALOGUE, CANDS, Cart(1, 1, True), False)
     assert "; neither waterproof; " in criteria["alt:P0061"]
     assert "; waterproof, the sold-out product is not; " in criteria["alt:P0070"]
 
 
 def test_description_in_another_format_is_passed_through_as_the_use():
     odd = {**CATALOGUE["P0061"], "description": "Waterproof trail shoe"}
-    _, _, criteria = prompt.build(ORIGINAL, {**CATALOGUE, "P0061": odd}, CANDS[:2], Restock(None), Cart(1, 1, True), False, 7)
+    _, _, criteria = prompt.build(ORIGINAL, {**CATALOGUE, "P0061": odd}, CANDS, Cart(1, 1, True), False)
     assert "use: Waterproof trail shoe; colour Ember red" in criteria["alt:P0061"]
     assert "different use: Waterproof trail shoe vs long ridge runs" in criteria["alt:P0061"]
 
 
 def test_cart_signals_are_consistent_with_the_cart():
-    state, _, _ = build(Restock(None), Cart(439.8, 2, True))
+    state, _, _ = build(Cart(439.8, 2, True))
     assert "Cart: 2 items, EUR 439.80." in state and "new shopper" in state
-    state, _, _ = build(Restock(None), Cart(219.9, 1, False))
+    state, _, _ = build(Cart(219.9, 1, False))
     assert "Cart: at least 1 item, at least EUR 219.90 (contents not available)." in state
 
 
 def test_no_ids_in_the_text():
-    state, instructions, criteria = build(Restock(DAY))
+    state, instructions, criteria = build()
     text = state + instructions + " ".join(criteria.values())
     assert "P0061" not in text and "P0042" not in text
 

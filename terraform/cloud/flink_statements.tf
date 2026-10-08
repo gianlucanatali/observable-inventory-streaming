@@ -46,26 +46,42 @@ locals {
     "sql.current-catalog"  = confluent_environment.main.display_name
     "sql.current-database" = confluent_kafka_cluster.main.display_name
   }
+
+  # The offers path (sellable.sql: non-windowed GROUP BY, cart_at_risk.sql: regular join and keep-last
+  # deduplication) has no event-time operator, so its INSERT statements run with watermark alignment off.
+  # Confluent: setting the drift to 0 "can prevent performance bottlenecks and latency for queries that don't
+  # require event-time semantics, like regular joins, non-windowed aggregations, and ETL".
+  # https://docs.confluent.io/cloud/current/flink/reference/statements/set.html
+  # Never add a file with windows, interval or temporal joins here (restock's HOP windows need alignment).
+  # Only the INSERT statements get it: the CREATE TABLE statements, and so the topics, are unchanged.
+  no_alignment_files = ["sellable", "offers"]
+  flink_props_no_alignment = merge(local.flink_props, {
+    "sql.tables.scan.watermark-alignment.max-allowed-drift" = "0 ms"
+  })
+  dml_props = { for k in keys(local.flink_dml_all) : k => contains(local.no_alignment_files, split("-", k)[0]) ? local.flink_props_no_alignment : local.flink_props }
 }
 
-# Registered on every stack (before any offers DDL). sa-flink's DeveloperWrite on carts.at-risk-* is therefore a core
-# binding (main.tf), and the schema waits for the role bindings.
-resource "confluent_schema" "carts_at_risk_value" {
-  subject_name  = "carts.at-risk-value"
-  format        = "AVRO"
-  schema        = file("${path.module}/../../contracts/avro/flink_cart_at_risk_value.avsc")
-  rest_endpoint = data.confluent_schema_registry_cluster.main.rest_endpoint
-  schema_registry_cluster {
-    id = data.confluent_schema_registry_cluster.main.id
-  }
-  credentials {
-    key    = confluent_api_key.sr["flink"].id
-    secret = confluent_api_key.sr["flink"].secret
-  }
+# The provider cannot update a running statement in place: its update accepts only `stopped`, `properties_sensitive`,
+# `principal`, `compute_pool` and `credentials`, and fails on any other change ("stopped" or "properties_sensitive"
+# attribute must be updated). Confluent Cloud treats a statement's code as immutable.
+# https://registry.terraform.io/providers/confluentinc/confluent/latest/docs/resources/confluent_flink_statement
+# https://docs.confluent.io/cloud/current/flink/operate-and-deploy/flink-rest-api.html
+# A `statement` change already forces a replacement (ForceNew); a `properties` change does not. This revision
+# holds a hash of each INSERT statement's SQL and properties, and every DML statement is replaced when its
+# revision changes (replace_triggered_by): delete, then create under the same name, which Confluent allows.
+# The new statement starts from its configured startup offset and rebuilds its state.
+# Creating a revision never triggers a replacement (Terraform replaces only on an update of the referenced
+# instance), so a statement applied before this revision existed needs one plan with -replace=<address> when its
+# properties change (overlay/compose/scripts/stack.sh: TF_REPLACE).
+resource "terraform_data" "flink_dml_revision" {
+  for_each = local.flink_dml_all
 
-  depends_on = [confluent_role_binding.app]
+  input = sha256(jsonencode({ statement = "${each.value};", properties = local.dml_props[each.key] }))
 }
 
+# No schema is pre-registered for the Flink output tables: each CREATE TABLE registers its own <table>-key and
+# <table>-value subjects on a fresh stack, so stack.sh's readiness poll on those subjects means "table created".
+# https://docs.confluent.io/cloud/current/flink/reference/statements/create-table.html
 resource "confluent_flink_statement" "ddl" {
   for_each = local.flink_ddl
 
@@ -91,7 +107,7 @@ resource "confluent_flink_statement" "ddl" {
     secret = confluent_api_key.flink.secret
   }
 
-  depends_on = [confluent_role_binding.app, confluent_kafka_acl.app, confluent_kafka_topic.main, confluent_schema.carts_at_risk_value]
+  depends_on = [confluent_role_binding.app, confluent_kafka_acl.app, confluent_kafka_topic.main]
 
   lifecycle {
     precondition {
@@ -106,7 +122,7 @@ resource "confluent_flink_statement" "dml" {
 
   statement_name = "${local.name}-${each.key}"
   statement      = "${each.value};"
-  properties     = local.flink_props
+  properties     = local.dml_props[each.key]
   rest_endpoint  = data.confluent_flink_region.main.rest_endpoint
 
   organization {
@@ -127,6 +143,10 @@ resource "confluent_flink_statement" "dml" {
   }
 
   depends_on = [confluent_flink_statement.ddl]
+
+  lifecycle {
+    replace_triggered_by = [terraform_data.flink_dml_revision[each.key]]
+  }
 }
 
 resource "confluent_flink_statement" "dml_late" {
@@ -134,7 +154,7 @@ resource "confluent_flink_statement" "dml_late" {
 
   statement_name = "${local.name}-${each.key}"
   statement      = "${each.value};"
-  properties     = local.flink_props
+  properties     = local.dml_props[each.key]
   rest_endpoint  = data.confluent_flink_region.main.rest_endpoint
 
   organization {
@@ -155,4 +175,8 @@ resource "confluent_flink_statement" "dml_late" {
   }
 
   depends_on = [confluent_flink_statement.ddl, confluent_flink_statement.dml]
+
+  lifecycle {
+    replace_triggered_by = [terraform_data.flink_dml_revision[each.key]]
+  }
 }

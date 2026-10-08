@@ -37,8 +37,8 @@ from scenario.presenter_actions import RestockReset  # noqa: E402
 from scenario.runs import write_json  # noqa: E402
 
 TOKEN = "a" * 48
-LABELS = ["Checks", f"Run load ({LOAD_DURATION_S} s, {LOAD_RPS} rps)", "Verify", "Check canary", "Background sales and reset",
-          "Sales off", "Sales on", "Full demo reset"]
+LABELS = ["Checks", f"Run load ({LOAD_DURATION_S} s, {LOAD_RPS} rps)", "Verify", "Check canary", "Background sales",
+          "Sales off", "Sales on", "Demo reset", "Full demo reset"]
 
 
 def load_summary(b_p95=23.0, b_count=60, a_count=540, weights=(0, 90, 10), a_release="1.1.0"):
@@ -110,6 +110,7 @@ class FakeProcurement:
 
     def __init__(self, open_orders=2):
         self.open, self.connects, self.down = open_orders, 0, None
+        self.reopened: set[str] = set()  # products Flink reorders after the data reset (seed stock at or below the reorder point)
 
     def connect(self):
         if self.down:
@@ -124,9 +125,12 @@ class FakeProcurement:
             def execute(self, sql, params=None):
                 if sql.startswith("UPDATE purchase_order"):
                     self.rowcount, db.open = db.open, 0
+                elif "SELECT DISTINCT product_id" in sql:
+                    self.rows = [(p,) for p in sorted(db.reopened)]
                 else:
                     self.row = (db.open,)
             def fetchone(self): return self.row
+            def fetchall(self): return self.rows
 
         class Conn:
             def cursor(self): return Cur()
@@ -153,7 +157,8 @@ def parts(tmp_path):
     resets = []
     rtext = fakeredis.FakeRedis(decode_responses=True)
     proc, layers = FakeProcurement(), {"now": ["core", "restock"]}
-    restock = RestockReset(proc.connect, rtext, lambda: layers["now"], sleep=lambda s: None)
+    restock = RestockReset(proc.connect, rtext, lambda: layers["now"],
+                           sleep=lambda s: [rtext.set(f"restock:eta:{p}", "1") for p in proc.reopened])  # supplier-sim cycle
 
     def reset(progress):
         resets.append(("reset", proc.open, sorted(rtext.keys("restock:eta:*"))))  # state seen by the data reset
@@ -193,6 +198,17 @@ def test_page_renders_cards_without_the_token(parts):
     assert TOKEN not in html and "Bearer" not in html
     assert 'data-action="load"' in html and 'data-action="full-reset"' in html
     assert 'class="chk-btn" data-action="load" disabled' not in html
+
+
+def test_full_demo_reset_sits_on_its_own_demo_reset_card_first(parts):
+    html = parts["client"].get("/control/", headers=auth()).get_data(as_text=True)
+    reset = re.search(r'<section[^>]*id="reset-card".*?</section>', html, re.S).group(0)
+    sales = re.search(r'<section[^>]*id="sales-card".*?</section>', html, re.S).group(0)
+    assert "<h2>Demo reset</h2>" in reset and 'data-action="full-reset"' in reset and "Full demo reset" in reset
+    assert "<h2>Background sales</h2>" in sales and "full-reset" not in sales and "Full demo reset" not in sales
+    assert 'data-action="sales-off"' in sales and 'data-action="sales-on"' in sales
+    assert "Background sales and reset" not in html
+    assert html.index('id="reset-card"') < min(html.index(i) for i in ('id="actions"', 'id="chk-card"', 'id="sales-card"'))
 
 
 def test_cards_are_disabled_when_not_configured():
@@ -490,6 +506,17 @@ def test_full_reset_runs_sales_off_baseline_and_reset_in_order(parts):
     assert done["progress"].startswith("Full demo reset done")
     assert "2 open purchase order(s) cancelled, 1 restock:eta key(s) cleared" in done["progress"]
     assert "weights:100/0/0" in parts["statsd"].events[-1]["tags"]
+
+
+def test_full_reset_succeeds_when_flink_reopens_orders_for_seed_stock_below_the_reorder_point(parts):
+    """Regression: S02/P0002 is seeded with 1 unit, so after the reset Flink opens an order and supplier-sim
+    publishes restock:eta:P0002. That used to fail the reset with 'restock:eta keys keep coming back'."""
+    parts["rtext"].set("restock:eta:P0042", "1")  # stale: its order was cancelled and not reopened
+    parts["proc"].reopened = {"P0002"}
+    done = go(parts, "full-reset")
+    assert parts["rtext"].keys("restock:eta:*") == ["restock:eta:P0002"]
+    assert done["result"]["restock"] == {"cancelled_orders": 2, "eta_keys_cleared": 1}
+    assert done["progress"].startswith("Full demo reset done")
 
 
 def test_full_reset_skips_procurement_when_the_restock_layer_is_off(parts):

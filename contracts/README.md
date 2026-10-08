@@ -32,6 +32,8 @@ Five sources, compose services `store-s01`..`store-s05` (host = service name, po
 | `carts.at-risk` | Flink | [`CartAtRiskKey`](avro/cart_at_risk_key.avsc) | [`CartAtRisk`](avro/cart_at_risk.avsc) | delete, 1 day |
 | `offers` | offer-worker | [`OfferKey`](avro/offer_key.avsc) | [`Offer`](avro/offer.avsc) | compact |
 
+`offers` values evolve compatibly: fields are only added, optional with a null default (the latest is `restock_eta`, the Restock notice), and the `offer_type` enum keeps its symbols, so older and newer readers read each other's records (`offer-worker/tests/test_contract.py`). The offer-worker's serializer registers the schema under `offers-value` on its first record; Schema Registry checks it against the subject's compatibility mode (BACKWARD unless set otherwise; Terraform sets none).
+
 Connect internal topics: `_connect.dd-demo.configs|offsets|status` (compact, 1 partition, replication 3).
 
 Debezium connector contract (one connector per source, names `inventory-s01`..`inventory-s05`, `topic.prefix` = `store-s01`..`store-s05`, key/value converters with `TopicRecordNameStrategy` because record names differ per prefix): `plugin.name=pgoutput`, `slot.name=dbz_inventory`, `publication.name=dbz_inventory`, `publication.autocreate.mode=disabled`, `table.include.list=public.stock_position`, `snapshot.mode=initial`, `tombstones.on.delete=false`, a `RegexRouter` routing to `inventory.cdc`, Avro key/value converters against Confluent Schema Registry. `changed_at` arrives as Debezium `ZonedTimestamp` (ISO-8601 string). `op` is `r` (snapshot), `c`, `u`. Any `d`, a null `after` or a missing field is a contract violation.
@@ -139,9 +141,9 @@ Unified tags on every service: `env:dd-demo`, `service:<name>`, `version:<releas
 | `stock.connect.task_running` | gauge 0/1 | `connector` | freshness-probe (Connect REST; the five Debezium connectors and `sellable-redis`) |
 | `stock.lookup.result` | count | `status`, `unknown_reason`, `at_least` | inventory-api |
 | `stock.display.delay` | distribution, seconds (`last_changed_at` of the rendered sellable answer → backend receive time of the beacon) | — | storefront backend (beacon from UI) |
-| `offer.decision` | count | `route`, `reason` (adds `disabled` when no Jev key, `no_choice` when fewer than two options are left for Jev; notify-me is a Jev option only with a restock date) | offer-worker |
+| `offer.decision` | count | `route`, `reason` (the alternative part only: `accepted` or `no_good_substitute` on `JEV`; `disabled` when no Jev key, `no_alternative` when nothing is eligible; the Restock notice is never an AI option) | offer-worker |
 | `offer.text` | count | `route`, `reason` | offer-worker |
-| `offer.completed` | count | `offer_type` | offer-worker |
+| `offer.completed` | count | `offer_type` (`ALTERNATIVE_PRODUCT`, `NOTIFY_ME` for the Restock notice alone, `NONE`), `restock_included` | offer-worker |
 | `offer.stock.unconfirmed` | count | `reason` (`not_ready`, `not_found`, `redis_error`, `malformed`, `stores_unknown`): an alternative's confirmed minimum was not computable, or 0 only because a store is not live; the alternative is not eligible | offer-worker |
 
 ## 8. Configuration (environment variables, values in untracked `.env`)
@@ -150,7 +152,7 @@ Unified tags on every service: `env:dd-demo`, `service:<name>`, `version:<releas
 
 ## 9. Online carts and the sell-out beat
 
-- The shop is online: cart events carry `store_id = "ONLINE"`. Cart at risk fires when an active cart holds a product whose **sellable stock** reaches 0 (Flink joins `carts.events` with `stock.sellable`); `CartAtRisk.stock_revision` is replaced by `sellable_changed_at_ms` (the `last_changed_at_ms` of the zero row) and `risk_id = scenario_id|cart_id|product_id|sellable_changed_at_ms`.
+- The shop is online: cart events carry `store_id = "ONLINE"`. Cart at risk fires when an active cart holds a product whose **sellable stock** reaches 0 (Flink joins `carts.events` with `stock.sellable`); `CartAtRisk.stock_revision` is replaced by `sellable_changed_at_ms` (the `last_changed_at_ms` of the zero row) and `risk_id = scenario_id|cart_id|product_id|sellable_changed_at_ms`. The topic key is the cart item `{scenario_id, cart_id, product_id}`, the query's upsert key: each item keeps its latest risk, a new zero updates the key with a new `risk_id`, a tombstone ends it. Consumers dedup on `risk_id` in the value, not on the key.
 - `make sell-out PRODUCT=P0042` (scenario `sell-out --product P0042 --gap-s 1.5`): for each store in `STORE_HOSTS` order, sell that store's whole quantity of the product in its own source, then wait the gap. Prints each step.
 - Background sales: one jr per source (`jr-sales-s01`..`s05`), fixed store per container, seed `42 + n`, a 250 ms tick that sells with probability rate/240 x product weight (rate = `sales_per_min_per_store`, control panel, default 24), never `P0042`. `make reset` stops them.
 

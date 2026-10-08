@@ -126,7 +126,7 @@ make<span class="w"> </span>layer-on<span class="w"> </span><span class="nv">L</
 <h4 id="turn-on-background-sales">Turn on background sales <a class="header-anchor" href="#turn-on-background-sales">#</a></h4>
 <div data-path="panel" markdown="1">
 <p><strong>With the control panel</strong></p>
-<p>In the <a href="setup.html#2-open-the-control-panel" data-stack-link="control">control panel</a>, press <strong>Sales on</strong> on the <strong>Background sales and reset</strong> card and confirm. You should see <code>sales-on succeeded: Background sales are on: 24/min per store; ...</code>.</p>
+<p>In the <a href="setup.html#2-open-the-control-panel" data-stack-link="control">control panel</a>, press <strong>Sales on</strong> on the <strong>Background sales</strong> card and confirm. You should see <code>sales-on succeeded: Background sales are on: 24/min per store; ...</code>.</p>
 </div>
 <div data-path="terminal" markdown="1">
 <p><strong>With the terminal</strong></p>
@@ -168,11 +168,15 @@ make<span class="w"> </span>layer-on<span class="w"> </span><span class="nv">L</
 </details>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Consumer lag by group"><img src="img/lab7-02-consumer-lag.png" alt="Consumer lag by group" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>Consumer lag by group</figcaption></figure>
 <h4 id="4-synthetics">4. Synthetics <a class="header-anchor" href="#4-synthetics">#</a></h4>
-<p>Open Synthetic Monitoring &gt; Tests and search <code>dd-demo-hybrid</code>. You should see two <abbr title="Requests that Datadog sends to your Online shop on a schedule from its own locations, like a shopper on the internet.">synthetic tests</abbr> that run from <code>aws:eu-central-1</code> against your ALB: an API test of <code>GET /api/availability/P0042</code> every 60 s, and a browser test of the product page every 300 s.</p>
+<p>Open the <a href="#4-synthetics" data-stack-link="synthetics">synthetic tests</a> of your stack. You should see two <abbr title="Requests that Datadog sends to your Online shop on a schedule from its own locations, like a shopper on the internet.">synthetic tests</abbr> that run from <code>aws:eu-central-1</code> against your ALB: an API test of <code>GET /api/availability/P0042</code> every 60 s, and a browser test of the product page every 300 s.</p>
+<details><summary>Where to find it in the Datadog menu</summary>
+<p>Open Synthetic Monitoring &gt; Tests and search <code>dd-demo-hybrid</code>.</p>
+</details>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Synthetics test results"><img src="img/lab7-03-synthetics.png" alt="Synthetics test results" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>Synthetics test results</figcaption></figure>
 <h4 id="5-monitors">5. Monitors <a class="header-anchor" href="#5-monitors">#</a></h4>
-<p>Open Monitors &gt; Manage Monitors and search <code>tag:project:dd-demo tag:stack:hybrid</code>. You should see the freshness, connector, VM Agent, p95-by-version, restock and AWS-side <abbr title="Rules that watch a metric and alert when it crosses a threshold or stops arriving.">monitors</abbr> (16 in our test run). A monitor in &quot;No Data&quot; does not mean everything is fine: the signal is missing.</p>
+<p>Open the <a href="#5-monitors" data-stack-link="monitors">monitors</a> of your stack. You should see the freshness, connector, VM Agent, p95-by-version, restock and AWS-side <abbr title="Rules that watch a metric and alert when it crosses a threshold or stops arriving.">monitors</abbr> (16 in our test run). A monitor in &quot;No Data&quot; does not mean everything is fine: the signal is missing.</p>
 <details><summary>More about this step</summary>
+<p>From the Datadog menu, open Monitors &gt; Manage Monitors and search <code>tag:project:dd-demo tag:stack:hybrid</code>.</p>
 <div data-path="panel" markdown="1">
 <p><strong>With the control panel</strong></p>
 <p>Then open Events &gt; Explorer and search <code>demo action</code>. Every control-panel action posts <code>demo action: &lt;name&gt; started</code> and then <code>succeeded</code> or <code>failed</code>, for example <code>demo action: canary-10 succeeded</code>. The resulting weights are in a <code>weights:</code> tag. Overlay these events on the p95-by-version graph to see exactly when a release change took effect.</p>
@@ -192,11 +196,12 @@ make<span class="w"> </span>layer-on<span class="w"> </span><span class="nv">L</
 </details>
 <h4 id="7-check-rum-on-your-run">7. Check RUM on your run <a class="header-anchor" href="#7-check-rum-on-your-run">#</a></h4>
 <p><abbr title="Real User Monitoring: Datadog's record of what real browsers do in the Online shop, such as page loads and API calls.">RUM</abbr> should record your browser sessions. Check that it works on your run: open <code>http://&lt;alb-dns-name&gt;/config</code> in your browser.</p>
-<details><summary>Or ask it from the terminal</summary>
+<details><summary>Or ask it from the terminal, and the Datadog menu path</summary>
 <div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>curl<span class="w"> </span>-s<span class="w"> </span>http://&lt;alb-dns-name&gt;/config
 </code></pre></div>
+<p>In the Datadog menu, the sessions are under Digital Experience &gt; RUM &gt; Sessions.</p>
 </details>
-<p>You should see a <code>rum</code> block with an application ID and a client token. The client token is meant to be public. Browse the shop for a minute, then open Digital Experience &gt; RUM &gt; Sessions for the application <code>dd-demo-hybrid-shop</code>. If a session appears, RUM works on your run.</p>
+<p>You should see a <code>rum</code> block with an application ID and a client token. The client token is meant to be public. Browse the shop for a minute, then open the <a href="#7-check-rum-on-your-run" data-stack-link="rum">RUM sessions</a> of the application <code>dd-demo-hybrid-shop</code>. If a session appears, RUM works on your run.</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: RUM session for dd-demo-hybrid-shop"><img src="img/lab7-05-rum-session.png" alt="RUM session for dd-demo-hybrid-shop" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>RUM session for dd-demo-hybrid-shop</figcaption></figure>
 <h4 id="checkpoint-7" class="checkpoint checkpoint">Checkpoint <a class="header-anchor" href="#checkpoint-7">#</a></h4>
 <ul class="contains-task-list">
@@ -229,7 +234,7 @@ make<span class="w"> </span>layer-on<span class="w"> </span><span class="nv">L</
   </div>
 </dialog>
 <div class="sr-only" aria-live="polite" id="live"></div>
-<script src="assets/stack.js?v=d196eb9022"></script>
+<script src="assets/stack.js?v=68c01d4930"></script>
 <script src="assets/site.js?v=1de1666aca" defer></script>
 </body>
 </html>

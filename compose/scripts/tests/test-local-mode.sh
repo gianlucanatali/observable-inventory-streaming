@@ -146,7 +146,7 @@ assert "confluent" not in g["links"] and "ecs" not in g["links"] and "overview-d
 printf '#!/usr/bin/env bash\ncat > "%s/redis.$(echo "$*" | sed "s/.* SET //")"\necho OK\n' "$tmp" > "$tmp/dcpub"; chmod +x "$tmp/dcpub"
 out="$(lk PATH="$tmp/notf" TOPOLOGY=vm DC="$tmp/dcpub" "$root/compose/scripts/publish-links.sh")" || fail "local links-publish failed: $out"
 case "$out" in *"(local)"*) ;; *) fail "local publish summary missing: $out";; esac
-python3 -c 'import json,sys; l=json.load(open(sys.argv[1])); assert [x["id"] for x in l]==["shop","shop-home","apm","dsm"], l; s=json.load(open(sys.argv[2])); assert s["alb"]=="http://localhost:8088" and s["version"]==1' \
+python3 -c 'import json,sys; l=json.load(open(sys.argv[1])); assert [x["id"] for x in l]==["shop","shop-home","shop-p0048","shop-p0092","apm","dsm"], l; s=json.load(open(sys.argv[2])); assert s["alb"]=="http://localhost:8088" and s["version"]==1' \
   "$tmp/redis.demo:links" "$tmp/redis.demo:stack" || fail "local demo:links/demo:stack content"
 out="$(mk -n DEMO_YAML="$tmp/local.yaml" links-publish)" || fail "make -n links-publish locally refused: $out"
 case "$out" in *"limactl shell dd-demo"*"publish-links.sh"*) ;; *) fail "local links-publish does not use the local DC: $out";; esac

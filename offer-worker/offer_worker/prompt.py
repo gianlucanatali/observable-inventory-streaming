@@ -1,5 +1,7 @@
 """Jev request text (state, instructions, criteria) built from policy candidates and product facts only.
 
+The question is one the AI can judge: which eligible alternative, if any, is a good substitute for the sold-out
+product. "none" is always an option. The restock date is not part of it: it is a fact the Offer carries on its own.
 The sold-out product and every alternative carry the same catalogue attributes (name, brand, category, kind,
 waterproofing, use and feel from the description, colour, size, price), and each alternative adds a match summary
 against the original. No cart, shopper or offer ids are sent.
@@ -10,14 +12,7 @@ import math
 import re
 from dataclasses import dataclass
 
-from .policy import NOTIFY_ID, Candidate
-
-
-@dataclass(frozen=True)
-class Restock:
-    """Restock of the sold-out product. `business_s` is the business-time wait (demo clock applied); None = no date."""
-    business_s: float | None
-    why_undated: str = "no open purchase order"
+from .policy import NONE_ID, Candidate
 
 
 @dataclass(frozen=True)
@@ -92,37 +87,23 @@ def _waterproof_match(alt: bool, original: bool) -> str:
     return "waterproof, the sold-out product is not" if alt else "not waterproof, the sold-out product is"
 
 
-def _notify(original: dict, restock: Restock, near_days: float) -> str:
-    wait = business_duration(restock.business_s)
-    days = restock.business_s / 86_400
-    fit = f"within the {near_days:g}-day limit" if days <= near_days else f"longer than the {near_days:g}-day limit"
-    return (f"No replacement: tell the shopper when {original['name']} is back in stock, expected in {wait} "
-            f"({fit}).")
-
-
-def build(original: dict, catalogue: dict[str, dict], options: list[Candidate], restock: Restock, cart: Cart,
-          returning_shopper: bool, near_days: float) -> tuple[str, str, dict[str, str]]:
-    """(state, instructions, criteria) for Jev's choice question. `options` are policy's Jev options
-    (policy.build_candidates): notify-me is among them only when the Restock notice is eligible (a restock date
-    within the near-restock limit)."""
-    criteria: dict[str, str] = {}
-    for c in options:
-        if c.id == NOTIFY_ID:
-            criteria[c.id] = _notify(original, restock, near_days)
-        else:
-            criteria[c.id] = _alternative(c, catalogue[c.product_id], original)
-    restock_txt = (f"expected in {business_duration(restock.business_s)}" if restock.business_s is not None
-                   else f"no date ({restock.why_undated})")
+def build(original: dict, catalogue: dict[str, dict], alternatives: list[Candidate], cart: Cart,
+          returning_shopper: bool) -> tuple[str, str, dict[str, str]]:
+    """(state, instructions, criteria) for Jev's substitute question. `alternatives` are policy's eligible
+    alternatives (policy.build_candidates, at least one); the criteria add NONE_ID."""
+    if not alternatives:
+        raise ValueError("prompt.build needs at least one eligible alternative; without one there is nothing to judge")
+    criteria = {c.id: _alternative(c, catalogue[c.product_id], original) for c in alternatives}
+    criteria[NONE_ID] = (f"None of these is a good substitute for {original['name']}: offer no replacement "
+                         "for this shopper.")
     cart_txt = (f"{cart.items} item{'' if cart.items == 1 else 's'}, EUR {cart.value_eur:.2f}" if cart.exact
                 else f"at least 1 item, at least EUR {cart.value_eur:.2f} (contents not available)")
     state = (f"A shopper's cart holds a product that just sold out everywhere: {_attributes(original)}. "
-             f"Restock: {restock_txt}. Cart: {cart_txt}. "
+             f"Cart: {cart_txt}. "
              f"Synthetic shopper signal: {'returning' if returning_shopper else 'new'} shopper.")
-    instructions = ("Choose the best option for this shopper among the supplied ones. Every alternative is in stock in "
-                    "the same size and category; each has a match summary against the sold-out product. Prefer the "
-                    "alternative closest to it in kind, waterproofing and use, then in price; colour is a secondary "
-                    "preference.")
-    if NOTIFY_ID in criteria:
-        instructions += (f" Choose notify-me only if the restock is within {near_days:g} days and no alternative "
-                         "is a close match.")
+    instructions = ("Judge which of the supplied alternatives is a good substitute for the sold-out product for this "
+                    "shopper. Every alternative is in stock in the same size and category; each has a match summary "
+                    "against the sold-out product. Prefer the alternative closest to it in kind, waterproofing and use, "
+                    "then in price; colour is a secondary preference. Choose none if no alternative is a good "
+                    "substitute.")
     return state, instructions, criteria

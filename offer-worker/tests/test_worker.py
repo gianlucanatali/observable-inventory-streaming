@@ -15,14 +15,22 @@ from offer_worker.worker import OfferWorker
 
 
 class FakeJev:
-    def __init__(self, choice=None, confidence=0.95, exc=None, pick="first_alt"):
-        self.choice, self.confidence, self.exc, self.calls = choice, confidence, exc, []
+    def __init__(self, choice=None, confidence=0.95, exc=None, probabilities=None):
+        self.choice, self.confidence, self.exc, self.probabilities, self.calls = choice, confidence, exc, probabilities, []
 
     def choose(self, state, instructions, criteria):
         self.calls.append((state, instructions, criteria))
         if self.exc:
             raise self.exc
-        return JevChoice(self.choice or next(iter(criteria)), self.confidence)
+        return JevChoice(self.choice or next(iter(criteria)), self.confidence, self.probabilities)
+
+
+def near_restock(redis_client, product="P0042"):
+    """An open purchase order due in 1 real hour: 60 business hours (2.5 days) with the default demo clock, within
+    the 7-day near-restock limit. Returns the due time in ms."""
+    eta = int(NOW * 1000) + 3_600_000
+    redis_client.set(f"restock:eta:{product}", str(eta))
+    return eta
 
 
 class FakeText:
@@ -55,7 +63,7 @@ def test_high_confidence_valid_choice_is_accepted(catalogue, redis_client):
     assert (o["decision_route"], o["decision_reason"]) == ("JEV", "accepted")
     assert o["offer_type"] == "ALTERNATIVE_PRODUCT" and o["discount_pct"] == 10
     assert o["original_product_id"] == "P0042" and o["product_id"] != "P0042"
-    assert ("decision", "JEV", "accepted") in m.calls and ("completed", "ALTERNATIVE_PRODUCT") in m.calls
+    assert ("decision", "JEV", "accepted") in m.calls and ("completed", "ALTERNATIVE_PRODUCT", False) in m.calls
     assert "C1" not in jev.calls[0][0] and "sh1" not in jev.calls[0][0]  # no ids sent to Jev
 
 
@@ -84,27 +92,28 @@ def test_decision_span_and_offer_publish_bounded_metadata_without_shopper_identi
 
     tracer = Tracer()
     monkeypatch.setattr(worker_mod, "tracer", tracer)
-    redis_client.set("restock:eta:P0042", str(int(NOW * 1000) + 3_600_000))  # dated restock: notify-me is offered
+    near_restock(redis_client)
     w, out, _ = build(make_cfg(JEV_API_KEY="secret-key"), catalogue, redis_client,
-                      FakeJev(choice="notify_me", confidence=0.76))
+                      FakeJev(choice="alt:P0061", confidence=0.4))
 
     assert w.handle(risk()) == "published"
 
     offer = only(out)
     assert {key: offer[key] for key in ("jev_choice", "jev_confidence", "min_confidence", "rule_choice", "chosen_choice")} == {
-        "jev_choice": "notify_me", "jev_confidence": 0.76, "min_confidence": 0.8,
+        "jev_choice": "alt:P0061", "jev_confidence": 0.4, "min_confidence": 0.8,
         "rule_choice": "alt:P0160", "chosen_choice": "alt:P0160"}
     decision = next(span for span in tracer.spans if span.name == "offer.decision")
     assert decision.tags == {
-        "offer.route": "RULE_DEFAULT", "offer.reason": "low_confidence", "jev.choice": "notify_me",
-        "jev.confidence": 0.76, "offer.min_confidence": 0.8, "rule.choice": "alt:P0160",
-        "offer.chosen": "alt:P0160"}
+        "offer.route": "RULE_DEFAULT", "offer.reason": "low_confidence", "jev.choice": "alt:P0061",
+        "jev.confidence": 0.4, "offer.min_confidence": 0.8, "rule.choice": "alt:P0160",
+        "offer.chosen": "alt:P0160", "offer.restock_included": True}
+    process = next(span for span in tracer.spans if span.name == "offer.process")
+    assert process.tags["offer.restock_included"] is True and process.tags["offer.type"] == "ALTERNATIVE_PRODUCT"
     assert "secret-key" not in json.dumps(offer) and "sh1" not in json.dumps(offer)
 
 
-def test_jev_context_with_dated_restock_offers_notify_me_with_a_concrete_wait(catalogue, redis_client):
-    redis_client.set("restock:eta:P0042", str(int(NOW * 1000) + 3_600_000))  # 1 real hour; demo clock 60x = 2.5 days, shown as the shop rounds it
-    redis_client.hset("demo:config", "time_compression", "60")
+def test_jev_context_is_the_substitute_question_with_the_real_cart_and_no_restock(catalogue, redis_client):
+    near_restock(redis_client)
     redis_client.hset("cart:S1:C1", mapping={"P0042": 1, "P0001": 2})
     jev = FakeJev()
     w, _, _ = build(make_cfg(), catalogue, redis_client, jev)
@@ -112,23 +121,22 @@ def test_jev_context_with_dated_restock_offers_notify_me_with_a_concrete_wait(ca
     assert w.handle(risk()) == "published"
 
     state, instructions, criteria = jev.calls[0]
-    assert "Trailrunner GTX" in state and "Restock: expected in about 3 days" in state
+    assert "Trailrunner GTX" in state and "kind: trail running shoe" in state
     value = catalogue["P0042"]["price_eur"] + 2 * catalogue["P0001"]["price_eur"]
     assert f"Cart: 3 items, EUR {value:.2f}" in state and "returning shopper" in state
-    assert "notify-me only if the restock is within 7 days" in instructions
-    assert "expected in about 3 days (within the 7-day limit)" in criteria["notify_me"]
-    assert any(choice.startswith("alt:") for choice in criteria)
+    assert list(criteria) == ["alt:P0160", "alt:P0061", "none"]
+    assert "Match: " in criteria["alt:P0061"] and "good substitute" in instructions
+    text = (state + instructions + " ".join(criteria.values())).lower()
+    assert "restock" not in text and "notify" not in text  # the restock date is a fact, not the AI's question
 
 
-def test_undated_restock_leaves_notify_me_out_of_jev_options(catalogue, redis_client):
+def test_restock_date_never_changes_the_jev_options(catalogue, redis_client):
     jev = FakeJev()
     w, _, _ = build(make_cfg(), catalogue, redis_client, jev)
-
-    assert w.handle(risk()) == "published"
-
-    state, instructions, criteria = jev.calls[0]
-    assert "notify_me" not in criteria and len(criteria) == 2
-    assert "Restock: no date (no open purchase order)" in state and "notify-me" not in instructions
+    w.handle(risk("S1|C1|P0042|1"))
+    near_restock(redis_client)
+    w.handle(risk("S1|C1|P0042|2"))
+    assert jev.calls[0] == jev.calls[1]
 
 
 def test_jev_choosing_notify_me_when_it_was_not_offered_is_invalid(catalogue, redis_client):
@@ -138,7 +146,7 @@ def test_jev_choosing_notify_me_when_it_was_not_offered_is_invalid(catalogue, re
     assert (o["decision_route"], o["decision_reason"], o["offer_type"]) == ("RULE_DEFAULT", "invalid_choice", "ALTERNATIVE_PRODUCT")
 
 
-def test_one_alternative_and_no_restock_date_is_no_choice_without_a_jev_call(catalogue, redis_client):
+def test_one_alternative_is_still_judged_by_jev(catalogue, redis_client):
     original = catalogue["P0042"]
     keep = None
     for pid, p in catalogue.items():
@@ -151,7 +159,8 @@ def test_one_alternative_and_no_restock_date_is_no_choice_without_a_jev_call(cat
     w, out, m = build(make_cfg(), catalogue, redis_client, jev)
     w.handle(risk())
     o = only(out)
-    assert jev.calls == [] and (o["decision_route"], o["decision_reason"]) == ("RULE_DEFAULT", "no_choice")
+    assert list(jev.calls[0][2]) == [f"alt:{keep}", "none"]
+    assert (o["decision_route"], o["decision_reason"]) == ("JEV", "accepted")
     assert o["offer_type"] == "ALTERNATIVE_PRODUCT" and o["product_id"] == keep and o["rule_choice"] == f"alt:{keep}"
 
 
@@ -201,12 +210,25 @@ def test_json_log_trace_correlation_uses_datadog_compatible_low_64_bits(monkeypa
     assert structured["dd.span_id"] == "99"
 
 
-def test_jev_can_choose_notify_me(catalogue, redis_client):
-    redis_client.set("restock:eta:P0042", str(int(NOW * 1000) + 3_600_000))
-    w, out, _ = build(make_cfg(), catalogue, redis_client, FakeJev(choice="notify_me"))
+def test_jev_confident_none_offers_no_alternative(catalogue, redis_client, caplog):
+    caplog.set_level("INFO", logger="offer_worker")
+    w, out, m = build(make_cfg(), catalogue, redis_client, FakeJev(choice="none", confidence=0.9))
     w.handle(risk())
     o = only(out)
-    assert o["offer_type"] == "NOTIFY_ME" and o["discount_pct"] == 0 and o["product_id"] is None and o["decision_route"] == "JEV"
+    assert (o["decision_route"], o["decision_reason"]) == ("JEV", "no_good_substitute")
+    assert o["product_id"] is None and o["chosen_choice"] is None and o["discount_pct"] == 0
+    assert o["jev_choice"] == "none" and o["rule_choice"] == "alt:P0160" and o["restock_eta"] is None
+    assert o["body"] == "Sold out everywhere, and nothing comparable is in stock right now."
+    assert ("completed", "NONE", False) in m.calls
+    record = next(r for r in caplog.records if r.message == "offer published")
+    assert record.ctx["decision"] == "JEV/no_good_substitute" and record.ctx["jev_choice"] == "none"
+
+
+def test_jev_unsure_none_is_the_safe_rule(catalogue, redis_client):
+    w, out, _ = build(make_cfg(), catalogue, redis_client, FakeJev(choice="none", confidence=0.5))
+    w.handle(risk())
+    o = only(out)
+    assert (o["decision_route"], o["decision_reason"], o["product_id"]) == ("RULE_DEFAULT", "low_confidence", "P0160")
 
 
 @pytest.mark.parametrize("jev,reason", [
@@ -308,12 +330,13 @@ def test_revalidation_failure_with_nothing_left_and_no_restock_date_is_no_offer(
     assert o["chosen_choice"] is None and o["product_id"] is None and o["discount_pct"] == 0  # never notify-me undated
 
 
-def test_revalidation_failure_with_nothing_left_falls_back_to_a_near_restock_notice(catalogue, redis_client):
-    redis_client.set("restock:eta:P0042", str(int(NOW * 1000) + 3_600_000))  # 60 business hours with the demo clock
+def test_revalidation_failure_with_nothing_left_keeps_the_restock_notice(catalogue, redis_client):
+    eta = near_restock(redis_client)
     w, out, _ = build(make_cfg(JEV_API_KEY="k"), catalogue, redis_client, SellsOutBetween(redis_client, gone="all"))
     w.handle(risk())
     o = only(out)
-    assert o["offer_type"] == "NOTIFY_ME" and o["chosen_choice"] == "notify_me" and o["decision_reason"] == "invalid_choice"
+    assert o["offer_type"] == "NOTIFY_ME" and o["chosen_choice"] is None and o["decision_reason"] == "invalid_choice"
+    assert o["restock_eta"] == eta and o["product_id"] is None
 
 
 def test_no_stock_anywhere_and_no_restock_date_is_no_offer(catalogue, redis_client):
@@ -332,7 +355,7 @@ NO_ALT = "P0092"
 
 
 def test_p0092_has_no_comparable_product_in_the_catalogue(catalogue):
-    assert build_candidates(catalogue[NO_ALT], catalogue, lambda pid: 5, 10, restock_notice=False) == []
+    assert build_candidates(catalogue[NO_ALT], catalogue, lambda pid: 5, 10) == []
 
 
 def test_no_eligible_alternative_and_no_restock_date_publishes_no_offer_without_a_jev_call(catalogue, redis_client):
@@ -343,39 +366,50 @@ def test_no_eligible_alternative_and_no_restock_date_publishes_no_offer_without_
     assert jev.calls == []
     assert (o["decision_route"], o["decision_reason"]) == ("RULE_DEFAULT", "no_alternative")
     assert o["chosen_choice"] is None and o["rule_choice"] is None and o["jev_choice"] is None
-    assert o["product_id"] is None and o["discount_pct"] == 0 and o["offer_type"] == "NOTIFY_ME"  # required enum placeholder
+    assert o["product_id"] is None and o["discount_pct"] == 0 and o["restock_eta"] is None
+    assert o["offer_type"] == "NOTIFY_ME"  # required enum, kept for older readers
     assert o["headline"] == "Pathfinder Lite just sold out"
     assert o["body"] == "Sold out everywhere, and nothing comparable is in stock right now."
     assert (o["text_route"], o["text_reason"]) == ("TEMPLATE", "no_offer")
-    assert ("completed", "NONE") in m.calls and ("decision", "RULE_DEFAULT", "no_alternative") in m.calls
+    assert ("completed", "NONE", False) in m.calls and ("decision", "RULE_DEFAULT", "no_alternative") in m.calls
     fastavro.validation.validate(o, fastavro.parse_schema(json.loads((CONTRACT_AVRO / "offer.avsc").read_text())))
 
 
 def test_no_eligible_alternative_with_a_near_purchase_order_is_a_restock_notice(catalogue, redis_client):
-    redis_client.set(f"restock:eta:{NO_ALT}", str(int(NOW * 1000) + 3_600_000))  # 1 real hour = 60 business hours
+    eta = near_restock(redis_client, NO_ALT)
     jev = FakeJev()
     w, out, m = build(make_cfg(JEV_API_KEY="k"), catalogue, redis_client, jev)
     w.handle(risk(rid=f"S1|C1|{NO_ALT}|1", product=NO_ALT))
     o = only(out)
     assert jev.calls == [] and (o["decision_route"], o["decision_reason"]) == ("RULE_DEFAULT", "no_alternative")
-    assert o["offer_type"] == "NOTIFY_ME" and o["chosen_choice"] == o["rule_choice"] == "notify_me"
+    assert o["offer_type"] == "NOTIFY_ME" and o["chosen_choice"] is None and o["rule_choice"] is None
+    assert o["restock_eta"] == eta and o["product_id"] is None
     assert o["body"] == "Back in about 3 days. We will let you know as soon as it is back in stock."
-    assert ("completed", "NOTIFY_ME") in m.calls
+    assert ("completed", "NOTIFY_ME", True) in m.calls
 
 
 def test_no_eligible_alternative_with_a_far_purchase_order_is_no_offer(catalogue, redis_client):
     redis_client.set(f"restock:eta:{NO_ALT}", str(int(NOW * 1000) + 10 * 24 * 60_000))  # 10 business days
     w, out, _ = build(make_cfg(JEV_API_KEY="k"), catalogue, redis_client, FakeJev())
     w.handle(risk(rid=f"S1|C1|{NO_ALT}|1", product=NO_ALT))
-    assert only(out)["chosen_choice"] is None
+    assert only(out)["chosen_choice"] is None and only(out)["restock_eta"] is None
 
 
-def test_restock_beyond_the_near_limit_is_not_a_jev_option(catalogue, redis_client):
+def test_restock_beyond_the_near_limit_is_not_included(catalogue, redis_client):
     redis_client.set("restock:eta:P0042", str(int(NOW * 1000) + 10 * 24 * 60_000))
-    jev = FakeJev()
-    w, _, _ = build(make_cfg(JEV_API_KEY="k"), catalogue, redis_client, jev)
+    w, out, _ = build(make_cfg(JEV_API_KEY="k"), catalogue, redis_client, FakeJev())
     w.handle(risk())
-    assert "notify_me" not in jev.calls[0][2]
+    assert only(out)["restock_eta"] is None and only(out)["product_id"] == "P0160"
+
+
+def test_live_near_restock_limit_decides_the_restock_notice(catalogue, redis_client):
+    near_restock(redis_client)  # 2.5 business days
+    redis_client.hset("demo:config", "notify_me_near_days", "2")
+    w, out, _ = build(make_cfg(), catalogue, redis_client)
+    w.handle(risk("S1|C1|P0042|1"))
+    redis_client.hset("demo:config", "notify_me_near_days", "3")
+    w.handle(risk("S1|C1|P0042|2"))
+    assert [o["restock_eta"] is not None for _, o in out] == [False, True]
 
 
 def test_same_model_in_another_colour_names_the_difference(catalogue, redis_client):
@@ -389,10 +423,10 @@ def test_same_model_in_another_colour_names_the_difference(catalogue, redis_clie
 
 def test_other_model_in_another_colour_names_the_colour(catalogue):
     from offer_worker.policy import template_text
-    _, body = template_text("ALTERNATIVE_PRODUCT", catalogue["P0042"], catalogue["P0061"], 10)
+    _, body = template_text(catalogue["P0042"], catalogue["P0061"], 10)
     assert body == "Pathfinder Air by Alpenpace, Ember red, is in stock and similar. Take 10% off if you switch."
     same_colour = {**catalogue["P0061"], "colour": catalogue["P0042"]["colour"]}
-    _, body = template_text("ALTERNATIVE_PRODUCT", catalogue["P0042"], same_colour, 10)
+    _, body = template_text(catalogue["P0042"], same_colour, 10)
     assert body == "Pathfinder Air by Alpenpace is in stock and similar. Take 10% off if you switch."
 
 
@@ -416,7 +450,7 @@ def test_jev_and_rule_default_choose_from_the_same_eligible_candidates(catalogue
     jev_worker.handle(risk(rid="S1|C1|P0042|jev"))
     default_worker.handle(risk(rid="S1|C1|P0042|rule"))
 
-    assert set(jev.calls[0][2]) == {candidate.id for candidate in candidates} - {"notify_me"}  # no restock date
+    assert set(jev.calls[0][2]) == {candidate.id for candidate in candidates} | {"none"}
     assert only(jev_out)["product_id"] == default.product_id == only(default_out)["product_id"]
 
 
@@ -538,3 +572,87 @@ def test_kill_switch_hash_field_is_not_the_switch(catalogue, redis_client):
     w, out, _ = build(make_cfg(), catalogue, redis_client, jev)
     w.handle(risk())
     assert jev.calls == [] and only(out)["decision_reason"] == "kill_switch"
+
+
+# --- every outcome x restock present/absent -------------------------------------------------------------------
+# P0042 Trailrunner GTX, EU 42: eligible alternatives P0160 (Brenta Storm, the Safe rule's pick on price) and P0061
+# (Pathfinder Air). P0092 has no eligible alternative. A near restock is 60 business hours ("about 3 days").
+SCHEMA = None
+
+
+def _schema():
+    global SCHEMA
+    if SCHEMA is None:
+        SCHEMA = fastavro.parse_schema(json.loads((CONTRACT_AVRO / "offer.avsc").read_text()))
+    return SCHEMA
+
+
+P0042_PROBABILITIES = {"alt:P0061": 0.86, "alt:P0160": 0.02, "none": 0.12}
+
+OUTCOMES = {
+    # name: (product, jev, route, reason, product_id offered, jev_choice)
+    "ai_accepts_alternative": ("P0042", lambda: FakeJev("alt:P0061", 0.86, probabilities=P0042_PROBABILITIES),
+                               "JEV", "accepted", "P0061", "alt:P0061"),
+    "ai_none": ("P0042", lambda: FakeJev("none", 0.9), "JEV", "no_good_substitute", None, "none"),
+    "ai_unsure_safe_rule": ("P0042", lambda: FakeJev("alt:P0061", 0.4), "RULE_DEFAULT", "low_confidence", "P0160",
+                            "alt:P0061"),
+    # notify_me is no longer an option: an answer with it is invalid, logged as a bounded "unrecognized".
+    "ai_invalid_safe_rule": ("P0042", lambda: FakeJev("notify_me", 0.95), "RULE_DEFAULT", "invalid_choice", "P0160",
+                             "unrecognized"),
+    "ai_off_safe_rule": ("P0042", lambda: None, "RULE_DEFAULT", "disabled", "P0160", None),
+    "no_alternative": ("P0092", lambda: FakeJev(), "RULE_DEFAULT", "no_alternative", None, None),
+}
+
+
+@pytest.mark.parametrize("restock", [True, False], ids=["restock", "no_restock"])
+@pytest.mark.parametrize("outcome", list(OUTCOMES))
+def test_every_outcome_with_and_without_the_restock_notice(catalogue, redis_client, caplog, outcome, restock):
+    product, make_jev, route, reason, offered, jev_choice = OUTCOMES[outcome]
+    eta = near_restock(redis_client, product) if restock else None
+    caplog.set_level("INFO", logger="offer_worker")
+    w, out, m = build(make_cfg(), catalogue, redis_client, make_jev())
+
+    assert w.handle(risk(rid=f"S1|C1|{product}|1", product=product)) == "published"
+
+    o = only(out)
+    fastavro.validation.validate(o, _schema())
+    assert (o["decision_route"], o["decision_reason"]) == (route, reason)
+    assert o["product_id"] == offered and o["jev_choice"] == jev_choice
+    assert o["restock_eta"] == eta  # the fact, whatever the AI said
+    assert o["offer_type"] == ("ALTERNATIVE_PRODUCT" if offered else "NOTIFY_ME")
+    assert o["chosen_choice"] == (f"alt:{offered}" if offered else None)
+    assert o["discount_pct"] == (10 if offered else 0)
+    name = catalogue[product]["name"]
+    if offered:
+        assert o["body"].startswith(catalogue[offered]["name"]) and o["body"].endswith("Take 10% off if you switch.")
+    elif restock:
+        assert o["body"] == "Back in about 3 days. We will let you know as soon as it is back in stock."
+    else:
+        assert o["body"] == "Sold out everywhere, and nothing comparable is in stock right now."
+    assert o["headline"] == f"{name} just sold out"
+    type_tag = "ALTERNATIVE_PRODUCT" if offered else ("NOTIFY_ME" if restock else "NONE")
+    assert ("completed", type_tag, restock) in m.calls and ("decision", route, reason) in m.calls
+    record = next(r for r in caplog.records if r.message == "offer published")
+    assert record.ctx["decision"] == f"{route}/{reason}" and record.ctx["restock_included"] is restock
+
+
+def test_p0042_ai_rating_p0061_high_offers_p0061_not_the_safe_rule_pick(catalogue, redis_client):
+    """The Safe rule picks P0160 on price; the AI, asked only about substitutes, rates P0061."""
+    near_restock(redis_client)
+    jev = FakeJev("alt:P0061", 0.86, probabilities=P0042_PROBABILITIES)
+    w, out, _ = build(make_cfg(), catalogue, redis_client, jev)
+    w.handle(risk())
+    o = only(out)
+    assert list(jev.calls[0][2]) == ["alt:P0160", "alt:P0061", "none"]  # no notify_me option any more
+    assert (o["decision_route"], o["product_id"], o["rule_choice"]) == ("JEV", "P0061", "alt:P0160")
+    assert o["restock_eta"] is not None  # and the shopper can still choose to wait
+
+
+def test_p0042_ai_unsure_is_the_safe_rule_p0160_with_the_ai_suggestion_kept(catalogue, redis_client):
+    near_restock(redis_client)
+    w, out, _ = build(make_cfg(), catalogue, redis_client, FakeJev("alt:P0061", 0.4))
+    w.handle(risk())
+    o = only(out)
+    assert (o["decision_route"], o["decision_reason"], o["product_id"]) == ("RULE_DEFAULT", "low_confidence", "P0160")
+    assert (o["jev_choice"], o["jev_confidence"], o["min_confidence"]) == ("alt:P0061", 0.4, 0.8)
+    assert o["restock_eta"] is not None

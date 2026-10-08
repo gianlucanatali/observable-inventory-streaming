@@ -7,7 +7,7 @@ from typing import Callable
 
 MAX_ALTERNATIVES = 2
 SCAN_LIMIT = 12  # eligible products examined (most comparable first) when looking for in-stock alternatives
-NOTIFY_ID = "notify_me"
+NONE_ID = "none"  # Jev's explicit answer "none of these is a good substitute"; never a candidate of the Safe rule
 
 # Lookup of a product's confirmed minimum (offer_worker/stock.py): the quantity counted only from live
 # stores, the same number the shop promises. None when it cannot be computed. Only > 0 is eligible; None never is.
@@ -16,11 +16,22 @@ ConfirmedMinLookup = Callable[[str], "int | None"]
 
 @dataclass(frozen=True)
 class Candidate:
-    id: str                    # "notify_me" or "alt:<product_id>"
-    offer_type: str            # ALTERNATIVE_PRODUCT | NOTIFY_ME (SAME_PRODUCT_OTHER_STORE is never offered: online sellable is 0 everywhere)
-    product_id: str | None
+    """One Eligible alternative. SAME_PRODUCT_OTHER_STORE is never offered: online sellable is 0 everywhere."""
+    id: str                    # "alt:<product_id>"
+    offer_type: str            # ALTERNATIVE_PRODUCT
+    product_id: str
     discount_pct: int
-    stock: int | None = None   # confirmed minimum when the candidate was built (alternatives only); context for Jev
+    stock: int | None = None   # confirmed minimum when the candidate was built; context for Jev
+
+
+@dataclass(frozen=True)
+class Restock:
+    """Restock of the sold-out product: a fact from the open purchase order, never an AI choice.
+    `business_s` is the business-time wait (demo clock applied) and `eta_ms` the due time on the real clock;
+    both None when there is no date."""
+    business_s: float | None
+    eta_ms: int | None = None
+    why_undated: str = "no open purchase order"
 
 
 def load_catalogue(path: str) -> dict[str, dict]:
@@ -29,11 +40,10 @@ def load_catalogue(path: str) -> dict[str, dict]:
     return {p["product_id"]: p for p in items}
 
 
-def build_candidates(original: dict, catalogue: dict[str, dict], confirmed_min: ConfirmedMinLookup, discount_pct: int,
-                     restock_notice: bool = True) -> list[Candidate]:
-    """Eligible alternatives (most comparable first, at most MAX_ALTERNATIVES), then the Restock notice when it is
-    eligible (`restock_notice`: an open purchase order due within the near-restock limit). Empty when neither exists:
-    then there is no Offer at all."""
+def build_candidates(original: dict, catalogue: dict[str, dict], confirmed_min: ConfirmedMinLookup,
+                     discount_pct: int) -> list[Candidate]:
+    """Eligible alternatives, most comparable first, at most MAX_ALTERNATIVES. The Restock notice is not a candidate:
+    it is added on its own when the restock date allows it (restock_notice_eligible)."""
     minimum_price = original["price_eur"] * 0.8
     maximum_price = original["price_eur"] * 1.2
     pool = sorted(
@@ -53,8 +63,6 @@ def build_candidates(original: dict, catalogue: dict[str, dict], confirmed_min: 
             cands.append(Candidate(f"alt:{p['product_id']}", "ALTERNATIVE_PRODUCT", p["product_id"], discount_pct, qty))
         if len(cands) >= MAX_ALTERNATIVES:
             break
-    if restock_notice:
-        cands.append(Candidate(NOTIFY_ID, "NOTIFY_ME", None, 0))
     return cands
 
 
@@ -65,7 +73,7 @@ def restock_notice_eligible(restock_business_s: float | None, near_days: float) 
 
 def rule_default(candidates: list[Candidate]) -> Candidate | None:
     """Policy's own pick (the Safe rule): the most comparable in-stock alternative (same kind, then same
-    waterproofing, then closest price), else the Restock notice when eligible (always last), else None: no Offer."""
+    waterproofing, then closest price), else None: no alternative."""
     return candidates[0] if candidates else None
 
 
@@ -78,12 +86,14 @@ def _same_model(original: dict, alt: dict) -> bool:
 NO_OFFER_BODY = "Sold out everywhere, and nothing comparable is in stock right now."
 
 
-def template_text(offer_type: str | None, original: dict, alt: dict | None, discount_pct: int,
+def template_text(original: dict, alt: dict | None, discount_pct: int,
                   restock_wait: str | None = None) -> tuple[str, str]:
-    """Headline and body. `offer_type` None means no Offer. The alternative's colour is named whenever it differs
-    from the sold-out item's; the same model in another colour is called "the same <name>"."""
+    """Headline and body. With an alternative the body describes it (the Restock notice, if any, is a separate
+    structured fact the shop shows beside it); without one it is the Restock notice, else the no-Offer wording.
+    The alternative's colour is named whenever it differs from the sold-out item's; the same model in another colour is
+    called "the same <name>"."""
     headline = f"{original['name']} just sold out"
-    if offer_type == "ALTERNATIVE_PRODUCT" and alt is not None:
+    if alt is not None:
         take = f"Take {discount_pct}% off if you switch."
         other_colour = alt["colour"]["name"] != original["colour"]["name"]
         if _same_model(original, alt):
@@ -91,7 +101,6 @@ def template_text(offer_type: str | None, original: dict, alt: dict | None, disc
             return headline, f"The same {alt['name']}{colour} is in stock. {take}"
         colour = f", {alt['colour']['name']}," if other_colour else ""
         return headline, f"{alt['name']} by {alt['brand']}{colour} is in stock and similar. {take}"
-    if offer_type == "NOTIFY_ME":
-        back = f"Back in {restock_wait}. " if restock_wait else ""
-        return headline, f"{back}We will let you know as soon as it is back in stock."
+    if restock_wait is not None:
+        return headline, f"Back in {restock_wait}. We will let you know as soon as it is back in stock."
     return headline, NO_OFFER_BODY

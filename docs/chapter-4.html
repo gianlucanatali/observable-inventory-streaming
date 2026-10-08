@@ -265,7 +265,7 @@ make<span class="w"> </span>canary-check<span class="w"> </span><span class="nv"
 <p><em>What just happened:</em> each load, from make or from the panel, replaces the summary file that <code>canary-check</code> reads, so the gate always judges the latest step. Do not widen a rollout based on an old summary. Each release is a separate Fargate service, so changing the split did not change any image, any data or any Kafka offset.</p>
 </details>
 <h4 id="5-prove-it-latency-cpu-and-cost">5. Prove it: latency, CPU and cost <a class="header-anchor" href="#5-prove-it-latency-cpu-and-cost">#</a></h4>
-<p>You have now run the same load (120 s at 5 requests per second) with 1.2.0 taking all traffic. Compare it with 1.1.0 in Datadog:</p>
+<p>You have now run the same load (120 s at 5 requests per second) with 1.2.0 taking all traffic. Compare it with 1.1.0 in <a href="#2-compare-the-versions-in-apm" data-stack-link="apm">Datadog APM</a>:</p>
 <ol>
 <li>Latency: use the Metrics Explorer query from <a href="chapter-3.html#6-compare-releases-in-apm">Lab 3.1</a> and compare the versions. 1.2.0 should be much lower than 1.1.0.</li>
 </ol>
@@ -313,7 +313,7 @@ make<span class="w"> </span>canary-check<span class="w"> </span><span class="nv"
   </div>
 </dialog>
 <div class="sr-only" aria-live="polite" id="live"></div>
-<script src="assets/stack.js?v=d196eb9022"></script>
+<script src="assets/stack.js?v=68c01d4930"></script>
 <script src="assets/site.js?v=1de1666aca" defer></script>
 </body>
 </html>

@@ -44,6 +44,19 @@ def count_open_orders(conn) -> int:
         return int(cur.fetchone()[0])
 
 
+def open_order_products(conn) -> set[str]:
+    """Products with at least one purchase order that supplier-sim would still deliver."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT DISTINCT product_id FROM purchase_order WHERE delivered_at IS NULL AND cancelled_at IS NULL")
+        return {str(row[0]) for row in cur.fetchall()}
+
+
+def eta_product(key) -> str:
+    """Product id of a restock:eta:<product> key (bytes or str)."""
+    text = key.decode() if isinstance(key, bytes) else key
+    return text[len(ETA_PATTERN) - 1:]
+
+
 def eta_keys(r) -> list:
     return list(r.scan_iter(match=ETA_PATTERN, count=500))
 

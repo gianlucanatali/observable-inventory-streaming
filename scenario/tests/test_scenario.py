@@ -577,8 +577,9 @@ def test_seed_command_writes_weights_with_skew_from_redis(monkeypatch, capsys):
 class ProcDb:
     """purchase_order rows as dicts; understands the cancel UPDATE and the open-orders count."""
 
-    def __init__(self, open_orders=2, stuck=False):
+    def __init__(self, open_orders=2, stuck=False, open_products=()):
         self.open, self.stuck, self.closed, self.sql = open_orders, stuck, False, []
+        self.open_products = set(open_products)  # products with an open order, as Flink reopens them after a reset
 
     def cursor(self):
         db = self
@@ -600,9 +601,14 @@ class ProcDb:
                         db.open = 0
                 elif "count(*)" in sql:
                     self.row = (db.open,)
+                elif "SELECT DISTINCT product_id" in sql:
+                    self.rows = [(p,) for p in sorted(db.open_products)]
 
             def fetchone(self):
                 return self.row
+
+            def fetchall(self):
+                return self.rows
         return Cur()
 
     def transaction(self):
@@ -635,7 +641,7 @@ def test_restock_reset_fails_loudly_when_orders_stay_open_or_db_is_down():
         RestockReset(down, r, lambda: None).cancel_orders(lambda m: None)
 
 
-def test_restock_reset_clears_eta_keys_and_tolerates_one_republish():
+def test_restock_reset_clears_eta_keys_and_tolerates_one_stale_republish():
     from scenario.presenter_actions import RestockReset
     r = fakeredis.FakeRedis(decode_responses=True)
     r.set("restock:eta:P1", "1")
@@ -648,16 +654,50 @@ def test_restock_reset_clears_eta_keys_and_tolerates_one_republish():
             republished.append(s)
             r.set("restock:eta:P1", "1")
     progress = []
-    assert RestockReset(lambda: None, r, lambda: None, sleep=sleep).clear_etas(progress.append) == 3
-    assert r.keys("*") == ["sellable:P1"] and progress == ["Cleared 3 restock:eta key(s); none came back"]
+    db = ProcDb(open_orders=0)
+    assert RestockReset(lambda: db, r, lambda: None, sleep=sleep).clear_etas(progress.append) == 3
+    assert db.closed and r.keys("*") == ["sellable:P1"]
+    assert progress == ["Cleared 3 restock:eta key(s); 0 back for the 0 product(s) that have an open purchase order "
+                        "(new orders for seed stock below the reorder point), none stale"]
 
 
-def test_restock_reset_eta_keys_that_keep_coming_back_fail():
+def test_restock_reset_keeps_eta_keys_of_products_with_a_new_open_order():
+    """Regression: the data reset writes the seed, Flink reorders positions at or below the reorder point (S02/P0002
+    has 1 unit) and supplier-sim publishes the ETA of those new orders. That is the system working, not a failure."""
     from scenario.presenter_actions import RestockReset
     r = fakeredis.FakeRedis(decode_responses=True)
-    rr = RestockReset(lambda: None, r, lambda: None, sleep=lambda s: r.set("restock:eta:P9", "1"))
-    with pytest.raises(RuntimeError, match="keep coming back.*restock:eta:P9"):
+    r.set("restock:eta:P0001", "1")  # stale: its order was cancelled
+    db = ProcDb(open_orders=1, open_products={"P0002"})
+
+    def sleep(s):  # supplier-sim publishes the new order's ETA
+        r.set("restock:eta:P0002", "2")
+    progress = []
+    assert RestockReset(lambda: db, r, lambda: None, sleep=sleep).clear_etas(progress.append) == 1
+    assert r.keys("restock:eta:*") == ["restock:eta:P0002"]
+    assert progress == ["Cleared 1 restock:eta key(s); 1 back for the 1 product(s) that have an open purchase order "
+                        "(new orders for seed stock below the reorder point), none stale"]
+
+
+def test_restock_reset_stale_eta_keys_that_keep_coming_back_fail():
+    from scenario.presenter_actions import RestockReset
+    r = fakeredis.FakeRedis(decode_responses=True)
+    db = ProcDb(open_orders=1, open_products={"P0002"})  # P9 has no open order, P0002 has
+    r.set("restock:eta:P0002", "2")
+
+    def sleep(s):
+        r.set("restock:eta:P9", "1")
+    rr = RestockReset(lambda: db, r, lambda: None, sleep=sleep)
+    with pytest.raises(RuntimeError, match="stale restock:eta keys keep coming back.*restock:eta:P9.*no open purchase order"):
         rr.clear_etas(lambda m: None)
+
+
+def test_restock_reset_clear_etas_fails_loudly_when_the_db_is_down():
+    from scenario.presenter_actions import RestockReset
+
+    def down():
+        raise OSError("connection refused")
+    with pytest.raises(RuntimeError, match="cannot connect to the procurement database.*check the restock:eta.*refused"):
+        RestockReset(down, fakeredis.FakeRedis(decode_responses=True), lambda: None).clear_etas(lambda m: None)
 
 
 def test_restock_reset_skip_reasons():

@@ -3,7 +3,7 @@ import ProductImage from './ProductImage.jsx';
 import { getAlternatives, getAvailability } from '../api.js';
 import { aiConfidence, decidedBy, inStockAlternatives } from '../alternatives.js';
 import { formatPrice } from './ProductCard.jsx';
-import { isNoOffer } from './OfferCard.jsx';
+import { hasRestockNotice, isNoOffer, restockWait } from './OfferCard.jsx';
 
 const altTitle = (alt) => [alt.name, alt.colour].filter(Boolean).join(', ');
 
@@ -28,19 +28,36 @@ function AltRow({ alt, offer, offered, stock, onSwap }) {
   );
 }
 
-// Under a sold-out item with no Offer: nothing comparable in stock, so no alternatives to list and no stock calls.
+// Without an alternative: none was eligible, or the AI judged none a good substitute.
+const noAlternative = (offer) => (offer.decision_reason === 'no_good_substitute'
+  ? 'No good substitute' : 'No comparable product in stock');
+
+// The Restock notice under a sold-out item: the restock date (a fact) and Notify me.
+function RestockRow({ offer, compression, onNotify, notified }) {
+  return (
+    <div className="cart-offer-restock" data-testid="cart-offer-restock">
+      {restockWait(offer, compression)}
+      {notified
+        ? <span className="cart-item-meta"> · We will let you know.</span>
+        : <button className="cart-remove" onClick={() => onNotify && onNotify(offer)}>Notify me</button>}
+    </div>
+  );
+}
+
+// Under a sold-out item with no Offer: no alternative and no near restock. With no eligible alternative there is
+// nothing to list, so no stock calls.
 function NoOffer({ offer }) {
   return (
     <div className="cart-offer" data-testid="cart-offer">
       <div className="cart-offer-line" data-testid="cart-offer-line">
-        <b>Sold out</b> → No comparable product in stock · Decided by: {decidedBy(offer)}
+        <b>Sold out</b> → {noAlternative(offer)} · Decided by: {decidedBy(offer)}
       </div>
     </div>
   );
 }
 
 // Under a sold-out item: the offer line, then the in-stock alternatives the worker considered (offered one first).
-function ItemOffer({ offer, onSwap }) {
+function ItemOffer({ offer, onSwap, compression, onNotify, notified }) {
   const [alts, setAlts] = useState(null);
   const [error, setError] = useState(null);
   useEffect(() => {
@@ -56,20 +73,19 @@ function ItemOffer({ offer, onSwap }) {
     return () => { stopped = true; };
   }, [offer.offer_id, offer.original_product_id]);
 
-  const offeredId = offer.offer_type === 'ALTERNATIVE_PRODUCT' ? offer.product_id : null;
+  const offeredId = offer.product_id || null;
   const offeredAlt = offeredId ? (offer.alternative || { product_id: offeredId, name: `Product ${offeredId}` }) : null;
   const found = alts || [];
   const offeredStock = (found.find((a) => a.product_id === offeredId) || {}).stock;
   const others = found.filter((a) => a.product_id !== offeredId);
-  const notifyAi = aiConfidence(offer, 'notify_me');
-  const target = offeredAlt ? `${altTitle(offeredAlt)} −${offer.discount_pct}%` : 'Restock notice: we will let you know when it is back';
+  const target = offeredAlt ? `${altTitle(offeredAlt)} −${offer.discount_pct}%` : noAlternative(offer);
 
   return (
     <div className="cart-offer" data-testid="cart-offer">
       <div className="cart-offer-line" data-testid="cart-offer-line">
         <b>Sold out</b> → {target} · Decided by: {decidedBy(offer)}
-        {notifyAi && <span className="cart-alt-ai">AI: restock notice {notifyAi}</span>}
       </div>
+      {hasRestockNotice(offer) && <RestockRow offer={offer} compression={compression} onNotify={onNotify} notified={notified} />}
       <ul className="cart-alts">
         {offeredAlt && <AltRow alt={offeredAlt} offer={offer} offered stock={offeredStock} onSwap={onSwap} />}
         {others.map((a) => <AltRow key={a.product_id} alt={a} offer={offer} offered={false} stock={a.stock} onSwap={onSwap} />)}
@@ -82,7 +98,8 @@ function ItemOffer({ offer, onSwap }) {
 
 // Small panel under the header cart button: one line per product with its size, colour and quantity, and under each
 // sold-out product its offer and alternatives.
-export default function CartDrawer({ cart, offers = [], onRemove, onSwap, onClose }) {
+export default function CartDrawer({ cart, offers = [], onRemove, onSwap, onClose, compression = null, onNotify,
+  notified = [] }) {
   return (
     <aside className="cart-drawer" data-testid="cart-drawer" aria-label="Your cart">
       <div className="cart-drawer-head">
@@ -106,7 +123,9 @@ export default function CartDrawer({ cart, offers = [], onRemove, onSwap, onClos
                     </div>
                   </div>
                   <button className="cart-remove" onClick={() => onRemove(item.product_id)} aria-label={`Remove ${title}`}>Remove</button>
-                  {offer && onSwap && (isNoOffer(offer) ? <NoOffer offer={offer} /> : <ItemOffer offer={offer} onSwap={onSwap} />)}
+                  {offer && onSwap && (isNoOffer(offer) ? <NoOffer offer={offer} />
+                    : <ItemOffer offer={offer} onSwap={onSwap} compression={compression} onNotify={onNotify}
+                      notified={notified.includes(offer.offer_id)} />)}
                 </li>
               );
             })}

@@ -46,7 +46,7 @@ const RUM = { application_id: 'a', client_token: 't', site: 'datadoghq.eu', serv
 function fakeShop(rum = undefined, { items = [L42, L48], offers = [O42, O48] } = {}) {
   const state = { items, posts: [] };
   const routes = {
-    '/config': { poll_ms: 60000, offers_enabled: true, release: 'x', rum },
+    '/config': { poll_ms: 60000, offers_enabled: true, release: 'x', rum, time_compression: 60 },
     '/api/products': [],
     '/api/products/P0042/alternatives': { product_id: 'P0042', max_alternatives: 2, candidates: [P0099, P0160, P0061, P0079] },
     '/api/products/P0048/alternatives': { product_id: 'P0048', max_alternatives: 2, candidates: [P0059, P0079] },
@@ -138,7 +138,7 @@ describe('cart drawer with two sold-out items', () => {
     await waitFor(() => expect(screen.getAllByTestId('cart-offer')).toHaveLength(1));
     expect(screen.getByTestId('cart-drawer')).toHaveTextContent('Glacier blue');
     expect(datadogRum.addAction).toHaveBeenCalledWith('offer_accepted',
-      { product_id: 'P0048', alternative_id: 'P0059', decided_by: 'ai', discount_pct: 10 });
+      { product_id: 'P0048', alternative_id: 'P0059', decided_by: 'ai', discount_pct: 10, restock_offered: false });
 
     // Swapping to the other option (full price) is not an accepted Offer.
     fireEvent.click(within(screen.getAllByTestId('cart-item')[0]).getByRole('button', { name: 'Swap to Pathfinder Air, Ember red' }));
@@ -154,6 +154,75 @@ describe('cart drawer with two sold-out items', () => {
     render(<App />);
     await waitFor(() => expect(screen.getByTestId('offer-card')).toHaveTextContent('Trailrunner GTX just sold out'));
     expect(screen.getByTestId('offer-card')).not.toHaveTextContent('Dolomia');
+  });
+});
+
+describe('Swap persists through the cart API', () => {
+  it('offer_accepted is recorded only after the server cart took both the ABANDON and the ADD', async () => {
+    window.localStorage.setItem('urbanstreet.cart_id', CART_ID);
+    window.location.hash = '#/';
+    const state = fakeShop(RUM);
+    const realFetch = fetch;
+    // The ADD fails: the swap did not reach the server cart, so no Offer accepted.
+    vi.stubGlobal('fetch', vi.fn(async (url, init) => {
+      if (String(url) === '/api/cart' && JSON.parse(init.body).event_type === 'ADD') {
+        return { ok: false, status: 502, text: async () => JSON.stringify({ error: 'publish_failed', message: 'down' }) };
+      }
+      return realFetch(url, init);
+    }));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    render(<App />);
+    await waitFor(() => expect(screen.getByTestId('cart-count')).toHaveTextContent('2'));
+    fireEvent.click(screen.getByRole('button', { name: /^Cart/ }));
+    const boot = (await screen.findAllByTestId('cart-item'))[1];
+    fireEvent.click(await within(boot).findByRole('button', { name: 'Swap to Dolomia Evo, Glacier blue' }));
+    await waitFor(() => expect(state.posts).toHaveLength(1));  // the ABANDON reached the fake server; the ADD failed
+    await screen.findByText(/POST \/api\/cart returned HTTP 502/);
+    expect(datadogRum.addAction.mock.calls.filter((c) => c[0] === 'offer_accepted')).toHaveLength(0);
+  });
+});
+
+describe('a sold-out item with a near restock and an alternative', () => {
+  it('the drawer shows the restock date with Notify me under the offer line, and Notify me is a RUM action', async () => {
+    window.localStorage.setItem('urbanstreet.cart_id', CART_ID);
+    window.location.hash = '#/';
+    const eta = new Date(Date.now() + 17 * 60_000).toISOString();  // 17 business hours with the demo clock at 60
+    const both = { ...O42, decision_route: 'JEV', decision_reason: 'accepted', product_id: 'P0061', alternative: P0061,
+      jev_choice: 'alt:P0061', jev_confidence: 0.86, chosen_choice: 'alt:P0061', restock_eta: eta, restock_notice: true,
+      no_offer: false };
+    const state = fakeShop(RUM, { items: [L42], offers: [both] });
+    render(<App />);
+    await waitFor(() => expect(screen.getByTestId('cart-count')).toHaveTextContent('1'));
+    fireEvent.click(screen.getByRole('button', { name: /^Cart/ }));
+    const item = await screen.findByTestId('cart-item');
+    await waitFor(() => expect(within(item).getByTestId('cart-offer-line')).toHaveTextContent(
+      'Sold out → Pathfinder Air, Ember red −10% · Decided by: AI'));
+    expect(within(item).getByTestId('cart-offer-restock')).toHaveTextContent(/^Back in about 1[67] hours/);
+
+    fireEvent.click(within(item).getByRole('button', { name: 'Notify me' }));
+    await waitFor(() => expect(within(item).getByTestId('cart-offer-restock')).toHaveTextContent('We will let you know.'));
+    expect(datadogRum.addAction).toHaveBeenCalledWith('restock_notice_confirmed',
+      { product_id: 'P0042', restock_eta: eta, alternative_offered: true });
+    expect(state.posts).toEqual([]);  // Notify me changes nothing in the cart
+  });
+
+  it('a confident "none" with a near restock lists the alternatives at full price and offers to wait', async () => {
+    window.localStorage.setItem('urbanstreet.cart_id', CART_ID);
+    window.location.hash = '#/';
+    const eta = new Date(Date.now() + 17 * 60_000).toISOString();
+    const wait = { ...O42, offer_type: 'NOTIFY_ME', product_id: null, alternative: null, discount_pct: 0,
+      decision_route: 'JEV', decision_reason: 'no_good_substitute', jev_choice: 'none', jev_confidence: 0.9,
+      chosen_choice: null, restock_eta: eta, restock_notice: true, no_offer: false };
+    fakeShop(undefined, { items: [L42], offers: [wait] });
+    render(<App />);
+    await waitFor(() => expect(screen.getByTestId('cart-count')).toHaveTextContent('1'));
+    fireEvent.click(screen.getByRole('button', { name: /^Cart/ }));
+    const item = await screen.findByTestId('cart-item');
+    await waitFor(() => expect(within(item).getByTestId('cart-offer-line')).toHaveTextContent(
+      'Sold out → No good substitute · Decided by: AI'));
+    expect(within(item).getByRole('button', { name: 'Notify me' })).toBeInTheDocument();
+    await waitFor(() => expect(within(item).getAllByTestId('cart-alt')).toHaveLength(2));
+    expect(within(item).queryByTestId('cart-alt-offered')).toBeNull();
   });
 });
 

@@ -2,7 +2,7 @@
   "type": "record",
   "name": "CartAtRisk",
   "namespace": "urbanstreet.offers",
-  "doc": "Value of carts.at-risk, produced by Flink: an active ONLINE cart holds a product whose sellable stock is 0. risk_id = scenario_id|cart_id|product_id|sellable_changed_at_ms, so replays and repeated join output deduplicate. A null value (tombstone) on the key means the risk ended (cart abandoned or expired, or stock came back) and must be ignored.",
+  "doc": "Value of carts.at-risk, produced by Flink: an active ONLINE cart holds a product whose sellable stock is 0. Key {scenario_id, cart_id, product_id} (CartAtRiskKey): one row per cart item. risk_id = scenario_id|cart_id|product_id|sellable_changed_at_ms, so replays and repeated join output deduplicate, and a new zero of the same item updates the key with a new risk_id. A null value (tombstone) on the key means the risk ended (cart abandoned or expired, or stock came back) and must be ignored.",
   "fields": [
     {
       "name": "risk_id",

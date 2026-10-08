@@ -212,8 +212,9 @@ class CartAtRiskTracker:
     no store reporting also counts; a product without a row never matches).
 
     Every method returns the upsert changes for carts.at-risk as (key, value) pairs, value None = tombstone.
-    A change is emitted only when the risk of an item changes (new risk_id, or none any more), so identical
-    records are never re-emitted. Time comes in as `now_ms`; call sweep() periodically for window expiry.
+    The key is the cart item {scenario_id, cart_id, product_id}: a new risk_id for the same item is an
+    update of that key, no tombstone first. A change is emitted only when the risk of an item changes (new risk_id,
+    or none any more), so identical records are never re-emitted. Time comes in as `now_ms`; call sweep() periodically for window expiry.
     """
 
     def __init__(self, window_ms: int = CART_WINDOW_MS) -> None:
@@ -265,11 +266,11 @@ class CartAtRiskTracker:
             want, have = self._risk(k, now_ms), self._live.get(k)
             if want == have:
                 continue
-            if have is not None and (want is None or want["risk_id"] != have["risk_id"]):
-                out.append(({"risk_id": have["risk_id"]}, None))
+            key = {"scenario_id": k[0], "cart_id": k[1], "product_id": k[2]}
             if want is None:
                 del self._live[k]
+                out.append((key, None))
             else:
                 self._live[k] = want
-                out.append(({"risk_id": want["risk_id"]}, want))
+                out.append((key, want))
         return out

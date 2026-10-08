@@ -272,8 +272,8 @@ def test_risk_when_cart_then_zero_stock():
     t = CartAtRiskTracker()
     assert t.on_cart(cart(), T0) == []
     (key, val), = t.on_sellable(sell(changed=T0 + 500), T0 + 600)
-    assert key == {"risk_id": "sc1|C1|P1|%d" % (T0 + 500)}
-    assert val == {"risk_id": key["risk_id"], "scenario_id": "sc1", "cart_id": "C1", "shopper_id": "SH1",
+    assert key == {"scenario_id": "sc1", "cart_id": "C1", "product_id": "P1"}
+    assert val == {"risk_id": "sc1|C1|P1|%d" % (T0 + 500), "scenario_id": "sc1", "cart_id": "C1", "shopper_id": "SH1",
                    "product_id": "P1", "cart_value_eur": 189.5, "returning_shopper": True, "item_count": 3,
                    "sellable_changed_at_ms": T0 + 500, "detected_at": T0 + 500}
 
@@ -335,15 +335,17 @@ def test_restock_retracts_and_zero_again_new_risk():
     (k1, _), = t.on_sellable(sell(changed=T0), T0)
     assert t.on_sellable(sell(qty=4, changed=T0 + 10), T0 + 10) == [(k1, None)]
     (k2, v2), = t.on_sellable(sell(qty=0, changed=T0 + 20), T0 + 20)
-    assert k2 != k1 and v2["sellable_changed_at_ms"] == T0 + 20
+    assert k2 == k1 and v2["sellable_changed_at_ms"] == T0 + 20
+    assert v2["risk_id"] == "sc1|C1|P1|%d" % (T0 + 20)
 
 
-def test_zero_to_zero_newer_change_rekeys():
+def test_zero_to_zero_newer_change_updates_the_item_key_with_a_new_risk_id():
     t = CartAtRiskTracker()
     t.on_cart(cart(), T0)
-    (k1, _), = t.on_sellable(sell(changed=T0), T0)
-    out = t.on_sellable(sell(changed=T0 + 7), T0 + 7)
-    assert out[0] == (k1, None) and out[1][0] != k1 and out[1][1]["sellable_changed_at_ms"] == T0 + 7
+    (k1, v1), = t.on_sellable(sell(changed=T0), T0)
+    (k2, v2), = t.on_sellable(sell(changed=T0 + 7), T0 + 7)
+    assert k2 == k1 and v2 is not None and v2["sellable_changed_at_ms"] == T0 + 7
+    assert v2["risk_id"] != v1["risk_id"]
 
 
 def test_window_expiry_and_stale_cart():
@@ -363,7 +365,7 @@ def test_carts_are_independent_per_scenario_cart_product():
     t.on_cart(cart(cart_id="C2"), T0)
     t.on_cart(cart(scenario="sc0"), T0)
     out = t.on_cart(cart("ABANDON", cart_id="C2", ms=T0 + 1), T0 + 1)
-    assert [k["risk_id"].split("|")[:2] for k, v in out] == [["sc1", "C2"]]
+    assert out == [({"scenario_id": "sc1", "cart_id": "C2", "product_id": "P1"}, None)]
 
 
 def test_cart_event_validation_fails_loudly():

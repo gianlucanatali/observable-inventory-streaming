@@ -49,3 +49,26 @@ def test_cart_at_risk_path_uses_uncommitted_flink_output_within_budget():
                 + offer_delivery_ms + storefront_offer_consumer_ms + browser_poll_ms)
     assert total_ms < 15_000, f"configured sell-out-to-render budget is {total_ms} ms, not under 15 s"
     assert 'live_int("poll_ms", cfg.poll_ms, 250, 2_000)' in storefront_app
+
+
+def test_offers_path_statements_run_without_watermark_alignment():
+    tf = (ROOT / "terraform" / "cloud" / "flink_statements.tf").read_text()
+    # Confluent documents drift 0 for regular joins and non-windowed aggregations (no event time needed).
+    assert '"sql.tables.scan.watermark-alignment.max-allowed-drift" = "0 ms"' in tf
+    files = re.search(r'no_alignment_files\s*=\s*\[([^\]]*)\]', tf)
+    assert files, "flink_statements.tf must list the files that run without watermark alignment"
+    assert sorted(re.findall(r'"([^"]+)"', files.group(1))) == ["offers", "sellable"]
+    # restock uses HOP windows (event time): it must keep the default alignment.
+    for f in ("demand", "procurement", "restock"):
+        assert f'"{f}"' not in files.group(1)
+    # Only the INSERT statements change: CREATE TABLE keeps the base properties, so no topic is recreated.
+    ddl = tf[tf.index('resource "confluent_flink_statement" "ddl"'):tf.index('resource "confluent_flink_statement" "dml"')]
+    assert "properties     = local.flink_props\n" in ddl
+    for res in ('"dml"', '"dml_late"'):
+        block = tf[tf.index(f'resource "confluent_flink_statement" {res}'):]
+        block = block[:block.index("\n}\n")]
+        assert "properties     = local.dml_props[each.key]" in block, res
+    for sql in ("sellable.sql", "cart_at_risk.sql"):
+        text = (ROOT / "flink" / sql).read_text().upper()
+        for op in ("TUMBLE(", "HOP(", "CUMULATE(", "SESSION(", "MATCH_RECOGNIZE", "FOR SYSTEM_TIME AS OF", "WATERMARK FOR"):
+            assert op not in text, f"{sql} uses {op}: it needs watermark alignment, remove it from no_alignment_files"

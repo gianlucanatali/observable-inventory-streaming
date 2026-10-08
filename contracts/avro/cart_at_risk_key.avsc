@@ -1,5 +1,9 @@
 {
   "type": "record", "name": "CartAtRiskKey", "namespace": "urbanstreet.offers",
-  "doc": "Key of carts.at-risk: risk_id = scenario_id|cart_id|product_id|sellable_changed_at_ms (upsert key).",
-  "fields": [{"name": "risk_id", "type": "string"}]
+  "doc": "Key of carts.at-risk: one cart item, the upsert key of overlay/flink/cart_at_risk.sql. risk_id is a value field.",
+  "fields": [
+    {"name": "scenario_id", "type": "string"},
+    {"name": "cart_id", "type": "string"},
+    {"name": "product_id", "type": "string"}
+  ]
 }

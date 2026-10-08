@@ -8,7 +8,8 @@ from contextlib import AbstractContextManager
 from typing import Any
 
 from .demo_config import read_param
-from .procurement import cancel_open_orders, clear_eta_keys, count_open_orders, eta_keys
+from .procurement import (cancel_open_orders, clear_eta_keys, count_open_orders, eta_keys, eta_product,
+                          open_order_products)
 from .redisview import active_ns, reset, wait_for_product_zero
 from .source import read_all, read_quantity, sell
 
@@ -71,13 +72,15 @@ class RestockReset:
             return f"the restock layer is off (running layers: {', '.join(layers) or 'none'})"
         return None
 
-    def cancel_orders(self, progress: Callable[[str], None]) -> int:
+    def _open_connection(self, what: str):
         try:
-            conn = self._connect()  # type: ignore[misc]
+            return self._connect()  # type: ignore[misc]
         except Exception as exc:  # noqa: BLE001 - re-raised with where and what
-            raise RuntimeError(f"cannot connect to the procurement database to cancel open purchase orders: "
+            raise RuntimeError(f"cannot connect to the procurement database to {what}: "
                                f"{type(exc).__name__}: {exc} (make layers-status shows whether restock runs)") from exc
-        with contextlib.closing(conn):
+
+    def cancel_orders(self, progress: Callable[[str], None]) -> int:
+        with contextlib.closing(self._open_connection("cancel open purchase orders")) as conn:
             cancelled = cancel_open_orders(conn)
             left = count_open_orders(conn)
         if left:
@@ -87,18 +90,28 @@ class RestockReset:
         return cancelled
 
     def clear_etas(self, progress: Callable[[str], None]) -> int:
-        """Delete restock:eta:* and check they stay gone for a supplier-sim cycle (it runs every second and may
-        republish once from a cycle that read the orders before they were cancelled)."""
+        """Delete restock:eta:* and check that every key left belongs to a product with an open purchase order.
+
+        New orders after the data reset are legitimate: the reset writes the seed, Flink sees positions at or below
+        the reorder point (about 17 % of the seed positions with the default parameters, e.g. S02/P0002 with 1 unit)
+        and opens orders for them, and supplier-sim then publishes their ETA. Only a key without an open order is
+        stale (an in-flight supplier-sim cycle that read the orders before they were cancelled), and it is deleted
+        again; a stale key that keeps coming back is an error."""
         cleared = clear_eta_keys(self._r)
-        for _ in range(self._attempts):
-            self._sleep(self._settle)
-            back = eta_keys(self._r)
-            if not back:
-                progress(f"Cleared {cleared} restock:eta key(s); none came back")
-                return cleared
-            cleared += clear_eta_keys(self._r)
-        raise RuntimeError(f"restock:eta keys keep coming back after {self._attempts} clears (e.g. {back[0]}): "
-                           "an open purchase order still exists; check purchase_order and supplier-sim")
+        with contextlib.closing(self._open_connection("check the restock:eta keys against open purchase orders")) as conn:
+            for _ in range(self._attempts):
+                self._sleep(self._settle)
+                back = eta_keys(self._r)
+                open_products = open_order_products(conn)
+                stale = [k for k in back if eta_product(k) not in open_products]
+                if not stale:
+                    progress(f"Cleared {cleared} restock:eta key(s); {len(back)} back for the {len(open_products)} "
+                             "product(s) that have an open purchase order (new orders for seed stock below the "
+                             "reorder point), none stale")
+                    return cleared
+                cleared += self._r.delete(*stale)
+        raise RuntimeError(f"stale restock:eta keys keep coming back after {self._attempts} clears (e.g. {stale[0]}): "
+                           "they have no open purchase order; check supplier-sim and purchase_order")
 
 
 def make_presenter_operations(store_conn: Callable[[str], AbstractContextManager[Any]], stores: tuple[tuple[str, str], ...], redis_client):

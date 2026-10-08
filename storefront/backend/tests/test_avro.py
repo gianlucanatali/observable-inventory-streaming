@@ -33,8 +33,9 @@ def test_cart_event_serialises_with_contract_schema_and_offer_schema_deserialise
         "original_product_id": "P0042", "offer_type": "NOTIFY_ME", "store_id": None, "product_id": None,
         "discount_pct": 0, "headline": "h", "body": "b", "decision_route": "RULE_DEFAULT",
         "decision_reason": "timeout", "text_route": "TEMPLATE", "text_reason": "disabled",
-        "jev_choice": "notify_me", "jev_confidence": 0.76, "min_confidence": 0.8,
+        "jev_choice": "none", "jev_confidence": 0.76, "min_confidence": 0.8,
         "rule_choice": "alt:P0160", "chosen_choice": "alt:P0160",
+        "restock_eta": datetime(2026, 10, 9, 10, 0, tzinfo=timezone.utc),
         "created_at": datetime.now(timezone.utc),
     }
     ob = AvroSerializer(sr, (AVRO / "offer.avsc").read_text())(offer, SerializationContext("offers", MessageField.VALUE))
@@ -42,8 +43,9 @@ def test_cart_event_serialises_with_contract_schema_and_offer_schema_deserialise
     from app.offers import offer_to_json
     assert offer_to_json(got)["offer_type"] == "NOTIFY_ME"
     assert {key: offer_to_json(got)[key] for key in ("jev_choice", "jev_confidence", "min_confidence", "rule_choice", "chosen_choice")} == {
-        "jev_choice": "notify_me", "jev_confidence": 0.76, "min_confidence": 0.8,
+        "jev_choice": "none", "jev_confidence": 0.76, "min_confidence": 0.8,
         "rule_choice": "alt:P0160", "chosen_choice": "alt:P0160"}
+    assert offer_to_json(got)["restock_eta"] == "2026-10-09T10:00:00+00:00"
 
 
 def test_cart_event_schema_adds_shopper_signals_with_backward_compatible_defaults():

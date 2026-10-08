@@ -607,7 +607,7 @@ stack hybrid, core always on; optional layers:
 <p><strong>The Links card.</strong> The <strong>Links</strong> card at the top of the panel opens every page of this stack in a new tab: the Online shop, the Datadog dashboards, APM and DSM, the Confluent Cloud cluster and the ECS cluster. Bookmark the panel and you have them all. The build fills the card at the end; <code>make links-publish</code> fills it again.</p>
 <div data-path="panel" markdown="1">
 <p><strong>With the control panel</strong></p>
-<p><strong>The five cards of the panel.</strong> The panel shows five cards at the top and the demo's settings below them. You do not need to learn them now: each lab tells you which button to press and what the card shows afterwards.</p>
+<p><strong>The six cards of the panel.</strong> The panel shows six cards at the top and the demo's settings below them. You do not need to learn them now: each lab tells you which button to press and what the card shows afterwards.</p>
 <div class="table-wrap" tabindex="0"><table>
 <thead>
 <tr>
@@ -617,7 +617,7 @@ stack hybrid, core always on; optional layers:
 </thead>
 <tbody>
 <tr>
-<td><strong>Background sales and reset</strong> (<strong>Full demo reset</strong>)</td>
+<td><strong>Demo reset</strong> (<strong>Full demo reset</strong>)</td>
 <td>Every lab, to start from a clean state</td>
 </tr>
 <tr>
@@ -635,6 +635,10 @@ stack hybrid, core always on; optional layers:
 <tr>
 <td><strong>Checks</strong> (<strong>Run load</strong>, <strong>Verify</strong>, <strong>Check canary</strong>)</td>
 <td>Start from a clean state, Labs 1.1 to 4.1</td>
+</tr>
+<tr>
+<td><strong>Background sales</strong> (<strong>Sales on</strong>)</td>
+<td>Lab 6.1</td>
 </tr>
 </tbody>
 </table></div>
@@ -668,7 +672,7 @@ DSM map: https://app.datadoghq.eu/data-streams?env=dd-demo-hybrid
 <div data-path="panel" markdown="1">
 <p><strong>With the control panel</strong></p>
 <ol>
-<li>In the <a href="#2-open-the-control-panel" data-stack-link="control">control panel</a>, on the <strong>Background sales and reset</strong> card, press <strong>Full demo reset</strong> and confirm. Wait until the card reads <code>full-reset succeeded: ...</code>.</li>
+<li>In the <a href="#2-open-the-control-panel" data-stack-link="control">control panel</a>, on the <strong>Demo reset</strong> card, press <strong>Full demo reset</strong> and confirm. Wait until the card reads <code>full-reset succeeded: ...</code>.</li>
 <li>On the <strong>Checks</strong> card, press <strong>Verify</strong>. You should see <code>VERIFY PASSED</code>.</li>
 </ol>
 </div>
@@ -737,7 +741,7 @@ reset ok: scenario &lt;id&gt;, &lt;n&gt; positions at baseline, sellable caught 
   </div>
 </dialog>
 <div class="sr-only" aria-live="polite" id="live"></div>
-<script src="assets/stack.js?v=d196eb9022"></script>
+<script src="assets/stack.js?v=68c01d4930"></script>
 <script src="assets/site.js?v=1de1666aca" defer></script>
 </body>
 </html>

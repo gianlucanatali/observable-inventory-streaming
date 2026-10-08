@@ -18,7 +18,11 @@
 -- rises above 0, Flink deletes the key, which Kafka shows as a tombstone (null value). An append-only sink
 -- cannot take that join (planner rejects retractions). Cost: consumers must ignore null values (offer-worker
 -- does) and the same risk may appear again after a delete/insert pair (offer-worker dedups on risk_id).
--- risk_id is the PRIMARY KEY, so replays and repeated output of the same fact collapse to one key.
+-- PRIMARY KEY = the query's upsert key (scenario_id, cart_id, product_id), one row per cart item.
+-- Confluent: when the sink primary key and the upsert key differ, the planner adds a state-intensive correction
+-- operator (UPSERT_AND_PRIMARY_KEYS_DIFFERENT, upsert materialize), so keep them identical:
+-- https://docs.confluent.io/cloud/current/flink/how-to-guides/resolve-common-query-problems.html
+-- risk_id stays a value field: a new zero (newer sellable_changed_at_ms) updates the same key with a new risk_id.
 CREATE TABLE IF NOT EXISTS `carts.at-risk` (
   risk_id STRING,
   scenario_id STRING,
@@ -30,19 +34,20 @@ CREATE TABLE IF NOT EXISTS `carts.at-risk` (
   item_count INT,
   sellable_changed_at_ms BIGINT,
   detected_at TIMESTAMP_LTZ(3),
-  PRIMARY KEY (risk_id) NOT ENFORCED
+  PRIMARY KEY (scenario_id, cart_id, product_id) NOT ENFORCED
 ) DISTRIBUTED INTO 1 BUCKETS WITH (
   'changelog.mode' = 'upsert',
   'kafka.cleanup-policy' = 'delete',
   'kafka.retention.time' = '1 d',
   'key.format' = 'avro-registry',
   'value.format' = 'avro-registry',
-  'value.fields-include' = 'all'      -- risk_id also in the value, as cart_at_risk.avsc says
+  'value.fields-include' = 'all'      -- key columns also in the value, as cart_at_risk.avsc says
 );
 -- Verify the option names above against the CC Flink CREATE TABLE reference before the first run:
 -- https://docs.confluent.io/cloud/current/flink/reference/statements/create-table.html
--- This statement creates the topic `carts.at-risk` and its subjects (Terraform does not create Flink output topics).
--- CC registers its own record name/namespace for it, offer-worker reads with the writer schema, so that does not matter.
+-- This statement creates the topic `carts.at-risk` and both subjects, carts.at-risk-key and carts.at-risk-value
+-- (Terraform creates neither the topic nor the schemas). CC registers its own record names, offer-worker reads with
+-- the writer schema, so that does not matter.
 
 -- Step 2 (the long-running statement).
 -- Bound: no time filter in Flink. A temporal filter (`event_time > NOW() - INTERVAL '30' MINUTE`) was tried and CC
@@ -90,8 +95,8 @@ JOIN `stock.sellable` /*+ OPTIONS('kafka.consumer.isolation-level' = 'read-uncom
 WHERE s.sellable = 0;
 -- Behaviour notes:
 --  * The probe product (`__probe__`) has a sellable row but is never in a cart, so it never matches.
---  * If sellable goes 0 -> 0 with a newer last_changed_at_ms (a restock-and-sell inside the same zero), the risk_id
---    changes and the same cart fires again: acceptable for the demo, one more offer for the same cart item.
+--  * If sellable goes 0 -> 0 with a newer last_changed_at_ms (a restock-and-sell inside the same zero), the same key
+--    gets a new risk_id and the same cart fires again: acceptable for the demo, one more offer for the same cart item.
 --  * Scenario reset: this query retains older ADD rows by design, but the offer-worker compares every risk's
 --    scenario_id with Redis scenario:current before deduplication or Jev. Older-scenario rows are logically expired
 --    and cannot publish an offer when a later sell-out reactivates their join output.

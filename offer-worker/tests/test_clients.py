@@ -17,10 +17,10 @@ def test_jev_parses_choice_and_sends_bearer():
 
     def h(req):
         seen["auth"], seen["body"] = req.headers["authorization"], req.read()
-        return httpx.Response(200, json={"answers": {"offer": {"type": "choice", "choice": "notify_me", "confidence": 0.9}}})
+        return httpx.Response(200, json={"answers": {"offer": {"type": "choice", "choice": "none", "confidence": 0.9}}})
 
-    got = jev(h).choose("s", "i", {"notify_me": "d"})
-    assert (got.choice, got.confidence) == ("notify_me", 0.9)
+    got = jev(h).choose("s", "i", {"none": "d"})
+    assert (got.choice, got.confidence) == ("none", 0.9)
     assert seen["auth"] == "Bearer key"
     assert json.loads(seen["body"]) == {
         "state": "s",
@@ -29,7 +29,7 @@ def test_jev_parses_choice_and_sends_bearer():
             "offer": {
                 "type": "choice",
                 "instructions": "i",
-                "criteria": {"notify_me": "d"},
+                "criteria": {"none": "d"},
             }
         },
     }
@@ -62,19 +62,19 @@ def test_jev_manual_llm_span_annotates_only_request_and_decision_data(monkeypatc
     monkeypatch.setattr(jev_module, "LLMObs", Recorder, raising=False)
 
     got = jev(lambda request: httpx.Response(200, json={"answers": {"offer": {
-        "type": "choice", "choice": "notify_me", "confidence": 0.9,
-        "probabilities": {"notify_me": 0.9, "alt:P0160": 0.1},
-    }}})).choose("exact state", "exact instructions", {"notify_me": "wait", "alt:P0160": "switch"})
+        "type": "choice", "choice": "none", "confidence": 0.9,
+        "probabilities": {"none": 0.9, "alt:P0160": 0.1},
+    }}})).choose("exact state", "exact instructions", {"none": "wait", "alt:P0160": "switch"})
 
-    assert got.choice == "notify_me"
+    assert got.choice == "none"
     assert Recorder.annotations == [{
         "input_data": [{"role": "user", "content": json.dumps({
             "state": "exact state", "instructions": "exact instructions",
-            "criteria": {"notify_me": "wait", "alt:P0160": "switch"},
+            "criteria": {"none": "wait", "alt:P0160": "switch"},
         }, sort_keys=True)}],
         "output_data": [{"role": "assistant", "content": json.dumps({
-            "choice": "notify_me", "confidence": 0.9,
-            "probabilities": {"notify_me": 0.9, "alt:P0160": 0.1},
+            "choice": "none", "confidence": 0.9,
+            "probabilities": {"none": 0.9, "alt:P0160": 0.1},
         }, sort_keys=True)}],
     }]
 
@@ -83,10 +83,10 @@ def test_jev_preserves_decision_when_llm_observability_is_disabled(monkeypatch):
     monkeypatch.setattr(jev_module.LLMObs, "enabled", False)
 
     got = jev(lambda request: httpx.Response(200, json={"answers": {"offer": {
-        "type": "choice", "choice": "notify_me", "confidence": 0.9,
-    }}})).choose("state", "instructions", {"notify_me": "wait"})
+        "type": "choice", "choice": "none", "confidence": 0.9,
+    }}})).choose("state", "instructions", {"none": "wait"})
 
-    assert (got.choice, got.confidence) == ("notify_me", 0.9)
+    assert (got.choice, got.confidence) == ("none", 0.9)
 
 
 class FakeBedrock:

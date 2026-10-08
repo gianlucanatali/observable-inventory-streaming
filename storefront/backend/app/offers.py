@@ -40,6 +40,8 @@ def offer_to_json(offer: dict) -> dict:
         "min_confidence": offer.get("min_confidence"),
         "rule_choice": offer.get("rule_choice"),
         "chosen_choice": offer.get("chosen_choice"),
+        # Restock notice: due time of the open purchase order (ISO), null without one or in older records.
+        "restock_eta": _iso(offer.get("restock_eta")),
         "text_route": offer["text_route"],
         "created_at": _iso(offer.get("created_at")),
     }

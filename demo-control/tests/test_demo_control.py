@@ -74,7 +74,7 @@ def test_page_has_storefront_aligned_visual_contract_and_actions_before_paramete
     assert 'id="reset-data" class="secondary">Reset demo data</button>' in html
     assert 'class="action-progress"' in html
     assert html.index('class="control-card actions-card"') < html.index('<h2>core</h2>')
-    assert html.index('id="sell-out"') < html.index('class="action-progress"')
+    assert html.index('id="sell-out"') < html.index('class="action-progress"', html.index('id="actions"'))
 
 
 # --- validation ---------------------------------------------------------------------------------------------------

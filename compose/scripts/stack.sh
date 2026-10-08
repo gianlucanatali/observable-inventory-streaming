@@ -385,6 +385,23 @@ tf_retry_transient() { # tf_retry_transient <dir> <phase> <attempt> <stderr file
   sleep "$delay"
 }
 
+# TF_REPLACE: space-separated <dir>:<resource address> entries planned as replacements (terraform plan -replace) in
+# that dir, for a change the provider cannot apply in place and no replace_triggered_by covers yet, e.g.
+# TF_REPLACE='cloud:confluent_flink_statement.dml["sellable-1"]'. Prints one -replace=<address> per line for <dir>,
+# or with "others" the entries of the other dirs: tf_apply drops a dir's entries after its first successful apply,
+# so a later apply of the same dir in one run does not replace them again. read -a splits without globbing.
+tf_replace_args() { # tf_replace_args <dir> [others]
+  local dir="$1" others="${2:-}" entries=() e
+  [ -n "${TF_REPLACE:-}" ] || return 0
+  read -r -a entries <<< "$TF_REPLACE"
+  for e in "${entries[@]}"; do
+    case "$e" in
+      ?*:?*) if [ "${e%%:*}" = "$dir" ]; then [ -n "$others" ] || printf -- '-replace=%s\n' "${e#*:}"; else [ -z "$others" ] || printf '%s\n' "$e"; fi;;
+      *) echo "stack.sh: TF_REPLACE entry '$e' is not <dir>:<resource address>, e.g. cloud:confluent_flink_statement.dml[\"sellable-1\"]" >&2; return 1;;
+    esac
+  done
+}
+
 tf_apply() { # tf_apply <dir> [destroy] [attempt]
   local dir="$1" mode="${2:-}" attempt="${3:-1}" plan="$STATE_DIR/$STACK-$1.tfplan" vars=() v plan_args="-input=false"
   local err="$STATE_DIR/$STACK-$1-attempt-$attempt.err"
@@ -396,8 +413,14 @@ tf_apply() { # tf_apply <dir> [destroy] [attempt]
   [ "$mode" = destroy ] && plan_args="-destroy -input=false"
   # TF_DESTROY_TARGET: a destroy limited to one resource address (and what depends on it), e.g. the VM alone.
   [ "$mode" = destroy ] && [ -n "${TF_DESTROY_TARGET:-}" ] && plan_args="$plan_args -target=$TF_DESTROY_TARGET"
+  local replace_args=() rf r
+  if [ "$mode" != destroy ]; then
+    rf="$(tf_replace_args "$dir")" || die "TF_REPLACE: see the error above"
+    while IFS= read -r r; do [ -z "$r" ] || replace_args+=("$r"); done <<< "$rf"
+    [ "${#replace_args[@]}" -eq 0 ] || echo "   terraform/$dir: TF_REPLACE ${replace_args[*]}"
+  fi
   # shellcheck disable=SC2086  # plan_args: fixed flags, split on purpose
-  if ! tf "$dir" plan $plan_args -out="$plan" "${vars[@]}" >/dev/null 2> "$err"; then
+  if ! tf "$dir" plan $plan_args ${replace_args[@]+"${replace_args[@]}"} -out="$plan" "${vars[@]}" >/dev/null 2> "$err"; then
     cat "$err" >&2
     if [ "$dir" = cloud ] && [ "$mode" != destroy ] && grep -q 'This server does not host this topic-partition' "$err" && [ "$attempt" -lt 3 ]; then
       rm -f "$plan" "$err"
@@ -446,6 +469,10 @@ tf_apply() { # tf_apply <dir> [destroy] [attempt]
   [ ! -s "$err" ] || cat "$err" >&2
   rm -f "$err"
   rm -f "$plan"
+  if [ "${#replace_args[@]}" -gt 0 ]; then
+    rf="$(tf_replace_args "$dir" others)" || die "TF_REPLACE: see the error above"
+    TF_REPLACE="$(printf '%s' "$rf" | tr '\n' ' ')"
+  fi
   [ "$dir" = datadog ] && { if [ "$mode" = destroy ]; then rm -f "$DD_APPLIED" "$DD_RUM_APPLIED"; else touch "$DD_APPLIED"; fi; }
   return 0
 }

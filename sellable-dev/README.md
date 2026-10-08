@@ -25,7 +25,7 @@ Demo clock (contracts 13b): `time_compression` C (default 60) comes from `demo.c
 
 ## Offers layer (local mode only)
 
-When `OFFERS_ENABLED=true` the service also stands in for [`cart_at_risk.sql`](../flink/cart_at_risk.sql): it additionally subscribes to `carts.events` and produces `carts.at-risk` (key `{risk_id}`, value `{risk_id, scenario_id, cart_id, shopper_id, product_id, sellable_changed_at_ms, detected_at}`, schemas `cart_at_risk(_key).avsc`). Unset, empty or `false` = disabled (it does not subscribe to `carts.events`); any other value stops the process.
+When `OFFERS_ENABLED=true` the service also stands in for [`cart_at_risk.sql`](../flink/cart_at_risk.sql): it additionally subscribes to `carts.events` and produces `carts.at-risk` (key `{scenario_id, cart_id, product_id}`, one row per cart item, value `{risk_id, scenario_id, cart_id, shopper_id, product_id, sellable_changed_at_ms, detected_at}`, schemas `cart_at_risk(_key).avsc`). Unset, empty or `false` = disabled (it does not subscribe to `carts.events`); any other value stops the process.
 
 - Latest event per `(scenario_id, cart_id, product_id)` by arrival order, `store_id = 'ONLINE'` only; active = latest is `ADD` and `event_time` is within 30 minutes of the wall clock.
 - At risk when the product's current `stock.sellable` (computed by this same process) has `sellable == 0`. Like the SQL, `stores_reporting` is not checked, and a product with no stock row never matches. `risk_id = scenario|cart|product|sellable_changed_at_ms`, `detected_at = max(event_time, sellable_changed_at_ms)`.

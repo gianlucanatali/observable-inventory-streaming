@@ -662,15 +662,16 @@ It is a secret: do not paste it into a chat, a screenshot or a recording.
 
 **With the control panel**
 
-**The five cards of the panel.** The panel shows five cards at the top and the demo's settings below them. You do not need to learn them now: each lab tells you which button to press and what the card shows afterwards.
+**The six cards of the panel.** The panel shows six cards at the top and the demo's settings below them. You do not need to learn them now: each lab tells you which button to press and what the card shows afterwards.
 
 | Card | You use it in |
 |---|---|
-| **Background sales and reset** (**Full demo reset**) | Every lab, to start from a clean state |
+| **Demo reset** (**Full demo reset**) | Every lab, to start from a clean state |
 | **Actions** (**Sell out product**) | Labs 1.1, 5.1 and 5.2 |
 | **Store feed** | Labs 1.1 and 2.1 |
 | **Release routing** | Labs 3.1 and 4.1 |
 | **Checks** (**Run load**, **Verify**, **Check canary**) | Start from a clean state, Labs 1.1 to 4.1 |
+| **Background sales** (**Sales on**) | Lab 6.1 |
 
 [Reference H](#h-the-control-panel-button-by-button) describes every button, for when you want the details.
 
@@ -724,7 +725,7 @@ Every lab starts from the seeded stock, so do this once now.
 
 **With the control panel**
 
-1. In the [control panel](#2-open-the-control-panel "stack-link:control"), on the **Background sales and reset** card, press **Full demo reset** and confirm. Wait until the card reads `full-reset succeeded: ...`.
+1. In the [control panel](#2-open-the-control-panel "stack-link:control"), on the **Demo reset** card, press **Full demo reset** and confirm. Wait until the card reads `full-reset succeeded: ...`.
 2. On the **Checks** card, press **Verify**. You should see `VERIFY PASSED`.
 
 </div>
@@ -835,7 +836,7 @@ You follow product P0042, the Alpenpace Trailrunner GTX in Forest green, size EU
 
 **With the control panel**
 
-Press **Full demo reset** on the **Background sales and reset** card of the control panel ([how to open it](#2-open-the-control-panel "stack-link:control")) and confirm. Wait until the card reads `full-reset succeeded`. Background sales are now off.
+Press **Full demo reset** on the **Demo reset** card of the control panel ([how to open it](#2-open-the-control-panel "stack-link:control")) and confirm. Wait until the card reads `full-reset succeeded`. Background sales are now off.
 
 </div>
 
@@ -1122,7 +1123,7 @@ Open the `S05` record for `P0042` from the [finale](#3-the-finale-watch-a-sale-c
 
 <details><summary>More about this step</summary>
 
-**Missed it?** The records may have left the screen. Press **Full demo reset** on the **Background sales and reset** card (it puts P0042 back to 9), then press **Sell out product** on the **Actions** card again while you watch the messages.
+**Missed it?** The records may have left the screen. Press **Full demo reset** on the **Demo reset** card (it puts P0042 back to 9), then press **Sell out product** on the **Actions** card again while you watch the messages.
 
 **Sale or start-up record?** An older `P0042` record may also match your search. Tell them apart by these fields:
 
@@ -1206,7 +1207,7 @@ Open this Chapter in the [demo home](#3-open-the-datadog-stock-dashboard "stack-
 
 **With the control panel**
 
-Press **Full demo reset** on the **Background sales and reset** card of the control panel ([how to open it](#2-open-the-control-panel "stack-link:control")) and confirm. Wait until the card reads `full-reset succeeded`. Background sales are now off.
+Press **Full demo reset** on the **Demo reset** card of the control panel ([how to open it](#2-open-the-control-panel "stack-link:control")) and confirm. Wait until the card reads `full-reset succeeded`. Background sales are now off.
 
 </div>
 
@@ -1294,7 +1295,7 @@ curl -s http://<alb-dns-name>/api/availability/P0042
 
 #### 5. Find the store in Datadog
 
-On the [stock dashboard](#3-open-the-datadog-stock-dashboard "stack-link:stock-dashboard"), in the **Freshness** group, `stock.probe.age per store` rises for S03 only, and `stock.feed.state per store` drops to 0 for S03 while the other stores stay at 1. Within a minute or two the <abbr title="A Datadog alert rule on a metric.">monitor</abbr> "[dd-demo-hybrid] stock.feed.state below 1 on store S03" goes to Alert. You find it under Monitors > Manage Monitors by searching `stack:hybrid`.
+On the [stock dashboard](#3-open-the-datadog-stock-dashboard "stack-link:stock-dashboard"), in the **Freshness** group, `stock.probe.age per store` rises for S03 only, and `stock.feed.state per store` drops to 0 for S03 while the other stores stay at 1. Within a minute or two the <abbr title="A Datadog alert rule on a metric.">monitor</abbr> "[dd-demo-hybrid] stock.feed.state below 1 on store S03" goes to Alert. You find it in the [monitors](#5-find-the-store-in-datadog "stack-link:monitors") of your stack.
 
 ![Feed state per store with S03 stale](img/lab2-02-feed-state-s03.png)
 
@@ -1422,7 +1423,7 @@ If it fails, run `aws login --profile dd-demo` and try again.
 
 **With the control panel**
 
-1. In the [control panel](#2-open-the-control-panel "stack-link:control"), press **Full demo reset** on the **Background sales and reset** card and confirm. It stops background sales and sets the routing to 100 / 0 / 0. Wait for `full-reset succeeded`.
+1. In the [control panel](#2-open-the-control-panel "stack-link:control"), press **Full demo reset** on the **Demo reset** card and confirm. It stops background sales and sets the routing to 100 / 0 / 0. Wait for `full-reset succeeded`.
 2. Press **Canary 1.1.0 (10%)** on the **Release routing** card and confirm. The tiles should read 90% for 1.0.0, 10% for 1.1.0 and 0% for 1.2.0, and the line under them `Live 90/10/0 · previous (for Rollback): 100/0/0`.
 
 </div>
@@ -1995,7 +1996,7 @@ You should see `PASS` for `min_samples_b`, `error_rate_b`, `p95_b` and `correctn
 
 #### 5. Prove it: latency, CPU and cost
 
-You have now run the same load (120 s at 5 requests per second) with 1.2.0 taking all traffic. Compare it with 1.1.0 in Datadog:
+You have now run the same load (120 s at 5 requests per second) with 1.2.0 taking all traffic. Compare it with 1.1.0 in [Datadog APM](#2-compare-the-versions-in-apm "stack-link:apm"):
 
 1. Latency: use the Metrics Explorer query from [Lab 3.1](#6-compare-releases-in-apm) and compare the versions. 1.2.0 should be much lower than 1.1.0.
 
@@ -2023,7 +2024,7 @@ The fix now gets all traffic. You widened it in steps, each step passed the same
 
 ### Lab 5.1: Offers with a safe default
 
-*About 20 minutes.* When a product in a shopper's cart sells out, the Online shop offers an alternative. An external AI service can choose it, but its choice counts only when it is confident enough; otherwise a safe rule decides. You put three products in one cart and sell out all three: the AI picks the offer for two of them, and the third has nothing comparable, so the AI is not even asked. The AI part is optional, so the shop still works when the AI is slow, wrong or switched off, and every offer records why it was made.
+*About 20 minutes.* When a product in a shopper's cart sells out, the Online shop offers an alternative. An external AI service judges which alternative is a good substitute, but its answer counts only when it is confident enough; otherwise a safe rule decides. You put three products in one cart and sell out all three: the AI picks the offer for two of them, and the third has nothing comparable, so the AI is not even asked. The AI part is optional, so the shop still works when the AI is slow, wrong or switched off, and every offer records why it was made.
 
 **Needs:** the `offers` layer. Lab 5.1 starts by turning it on (skip that if you chose everything at once). Lab 5.2 needs the `restock` layer and turns it on the same way.
 
@@ -2031,11 +2032,11 @@ The fix now gets all traffic. You widened it in steps, each step passed the same
 
 *Figure 5: the offers layer adds a Flink "cart at risk" statement, the offer worker on Fargate, and an optional call to the external Jev API.*
 
-A *cart at risk* is a cart item whose product's sellable stock just reached zero. Each sold-out item in a cart gets its own *offer*: one alternative at 10% off, or a *Restock notice* when the product is due back soon. With neither, the shopper sees honestly that nothing comparable is in stock.
+A *cart at risk* is a cart item whose product's sellable stock just reached zero. Each sold-out item in a cart gets its own *offer*: one alternative at 10% off, a *Restock notice* when the product is due back soon, or both, and the shopper chooses. With neither, the shopper sees honestly that nothing comparable is in stock.
 
 <details><summary>How the offer is chosen</summary>
 
-For each cart at risk, `offer-worker` builds up to two <abbr title="In stock, same category and size, price within 20% of the sold-out product; most comparable first: same kind, then same waterproofing, then closest price.">eligible alternatives</abbr>, plus a Restock notice only when a purchase order for the product is due within 7 days. With no eligible alternative there is nothing to choose, so the worker does not call Jev. Otherwise it sends Jev, an external decision API, each option compared with the sold-out product (kind, waterproofing, use, colour, price difference), the restock date, the cart's value and item count, and a synthetic new-or-returning-shopper signal, never cart or shopper IDs. Jev returns a choice and a confidence score. The worker accepts the choice only if it is one of the options and its confidence is at least 0.8, the *confidence threshold*. Otherwise the *safe rule* decides: the most comparable in-stock alternative, else the Restock notice, else no offer.
+For each cart at risk, `offer-worker` builds up to two <abbr title="In stock, same category and size, price within 20% of the sold-out product; most comparable first: same kind, then same waterproofing, then closest price.">eligible alternatives</abbr>. With no eligible alternative there is nothing to judge, so the worker does not call Jev. Otherwise it asks Jev, an external decision API, which alternative is a good substitute, with "none of these" as an answer too. It sends each alternative compared with the sold-out product (kind, waterproofing, use, colour, price difference), the cart's value and item count, and a synthetic new-or-returning-shopper signal, never cart or shopper IDs. Jev returns a choice and a confidence score. The worker accepts the choice only if it is one of the options and its confidence is at least 0.8, the *confidence threshold*: then the card offers that alternative, or none. Otherwise the *safe rule* decides: the most comparable in-stock alternative. The Restock notice is not part of the question: it is a fact, added whenever a purchase order for the product is due within 7 days.
 
 </details>
 
@@ -2066,7 +2067,7 @@ Check with `make layers-status`: `offers: ON`. Then reload the [Online shop](#ho
 
 **With the control panel**
 
-In the [control panel](#2-open-the-control-panel "stack-link:control"), press **Full demo reset** on the **Background sales and reset** card and confirm. Wait for `full-reset succeeded`.
+In the [control panel](#2-open-the-control-panel "stack-link:control"), press **Full demo reset** on the **Demo reset** card and confirm. Wait for `full-reset succeeded`.
 
 </div>
 
@@ -2114,13 +2115,13 @@ You should see, a few seconds after the last store sells out, an offer card for 
 
 <details><summary>What just happened</summary>
 
-Flink joined your cart (topic `carts.events`) with the `stock.sellable` value of 0 and emitted a cart at risk for this cart item. `offer-worker` found two eligible alternatives in EU 42, the Brenta Storm (approach shoe) and the Pathfinder Air (hiking shoe), and sent both to Jev with their kind, waterproofing, use and price difference. Jev chose the Pathfinder Air with a confidence above 0.8, so its choice stands. The worker checked the stock again and published the offer to the `offers` topic, where the Online shop reads it. Alone, the safe rule would have picked the Brenta Storm, the closest in price.
+Flink joined your cart (topic `carts.events`) with the `stock.sellable` value of 0 and emitted a cart at risk for this cart item. `offer-worker` found two eligible alternatives in EU 42, the Brenta Storm (approach shoe) and the Pathfinder Air (hiking shoe), and asked Jev which is a good substitute, with their kind, waterproofing, use and price difference. Jev chose the Pathfinder Air with a confidence above 0.8, so its choice stands. If the restock layer is on, the card also shows "Back in about N hours" with **Notify me** above "Or switch to Pathfinder Air in Ember red, 10% off": the restock date is a fact, not part of the AI's question ([Lab 5.2](#lab-52-restock-that-learns)). The worker checked the stock again and published the offer to the `offers` topic, where the Online shop reads it. Alone, the safe rule would have picked the Brenta Storm, the closest in price.
 
 </details>
 
 #### 3. Sell out the boot: the AI picks the same boot in another colour
 
-Open the `P0048` product page.
+Open the [`P0048` product page](#3-sell-out-the-boot-the-ai-picks-the-same-boot-in-another-colour "stack-link:shop-p0048").
 
 <div data-path="panel" markdown="1">
 
@@ -2150,7 +2151,7 @@ The AI's choice counts only when its confidence is at least 0.8, the confidence 
 
 #### 4. Sell out the light hiking shoe: nothing comparable
 
-Open the `P0092` product page.
+Open the [`P0092` product page](#4-sell-out-the-light-hiking-shoe-nothing-comparable "stack-link:shop-p0092").
 
 <div data-path="panel" markdown="1">
 
@@ -2174,7 +2175,7 @@ You should see a card that reads "Sold out everywhere, and nothing comparable is
 
 <details><summary>Why there is no offer, and no AI call</summary>
 
-The Pathfinder Lite costs EUR 119.90. No other footwear in EU 42 is priced within 20% of it (EUR 95.92 to 143.88), so it has no eligible alternative and the worker does not call Jev: there is nothing to choose. The worker still publishes the outcome, so the shop and Datadog see the case (reason `no_alternative`). If the restock layer is on and a purchase order for this product is due within 7 days, the card offers a Restock notice instead: "Back in about N days. We will let you know as soon as it is back in stock."
+The Pathfinder Lite costs EUR 119.90. No other footwear in EU 42 is priced within 20% of it (EUR 95.92 to 143.88), so it has no eligible alternative and the worker does not call Jev: there is nothing to choose. The worker still publishes the outcome, so the shop and Datadog see the case (reason `no_alternative`). If the restock layer is on and a purchase order for this product is due within 7 days, the card shows a Restock notice instead: "Back in about N hours" with **Notify me**.
 
 </details>
 
@@ -2184,19 +2185,17 @@ Click the cart badge. You should see three items marked "Sold out": the trail sh
 
 <details><summary>What the cart shows, and what Swap does</summary>
 
-The offer is the one alternative picked for that item; "AI: 0.90" next to an alternative is Jev's confidence for the option it chose. The other eligible alternative is listed at full price, the way the worker found it: same category and size, in stock now. **Swap** removes the sold-out item and adds the alternative through the normal cart events (`ABANDON`, then `ADD`); swapping to the offer's alternative is recorded in RUM as the action `offer_accepted`.
+The offer is the one alternative picked for that item; "AI: 0.90" next to an alternative is Jev's confidence for the option it chose. The other eligible alternative is listed at full price, the way the worker found it: same category and size, in stock now. **Swap** removes the sold-out item and adds the alternative through the normal cart events (`ABANDON`, then `ADD`); swapping to the offer's alternative is recorded in RUM as the action `offer_accepted`. When a purchase order is due within 7 days, a line "Back in about N hours" with **Notify me** sits under the offer line; **Notify me** is recorded in RUM as `restock_notice_confirmed`.
 
 </details>
 
 #### 6. Read a Jev call in LLM Observability
 
-Open the [LLM Observability](#6-read-a-jev-call-in-llm-observability "stack-link:llm-obs") link and open the latest trace and its `offer.jev.call` span. You should see in the input each option with its kind, waterproofing, use and price difference, and in the output the choice and the confidence; there are two Jev calls, for the trail shoe and the boot, and none for the Pathfinder Lite.
+Open the [LLM Observability](#6-read-a-jev-call-in-llm-observability "stack-link:llm-obs") link and open the latest trace and its `offer.jev.call` span. You should see in the input each alternative with its kind, waterproofing, use and price difference plus the option `none`, and in the output the choice and the confidence; there are two Jev calls, for the trail shoe and the boot, and none for the Pathfinder Lite.
 
 ![The offer.jev.call span for the boot: the options with their match summaries in the input, the choice and the confidence in the output](img/lab6-05-llmobs-jev-input-output.png)
 
-<details><summary>No Restock notice? And the other ways in</summary>
-
-A Restock notice is only offered when a purchase order is due within 7 days. Turn on restock in Lab 5.2 to see it.
+<details><summary>Other ways to see this in Datadog</summary>
 
 From the Datadog menu, the same page is AI Observability > Agent Observability > Traces, application `urbanstreet-offers` (the picker may show another application first). The same requests also appear in APM (service `offer-worker`, span `offer.process`); their linked logs state each decision, for example route `JEV` with reason `accepted`, or route `RULE_DEFAULT` with reason `no_alternative` for the Pathfinder Lite.
 
@@ -2292,14 +2291,16 @@ Flink bills for the statements while they run; the pool stays capped at 5 CFU. T
 
 **With the control panel**
 
-1. In the [control panel](#2-open-the-control-panel "stack-link:control"), press **Full demo reset** on the **Background sales and reset** card and confirm.
+1. In the [control panel](#2-open-the-control-panel "stack-link:control"), press **Full demo reset** on the **Demo reset** card and confirm.
 
 <details><summary>Why Full demo reset, not Reset demo data</summary>
 
 When the restock layer is on, it also cancels open purchase orders and clears the restock ETA keys in Redis. **Reset demo data** does neither of these, so use **Full demo reset**.
 
 </details>
-2. In the [control panel](#2-open-the-control-panel "stack-link:control"), on the **Actions** card, keep `P0042` in the **Product ID** field and press **Sell out product**. Wait for `succeeded: Source and Redis verification completed`.
+
+2. In the [Online shop](#hop-5-the-shop-page "stack-link:shop"), open `P0042` and click **Add to cart**.
+3. In the [control panel](#2-open-the-control-panel "stack-link:control"), on the **Actions** card, keep `P0042` in the **Product ID** field and press **Sell out product**. Wait for `succeeded: Source and Redis verification completed`.
 
 </div>
 
@@ -2309,6 +2310,11 @@ When the restock layer is on, it also cancels open purchase orders and clears th
 
 ```sh
 make reset
+```
+
+In the [Online shop](#hop-5-the-shop-page "stack-link:shop"), open `P0042` and click **Add to cart**. Then:
+
+```sh
 make sell-out PRODUCT=P0042 GAP=1.5
 ```
 
@@ -2318,13 +2324,15 @@ You should see the five `{"store": ..., "remaining_store": 0, ...}` lines from L
 
 #### 2. Watch the ETA appear
 
-Open the [product page](#hop-5-the-shop-page "stack-link:shop") of `P0042`. After a few seconds it shows "Out of stock online" with "Back in stock in about N hours" and the note "demo clock: 1 min = 1 h".
+Open the [product page](#hop-5-the-shop-page "stack-link:shop") of `P0042`. After a few seconds it shows "Out of stock online" with "Back in stock in about N hours" and the note "demo clock: 1 min = 1 h", and the offer card shows both choices: "Back in about N hours" with **Notify me**, and "Or switch to" an alternative at 10% off.
 
 ![Product page showing Out of stock online with a restock ETA](img/lab5-01-restock-eta.png)
 
 <details><summary>More about this step</summary>
 
 **What the ETA is.** This is the <abbr title="Estimated time until the product is back in stock.">ETA</abbr>. The default lead time is 48 business hours and each order gets a random variation (jitter), so N is a few tens of hours. We saw 28, 29 and 37.
+
+The same due date feeds the offer card from [Lab 5.1](#lab-51-offers-with-a-safe-default): whenever a purchase order for the product is due within 7 days, the card shows it beside the alternative, so the shopper chooses between waiting and switching. The AI is asked only which alternative is a good substitute; the date is a fact, never its choice.
 
 **What just happened: the order loop.** This is the loop that just ran:
 
@@ -2481,7 +2489,7 @@ Steps 1, 2, 5 and 6 need none of them. Datadog usage runs on your trial; check y
 
 **With the control panel**
 
-In the [control panel](#2-open-the-control-panel "stack-link:control"), press **Sales on** on the **Background sales and reset** card and confirm. You should see `sales-on succeeded: Background sales are on: 24/min per store; ...`.
+In the [control panel](#2-open-the-control-panel "stack-link:control"), press **Sales on** on the **Background sales** card and confirm. You should see `sales-on succeeded: Background sales are on: 24/min per store; ...`.
 
 </div>
 
@@ -2565,15 +2573,23 @@ A short spike after a burst of records, like the one in the screenshot, is norma
 
 #### 4. Synthetics
 
-Open Synthetic Monitoring > Tests and search `dd-demo-hybrid`. You should see two <abbr title="Requests that Datadog sends to your Online shop on a schedule from its own locations, like a shopper on the internet.">synthetic tests</abbr> that run from `aws:eu-central-1` against your ALB: an API test of `GET /api/availability/P0042` every 60 s, and a browser test of the product page every 300 s.
+Open the [synthetic tests](#4-synthetics "stack-link:synthetics") of your stack. You should see two <abbr title="Requests that Datadog sends to your Online shop on a schedule from its own locations, like a shopper on the internet.">synthetic tests</abbr> that run from `aws:eu-central-1` against your ALB: an API test of `GET /api/availability/P0042` every 60 s, and a browser test of the product page every 300 s.
+
+<details><summary>Where to find it in the Datadog menu</summary>
+
+Open Synthetic Monitoring > Tests and search `dd-demo-hybrid`.
+
+</details>
 
 ![Synthetics test results](img/lab7-03-synthetics.png)
 
 #### 5. Monitors
 
-Open Monitors > Manage Monitors and search `tag:project:dd-demo tag:stack:hybrid`. You should see the freshness, connector, VM Agent, p95-by-version, restock and AWS-side <abbr title="Rules that watch a metric and alert when it crosses a threshold or stops arriving.">monitors</abbr> (16 in our test run). A monitor in "No Data" does not mean everything is fine: the signal is missing.
+Open the [monitors](#5-monitors "stack-link:monitors") of your stack. You should see the freshness, connector, VM Agent, p95-by-version, restock and AWS-side <abbr title="Rules that watch a metric and alert when it crosses a threshold or stops arriving.">monitors</abbr> (16 in our test run). A monitor in "No Data" does not mean everything is fine: the signal is missing.
 
 <details><summary>More about this step</summary>
+
+From the Datadog menu, open Monitors > Manage Monitors and search `tag:project:dd-demo tag:stack:hybrid`.
 
 <div data-path="panel" markdown="1">
 
@@ -2613,15 +2629,17 @@ Open the [`account-cost dashboard:` link](#3-open-the-datadog-stock-dashboard "s
 
 <abbr title="Real User Monitoring: Datadog's record of what real browsers do in the Online shop, such as page loads and API calls.">RUM</abbr> should record your browser sessions. Check that it works on your run: open `http://<alb-dns-name>/config` in your browser.
 
-<details><summary>Or ask it from the terminal</summary>
+<details><summary>Or ask it from the terminal, and the Datadog menu path</summary>
 
 ```sh
 curl -s http://<alb-dns-name>/config
 ```
 
+In the Datadog menu, the sessions are under Digital Experience > RUM > Sessions.
+
 </details>
 
-You should see a `rum` block with an application ID and a client token. The client token is meant to be public. Browse the shop for a minute, then open Digital Experience > RUM > Sessions for the application `dd-demo-hybrid-shop`. If a session appears, RUM works on your run.
+You should see a `rum` block with an application ID and a client token. The client token is meant to be public. Browse the shop for a minute, then open the [RUM sessions](#7-check-rum-on-your-run "stack-link:rum") of the application `dd-demo-hybrid-shop`. If a session appears, RUM works on your run.
 
 ![RUM session for dd-demo-hybrid-shop](img/lab7-05-rum-session.png)
 
@@ -2676,7 +2694,7 @@ When a step fails, read the last lines before the failure. Every script prints t
 | `product_id must match Pdddd, for example P0042` | The product field is not `P` followed by four digits | Enter a product such as `P0042` |
 | `failed: Action failed: S01/P9999 not found in its source ...` | The product does not exist in a store's Source | Use a product between `P0001` and `P0200` |
 | `failed: Action failed: source verification failed for S0n/P0042: ...` | A store's Source did not end with a live position of zero | Check `status` and `verify`, then retry. If in doubt, use `make reset` |
-| **Reset demo data** does not start: `Background sales are on (<rate>/min per store): press Sales off first, or use Full demo reset` | Background sales are on. **Reset demo data** does not stop them, and while sales keep changing the stock the reset can never match the baseline, so the panel refuses to run it | Press **Full demo reset** on the **Background sales and reset** card (sales off, routing 100 / 0 / 0, data reset), or press **Sales off** and then **Reset demo data**, or run `make reset` |
+| **Reset demo data** does not start: `Background sales are on (<rate>/min per store): press Sales off first, or use Full demo reset` | Background sales are on. **Reset demo data** does not stop them, and while sales keep changing the stock the reset can never match the baseline, so the panel refuses to run it | Press **Full demo reset** on the **Demo reset** card (sales off, routing 100 / 0 / 0, data reset), or press **Sales off** and then **Reset demo data**, or run `make reset` |
 | `failed: Action failed: sell-out P0042 did not converge in 30s ...`, or `reset did not converge` with sales already off | The Sources changed, but Redis did not match them in time because a connector or the projector is stopped, for example a store you paused in Lab 2.1 | Run `make status`, resume any paused store, then retry |
 | `AWS rejected the weighted forward action ...` from a make routing command, with an expired-session message above it | Your AWS login expired (the make commands run on your laptop) | `aws login --profile dd-demo`, then retry |
 | A Release routing button fails with `AWS rejected the weighted forward action ...: ... AccessDenied ...` on `ModifyRule` | The control panel's task role cannot change the inventory rule. Either the stack was built before the role existed, or the rule changed | Run `./demo create` again to apply the role, then retry (duration not measured) |
@@ -2806,7 +2824,7 @@ The list should not contain a `dd-demo-hybrid` environment. In the console, also
 
 #### 4. Check Datadog
 
-Search Monitors and Synthetic tests for `stack:hybrid`, and Dashboards for `dd-demo-hybrid`. You should find none. They have no hourly cost, but a Synthetics test that you forget to delete keeps testing a URL that no longer exists.
+Search the [monitors](#4-check-datadog "stack-link:monitors") and the [synthetic tests](#4-check-datadog "stack-link:synthetics") of the stack, and Dashboards for `dd-demo-hybrid`. You should find none. They have no hourly cost, but a Synthetics test that you forget to delete keeps testing a URL that no longer exists.
 
 #### 5. Clean up credentials
 
@@ -2866,7 +2884,7 @@ Use this part to look things up. You do not need to read it in order.
 | CDC | Change data capture: turning committed database changes into events |
 | Change event | The record that one stock position changed at a Source, with its new quantity and revision |
 | Change stream | The ordered sequence of change events. Every consumer reads it independently |
-| Cart at risk | A cart item whose product's sellable stock has just reached zero. Each one gets its own offer, and only this event can ask the AI for a choice |
+| Cart at risk | A cart item whose product's sellable stock has just reached zero. Each one gets its own offer, and only this event can ask the AI for a judgement |
 | DSM | Data Streams Monitoring: Datadog's map of services and the Kafka topics between them |
 | Demand rate | The number of units of one product that one store sells per hour, learned from recent sales |
 | Eligible alternative | An in-stock product of the same category and size, with a price inside the agreed range |
@@ -2874,17 +2892,17 @@ Use this part to look things up. You do not need to read it in order.
 | Freshness | How long a stock change takes to travel from the Source to the serving view |
 | Inventory position | Stock on hand plus stock on order |
 | Layer | A part of the demo that you can switch on or off by itself |
-| Offer | The one eligible alternative, or Restock notice, picked for a sold-out cart item, with its incentive (10% off), picked by the AI or by the safe rule. The cart may list other eligible alternatives, but only the offer carries the incentive |
+| Offer | What the shopper is offered for a sold-out cart item: at most one eligible alternative with its incentive (10% off), picked by the AI or by the safe rule, and the Restock notice when it applies. The shopper chooses. The cart may list other eligible alternatives, but only the offer's alternative carries the incentive |
 | Offer accepted | The shopper swaps the sold-out item for the offer's alternative. The Online shop records it in RUM as the action `offer_accepted` |
 | p95 | The latency that 95% of requests stay under |
 | Probe | A synthetic stock position that changes on a schedule, so that a stopped feed shows up even when nothing sells |
 | Purchase order | A restock request that the procurement system accepted. It stays open until the goods arrive |
 | Release | One deployed build of the stock lookup service: 1.0.0, 1.1.0 or 1.2.0 |
 | Reorder point | Demand rate × expected supplier lead time × safety factor |
-| Restock notice | An offer that tells the shopper when the sold-out product is back. Offered only when a purchase order is due within 7 days, never without a date |
+| Restock notice | The part of an offer that tells the shopper when the sold-out product is back, with **Notify me**. A fact, not an AI choice: shown whenever a purchase order is due within 7 days, also beside an alternative, never without a date |
 | Restock request | The automatic request a store creates when its inventory position falls to the reorder point |
 | Revision | A number that a Source increases on every change to a stock position. The higher number wins |
-| Safe rule | The offer that the policy picks by itself when the AI choice is missing, unsure, invalid, late or switched off |
+| Safe rule | The alternative that the policy picks by itself when the AI's answer is missing, unsure, invalid, late or switched off: the most comparable one |
 | Sellable stock | The sum of a product's stock positions across all stores |
 | Serving view | The copy of stock positions that the Online shop reads (ElastiCache Redis). It can be rebuilt from the change stream |
 | SKU | One model in one colour and one size, such as P0042. It is the unit in which stock is tracked, from the stores to the API. The shop groups SKUs into models for display |
@@ -3010,6 +3028,7 @@ Every make target below reads the stack name and settings from `demo.yaml` ([the
 | `layer-on L=<layer> CONFIRM=yes`, `layer-off L=<layer> CONFIRM=yes` | Switch one layer on or off on an existing stack (billed Terraform changes) |
 | `stack-preflight`, `stack-up`, `stack-status`, `stack-down` | The lifecycle targets that `./demo` runs ([Reference I](#i-what-demo-does-step-by-step)) |
 | `stack-leftovers` | Read-only leftover check, the last step of `stack-down` ([Teardown](#teardown)) |
+| `flink-check` | Read-only PASS/FAIL after create (layer `offers`): the offers Flink statement is RUNNING without the upsert-key warning, and `carts.at-risk-key` has exactly the fields `scenario_id`, `cart_id`, `product_id`. Needs `confluent login` |
 
 ### F. Remove the account-wide pieces
 
@@ -3027,15 +3046,16 @@ This guide supports only the Datadog EU site. `./demo` accepts other site names,
 
 ### H. The control panel, button by button
 
-The labs tell you which button to press. This section describes every card and button in one place. Sign in as in [Open the control panel](#2-open-the-control-panel). Five action cards sit at the top; below them are the demo's settings by layer, which Labs 5.1 and 5.2 use. Each button does the same job as a make command:
+The labs tell you which button to press. This section describes every card and button in one place. Sign in as in [Open the control panel](#2-open-the-control-panel). Six action cards sit at the top; below them are the demo's settings by layer, which Labs 5.1 and 5.2 use. Each button does the same job as a make command:
 
 | Card | Buttons | Replaces |
 |---|---|---|
+| **Demo reset** | **Full demo reset** | `reset` (with `sales-off` and `route-baseline`) |
 | **Actions** (Source data actions) | **Sell out product**, **Reset demo data** | `sell-out`, the data part of `reset` |
 | Release routing | **Canary 1.1.0 (10%)**, **Canary 1.2.0 (10%)** / **(50%)** / **(100%)**, **Incident**, **Baseline**, **Rollback**, **Refresh weights** | `canary-110-10`, `canary-*`, `incident`, `route-baseline`, `rollback`, `route-show` |
 | Store feed | **Pause feed**, **Resume feed**, **Refresh state** | `store-pause`, `store-resume` |
 | Checks | **Run load (120 s, 5 rps)**, **Verify**, **Check canary**, **Refresh** | `load`, `verify`, `canary-check` |
-| Background sales and reset | **Sales off**, **Sales on**, **Full demo reset** | `sales-off`, `sales-on`, `reset` |
+| Background sales | **Sales off**, **Sales on** | `sales-off`, `sales-on` |
 
 The **Actions** card (Source data actions) runs two steps of the labs:
 
@@ -3047,7 +3067,7 @@ The **Actions** card (Source data actions) runs two steps of the labs:
 
 Both buttons ask you to confirm, and only one action runs at a time. The card shows a progress line such as `running: Sold out S01 (1/5); source verified` and ends with `succeeded: Source and Redis verification completed`: before it reports success, the panel reads the Sources back and checks that Redis has the same values.
 
-The actions change only PostgreSQL; the change travels through Debezium and Confluent Cloud as in Lab 1.1. **Reset demo data** refuses to run while background sales are on: press **Sales off** first, or use **Full demo reset** on the **Background sales and reset** card.
+The actions change only PostgreSQL; the change travels through Debezium and Confluent Cloud as in Lab 1.1. **Reset demo data** refuses to run while background sales are on: press **Sales off** first, or use **Full demo reset** on the **Demo reset** card.
 
 <details>
 <summary>Why Reset demo data refuses while sales are on</summary>
@@ -3091,13 +3111,14 @@ The canary is the newer release that receives traffic, and the baseline is the o
 
 </details>
 
-The **Background sales and reset** card controls the sales generator, so you do not need a terminal. The rate tile shows the sales per minute per store (24 by default), or `OFF` with `rate 0 · Sales on restores 24/min` when sales are off.
+The **Demo reset** card has one button, **Full demo reset**. It is not a sales action: it puts the whole demo back to its start. Like `make reset`: **Sales off**, then **Baseline** (100 / 0 / 0), then **Reset demo data**. When the restock layer runs, it also cancels open purchase orders before the data reset and clears the restock ETA keys after it. Otherwise its progress line says it did not change them. It needs the hybrid stack, which has the load balancer routing
+
+The **Background sales** card controls the sales generator, so you do not need a terminal. The rate tile shows the sales per minute per store (24 by default), or `OFF` with `rate 0 · Sales on restores 24/min` when sales are off.
 
 | Button | What it does |
 |---|---|
 | **Sales off** | Sets the sales rate to 0 in every store, remembers the old rate and checks that sales stop |
 | **Sales on** | Sets the remembered rate again, then waits for a real sale before it reports success |
-| **Full demo reset** | Like `make reset`: **Sales off**, then **Baseline** (100 / 0 / 0), then **Reset demo data**. When the restock layer runs, it also cancels open purchase orders before the data reset and clears the restock ETA keys after it. Otherwise its progress line says it did not change them. It needs the hybrid stack, which has the load balancer routing |
 
 The panel turns sales on and off by changing the rate, while the sales containers keep running.
 
@@ -3107,7 +3128,7 @@ Every action also sends a Datadog event named `demo action: <name> started`, the
 
 ![Release routing and Store feed cards](img/build-05-routing-store-feed.png)
 
-![Checks and Background sales and reset cards](img/build-06-checks-sales.png)
+![Checks and Background sales cards](img/build-06-checks-sales.png)
 
 <details>
 <summary>Why one path?</summary>

@@ -32,7 +32,7 @@ def test_candidates_accept_price_band_boundaries_and_reject_ineligible_products(
 
     candidates = build_candidates(original, catalogue, sellable.get, 10)
 
-    assert [candidate.id for candidate in candidates] == ["alt:P0001", "alt:P0002", "notify_me"]
+    assert [candidate.id for candidate in candidates] == ["alt:P0001", "alt:P0002"]
     assert rule_default(candidates).id == "alt:P0001"
 
 
@@ -49,26 +49,32 @@ def test_candidates_rank_same_kind_then_same_waterproofing_before_price():
 
     candidates = build_candidates(original, catalogue, stock.get, 10)
 
-    assert [c.id for c in candidates] == ["alt:P0003", "alt:P0002", "notify_me"]
+    assert [c.id for c in candidates] == ["alt:P0003", "alt:P0002"]
     assert rule_default(candidates).id == "alt:P0003"
     stock["P0003"] = 0
-    assert [c.id for c in build_candidates(original, catalogue, stock.get, 10)] == ["alt:P0002", "alt:P0001", "notify_me"]
+    assert [c.id for c in build_candidates(original, catalogue, stock.get, 10)] == ["alt:P0002", "alt:P0001"]
 
 
 def test_p0042_rule_default_is_still_brenta_storm(catalogue):
     """None of the P0042 pool is a trail running shoe or waterproof, so the order stays closest price first."""
     candidates = build_candidates(catalogue["P0042"], catalogue, lambda pid: 5, 10)
-    assert [c.id for c in candidates] == ["alt:P0160", "alt:P0061", "notify_me"]
+    assert [c.id for c in candidates] == ["alt:P0160", "alt:P0061"]
 
 
 def test_p0042_candidates_reject_wrong_size(catalogue, redis_client):
     original = catalogue["P0042"]
 
     candidates = build_candidates(original, catalogue, lambda product_id: int(redis_client.hget(f"sellable:{product_id}", "sellable")), 10)
-    alternatives = [candidate for candidate in candidates if candidate.product_id is not None]
+    alternatives = candidates  # alternatives only: the Restock notice is never a candidate
 
     assert alternatives
     assert all(catalogue[candidate.product_id]["category"] == original["category"] for candidate in alternatives)
     assert all(catalogue[candidate.product_id]["size"] == original["size"] for candidate in alternatives)
     assert all(0.8 * original["price_eur"] <= catalogue[candidate.product_id]["price_eur"] <= 1.2 * original["price_eur"] for candidate in alternatives)
     assert rule_default(candidates) in alternatives
+
+
+def test_candidates_are_alternatives_only_and_rule_default_is_none_without_one():
+    original = product("P0042")
+    assert build_candidates(original, {"P0042": original}, lambda pid: 5, 10) == []
+    assert rule_default([]) is None

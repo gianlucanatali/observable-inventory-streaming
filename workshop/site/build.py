@@ -114,7 +114,7 @@ PATH_CHOOSER = """<div class="path-chooser" role="group" aria-labelledby="path-c
 STACK_LINK_PREFIX = "stack-link:"
 STACK_LINK_KEYS = ("shop", "shop-home", "control", "overview-dashboard", "stock-dashboard", "online-dashboard", "apm", "dsm", "llm-obs",
                    "cost-dashboard", "confluent", "stream-lineage", "topic-inventory-cdc",
-                   "topic-stock-sellable", "control-center", "ecs")
+                   "topic-stock-sellable", "control-center", "ecs", "shop-p0048", "shop-p0092", "synthetics", "monitors", "rum")
 CONNECT_MARKER = "<!-- connect-box -->"
 CONNECT_BOX = """<div class="connect-box" id="connect-box">
 <p class="connect-title">Connect your stack</p>
@@ -855,6 +855,53 @@ def check_page_links(pages: dict[str, str], guide_ids: set[str]) -> int:
     return n
 
 
+def check_step_stack_links(md_text: str) -> None:
+    """Fail when a numbered step ('#### 3. Title') in the main flow tells the reader to open a Datadog page by a menu
+    path ('Open Monitors > Manage Monitors', 'Open Synthetic Monitoring > Tests') or says 'In Datadog' but holds no
+    stack-link. The menu path belongs in the step's closed <details> box, which is not scanned, next to the link."""
+    step_re = re.compile(r"(?m)^#{2,4} ")
+    heads = [m.start() for m in step_re.finditer(md_text)] + [len(md_text)]
+    menu = re.compile(r"\b[Oo]pen [A-Z][A-Za-z ]*? > |\bIn Datadog\b|\bin Datadog, open\b")
+    problems = []
+    for a, b in zip(heads, heads[1:]):
+        block = md_text[a:b]
+        title = block.split("\n", 1)[0]
+        if not re.match(r"#### \d+\. ", title):
+            continue
+        if STACK_LINK_PREFIX in block:
+            continue
+        main = re.sub(r"(?s)<details.*?</details>", "", block)
+        main = re.sub(r"(?s)```.*?```", "", main)
+        m = menu.search(main)
+        if m:
+            problems.append(f"{title.strip()!r}: mentions {m.group(0).strip()!r} but has no stack-link")
+    if problems:
+        die("steps that send the reader to a Datadog page without a stack link "
+            '([text](#anchor "stack-link:<name>")):\n  ' + "\n  ".join(problems))
+
+
+def check_unrendered_markdown(pages: dict[str, str]) -> None:
+    """Fail if the visible text of a page still holds raw markdown (an HTML block swallowed it)."""
+    patterns = [
+        (re.compile(r"\]\(#"), "link syntax ']('"),
+        (re.compile(r'"stack-link:'), "stack-link title"),
+        (re.compile(r"\*\*[^\s*][^*\n]*?\*\*"), "**bold** markers"),
+        (re.compile(r"(?m)^\s*\d+\. +(?:\S.*)?[\[`*]"), "numbered list line with markdown"),
+    ]
+    problems = []
+    for name, page in pages.items():
+        text = re.sub(r"(?is)<(pre|code|script|style|svg)\b.*?</\1>", " ", page)
+        text = re.sub(r"(?s)<!--.*?-->", " ", text)
+        text = re.sub(r"<[^>]*>", "", text)  # visible text only; attributes go with their tags
+        for rx, what in patterns:
+            for m in rx.finditer(text):
+                line = text[text.rfind("\n", 0, m.start()) + 1:text.find("\n", m.end())].strip()
+                problems.append(f"{name}: unrendered markdown ({what}): {line[:140]!r}")
+    if problems:
+        die("unrendered markdown in the built pages (an HTML block such as <details> inside a list "
+            "needs a blank line after its closing tag):\n  " + "\n  ".join(problems[:20]))
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--strict", action="store_true", help="fail if the guide references a missing image")
@@ -869,6 +916,8 @@ def main() -> None:
     diagrams: dict[str, str] = {}
     links_seen: list[str] = []
     stack_links: list[str] = []
+    if args.strict:
+        check_step_stack_links(md_text)
     md = (MarkdownIt("commonmark", {"html": True, "typographer": False})
           .enable(["table", "strikethrough"])
           .use(footnote_plugin)
@@ -910,6 +959,7 @@ def main() -> None:
 
     template = (SITE / "template.html").read_text(encoding="utf-8")
     chapter_pages = build_chapter_pages(md, env, tokens, diagrams, template, read_boxes(md_text))
+    check_unrendered_markdown({GUIDE_PAGE: body, **chapter_pages})
     chapter_ids = {f: page_ids(p) for f, p in chapter_pages.items()}
     n_page_links = check_page_links(chapter_pages, ids)
     page = (template

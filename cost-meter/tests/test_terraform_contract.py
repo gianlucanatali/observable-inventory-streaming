@@ -55,7 +55,6 @@ def test_account_cost_dashboard_is_durable_and_uses_org_gross_billed():
     assert 'max:dd_demo.cost.aggregate_org_billed_usd_total{${local.cost_scope}}' not in cost
     for query in (
         'max:dd_demo.cost.aggregate_usd_per_hour{${local.cost_scope},vendor:all}',
-        'max:dd_demo.cost.aggregate_usd_total{${local.cost_scope},vendor:all}',
         'max:dd_demo.cost.aggregate_billed_usd_total{${local.cost_scope}}',
         'max:dd_demo.cost.aggregate_billed_list_usd_total{${local.cost_scope}}',
         'max:dd_demo.cost.aggregate_usd_per_hour{${local.cost_scope},!vendor:all} by {vendor}',
@@ -70,7 +69,6 @@ def test_account_cost_dashboard_makes_pre_tax_estimates_and_ccm_actuals_unambigu
 
     for title in (
         "Burn now (estimate), all vendors (USD/h, pre-tax)",
-        "Spent since start, all vendors (USD, pre-tax estimate)",
         "Confluent billed so far (USD, pre-tax actual bill after credits, about 1 h behind)",
         "Confluent trial credit used, all stacks (USD, gross billed last 30 days, pre-tax, about 1 h behind)",
         "Confluent billed at list price (USD, pre-tax actual before credits)",
@@ -168,3 +166,13 @@ def test_fargate_surface_preserves_application_identity_and_stack_scope():
     assert 'notify_no_data' in text
     main = (TF / "datadog/main.tf").read_text()
     assert 'trace.flask.request{${local.svc},${local.lookup}} by {version}' in main
+
+
+def test_spent_so_far_tile_uses_billing_data_not_the_resettable_estimate():
+    cost = (TF / "account/cost.tf").read_text()
+
+    assert 'query = "sum:aws.cost.unblended{!aws_cost_type:Tax}"' in cost
+    assert 'formula = "aws + confluent"' in cost
+    assert 'live_span = "month_to_date"' in cost
+    assert 'title       = "Spent so far, all vendors (USD, pre-tax actual bills' in cost
+    assert 'Spent since start' not in cost

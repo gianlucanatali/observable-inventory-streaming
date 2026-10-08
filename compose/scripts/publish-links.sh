@@ -66,11 +66,20 @@ from urllib.parse import urlsplit
 _dd = urlsplit(dd["DSM map"])
 llm_obs = (f"{_dd.scheme}://{_dd.netloc}/llm/traces"
            "?query=%40ml_app%3Aurbanstreet-offers%20%40event_type%3Aspan%20%40is_root_span%3Atrue")
+# Datadog list pages filtered to this stack, on the same site as the DSM link; the filters are the ones the guide
+# tells the reader to type in Lab 6.1. No account ids: Datadog picks the organisation from the login.
+from urllib.parse import quote
+_dd_base = f"{_dd.scheme}://{_dd.netloc}"
+synthetics = f"{_dd_base}/synthetics/tests?q={quote('dd-demo-' + stack)}"
+monitors = f"{_dd_base}/monitors/manage?q={quote('tag:project:dd-demo tag:stack:' + stack)}"
+rum = f"{_dd_base}/rum/sessions?query={quote('@application.name:dd-demo-' + stack + '-shop')}"
 if local:  # local mode: no AWS, no Confluent Cloud; dashboards only when terraform/datadog was applied for the stack
     links = [
         ("overview-dashboard", "Datadog", "Demo home", "Start here: the six Chapters, each with its key charts and links to the deeper views", dd.get("overview dashboard")),
         ("shop", "Shop", "Online shop", "Product page of P0042, the product the labs follow", f"{alb}/#/product/P0042"),
         ("shop-home", "Shop", "Online shop home", "All models, as a shopper sees them", f"{alb}/#/"),
+        ("shop-p0048", "Shop", "Online shop: P0048", "Product page of the boot, used in Lab 5.1", f"{alb}/#/product/P0048"),
+        ("shop-p0092", "Shop", "Online shop: P0092", "Product page of the light hiking shoe, used in Lab 5.1", f"{alb}/#/product/P0092"),
         ("stock-dashboard", "Datadog", "Stock dashboard", "Freshness, pipeline, service objective, restock and offers", dd.get("stock dashboard")),
         ("apm", "Datadog", "APM: inventory-api", "Latency by release (Deployments)", dd["APM inventory-api 1.1.0"]),
         ("dsm", "Datadog", "Data Streams Monitoring", "Which services read and write which Kafka topics", dd["DSM map"]),
@@ -81,11 +90,16 @@ links = [
     ("overview-dashboard", "Datadog", "Demo home", "Start here: the six Chapters, each with its key charts and links to the deeper views", dd["overview dashboard"]),
     ("shop", "Shop", "Online shop", "Product page of P0042, the product the labs follow", f"{alb}/#/product/P0042"),
     ("shop-home", "Shop", "Online shop home", "All models, as a shopper sees them", f"{alb}/#/"),
+    ("shop-p0048", "Shop", "Online shop: P0048", "Product page of the boot, used in Lab 5.1", f"{alb}/#/product/P0048"),
+    ("shop-p0092", "Shop", "Online shop: P0092", "Product page of the light hiking shoe, used in Lab 5.1", f"{alb}/#/product/P0092"),
     ("stock-dashboard", "Datadog", "Stock dashboard", "Freshness, pipeline, service objective, restock and offers", dd["stock dashboard"]),
     ("online-dashboard", "Datadog", "AWS online dashboard", "ECS services, load balancer and ElastiCache", dd["online dashboard"]),
     ("apm", "Datadog", "APM: inventory-api", "Latency by release (Deployments)", dd["APM inventory-api 1.1.0"]),
     ("dsm", "Datadog", "Data Streams Monitoring", "Which services read and write which Kafka topics", dd["DSM map"]),
     ("llm-obs", "Datadog", "LLM Observability", "The offer worker's Jev calls: what was sent and what came back", llm_obs),
+    ("synthetics", "Datadog", "Synthetic tests", "The API and browser tests of this stack", synthetics),
+    ("monitors", "Datadog", "Monitors", "The monitors of this stack", monitors),
+    ("rum", "Datadog", "RUM sessions", "Browser sessions of the online shop", rum),
     ("cost-dashboard", "Datadog", "Cost dashboard", "AWS and Confluent Cloud cost for every stack", dd["account-cost dashboard"]),
     ("confluent", "Confluent", "Confluent Cloud cluster", "Topics, messages and Stream Lineage",
      f"https://confluent.cloud/environments/{os.environ['ENV_ID']}/clusters/{os.environ['CLUSTER_ID']}/overview"),

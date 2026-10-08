@@ -80,11 +80,24 @@ export function recordStockError(productId, lookupMs) {
   recordStockAnswer({ product_id: productId, status: 'error', at_least: false, feed: 'unknown' }, lookupMs);
 }
 
+const restockOffered = (offer) => Boolean(offer.restock_notice ?? offer.restock_eta);
+
 // "Offer accepted": the shopper swapped a sold-out item for the Offer's alternative (not for another option).
+// `decided_by` is about the alternative; `restock_offered` says whether the shopper could have waited instead.
 export function recordOfferAccepted(offer) {
   if (!enabled || !offer) return;
   datadogRum.addAction('offer_accepted', {
     product_id: offer.original_product_id, alternative_id: offer.product_id,
     decided_by: offer.decision_route === 'JEV' ? 'ai' : 'rule', discount_pct: offer.discount_pct,
+    restock_offered: restockOffered(offer),
+  });
+}
+
+// The shopper confirmed the Restock notice ("Notify me"). No decided_by: the restock date is a fact, not a decision.
+export function recordRestockNoticeConfirmed(offer) {
+  if (!enabled || !offer) return;
+  datadogRum.addAction('restock_notice_confirmed', {
+    product_id: offer.original_product_id, restock_eta: offer.restock_eta || null,
+    alternative_offered: Boolean(offer.product_id),
   });
 }

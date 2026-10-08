@@ -79,7 +79,7 @@
 <h4 id="1-reset-and-open-the-page">1. Reset and open the page <a class="header-anchor" href="#1-reset-and-open-the-page">#</a></h4>
 <div data-path="panel" markdown="1">
 <p><strong>With the control panel</strong></p>
-<p>Press <strong>Full demo reset</strong> on the <strong>Background sales and reset</strong> card of the control panel (<a href="setup.html#2-open-the-control-panel" data-stack-link="control">how to open it</a>) and confirm. Wait until the card reads <code>full-reset succeeded</code>. Background sales are now off.</p>
+<p>Press <strong>Full demo reset</strong> on the <strong>Demo reset</strong> card of the control panel (<a href="setup.html#2-open-the-control-panel" data-stack-link="control">how to open it</a>) and confirm. Wait until the card reads <code>full-reset succeeded</code>. Background sales are now off.</p>
 </div>
 <div data-path="terminal" markdown="1">
 <p><strong>With the terminal</strong></p>
@@ -123,7 +123,7 @@
 <p><code>&quot;sellable&quot;: 9</code> is still the total over all five stores, including Bologna's last seen 3. The S03 entry has <code>&quot;feed&quot;: &quot;stale&quot;</code>, <code>&quot;live&quot;: false</code> and <code>&quot;quantity&quot;: 3</code>.</p>
 </details>
 <h4 id="5-find-the-store-in-datadog">5. Find the store in Datadog <a class="header-anchor" href="#5-find-the-store-in-datadog">#</a></h4>
-<p>On the <a href="setup.html#3-open-the-datadog-stock-dashboard" data-stack-link="stock-dashboard">stock dashboard</a>, in the <strong>Freshness</strong> group, <code>stock.probe.age per store</code> rises for S03 only, and <code>stock.feed.state per store</code> drops to 0 for S03 while the other stores stay at 1. Within a minute or two the <abbr title="A Datadog alert rule on a metric.">monitor</abbr> &quot;[dd-demo-hybrid] stock.feed.state below 1 on store S03&quot; goes to Alert. You find it under Monitors &gt; Manage Monitors by searching <code>stack:hybrid</code>.</p>
+<p>On the <a href="setup.html#3-open-the-datadog-stock-dashboard" data-stack-link="stock-dashboard">stock dashboard</a>, in the <strong>Freshness</strong> group, <code>stock.probe.age per store</code> rises for S03 only, and <code>stock.feed.state per store</code> drops to 0 for S03 while the other stores stay at 1. Within a minute or two the <abbr title="A Datadog alert rule on a metric.">monitor</abbr> &quot;[dd-demo-hybrid] stock.feed.state below 1 on store S03&quot; goes to Alert. You find it in the <a href="#5-find-the-store-in-datadog" data-stack-link="monitors">monitors</a> of your stack.</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Feed state per store with S03 stale"><img src="img/lab2-02-feed-state-s03.png" alt="Feed state per store with S03 stale" width="2880" height="1800" loading="lazy" decoding="async"></button><figcaption>Feed state per store with S03 stale</figcaption></figure>
 <h4 id="6-resume-the-store">6. Resume the store <a class="header-anchor" href="#6-resume-the-store">#</a></h4>
 <div data-path="panel" markdown="1">
@@ -172,7 +172,7 @@
   </div>
 </dialog>
 <div class="sr-only" aria-live="polite" id="live"></div>
-<script src="assets/stack.js?v=d196eb9022"></script>
+<script src="assets/stack.js?v=68c01d4930"></script>
 <script src="assets/site.js?v=1de1666aca" defer></script>
 </body>
 </html>

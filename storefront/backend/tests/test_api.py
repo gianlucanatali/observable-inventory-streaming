@@ -105,6 +105,25 @@ def test_cart_contents_are_stored_in_redis_and_read_back(make):
     assert p42["quantity"] == 2 and p42["name"] == "Trailrunner GTX" and p42["size"] == "EU 42"
 
 
+def test_swap_from_the_cart_drawer_persists_in_the_redis_cart(make):
+    """The drawer's Swap sends the two requests below (frontend App.jsx swapItem); the server-side cart in
+    cart:{scenario}:{cart_id} must hold the alternative afterwards, not only the page."""
+    client, deps = make()
+    cart_id = client.post("/api/cart", json=cart_body()).get_json()["cart_id"]
+    client.post("/api/cart", json=cart_body(cart_id=cart_id, product_id="P0048"))
+    key = f"cart:sc-1:{cart_id}"
+    assert deps.redis.data[key] == {"P0042": "1", "P0048": "1"}
+
+    removed = client.post("/api/cart", json=cart_body(cart_id=cart_id, event_type="ABANDON"))
+    added = client.post("/api/cart", json=cart_body(cart_id=cart_id, product_id="P0061"))
+
+    assert removed.status_code == added.status_code == 201
+    assert deps.redis.data[key] == {"P0048": "1", "P0061": "1"}
+    assert [i["product_id"] for i in client.get(f"/api/cart/{cart_id}").get_json()["items"]] == ["P0048", "P0061"]
+    assert [(v["event_type"], v["product_id"]) for _, v in deps.publisher.sent][-2:] == [("ABANDON", "P0042"),
+                                                                                         ("ADD", "P0061")]
+
+
 def test_abandon_removes_the_item_from_the_cart_contents(make):
     client, deps = make()
     cart_id = client.post("/api/cart", json=cart_body()).get_json()["cart_id"]
@@ -205,6 +224,31 @@ def test_offer_names_jev_choice_and_flags_no_offer(make):
     assert offers["P0042"]["jev_choice_label"] == "Pathfinder Air" and offers["P0042"]["no_offer"] is False
     assert offers["P0048"]["jev_choice_label"] == "Dolomia Evo in Glacier blue"
     assert offers["P0092"]["no_offer"] is True and offers["P0092"]["jev_choice_label"] is None
+
+
+def test_offer_parts_alternative_and_restock_notice_are_independent(make):
+    client, deps = make()
+    eta = datetime(2026, 10, 9, 10, 0, tzinfo=timezone.utc)
+    base = dict(cart_id="c", scenario_id="sc-1", original_store_id="ONLINE", headline="h", body="b",
+                text_route="TEMPLATE", decision_route="JEV")
+    deps.offer_store.put({**base, "offer_id": "both", "original_product_id": "P0042", "product_id": "P0061",
+                          "offer_type": "ALTERNATIVE_PRODUCT", "discount_pct": 10, "decision_reason": "accepted",
+                          "jev_choice": "alt:P0061", "chosen_choice": "alt:P0061", "restock_eta": eta})
+    deps.offer_store.put({**base, "offer_id": "alt", "original_product_id": "P0048", "product_id": "P0059",
+                          "offer_type": "ALTERNATIVE_PRODUCT", "discount_pct": 10, "decision_reason": "accepted",
+                          "chosen_choice": "alt:P0059", "restock_eta": None})
+    deps.offer_store.put({**base, "offer_id": "restock", "original_product_id": "P0092", "product_id": None,
+                          "offer_type": "NOTIFY_ME", "discount_pct": 0, "decision_reason": "no_good_substitute",
+                          "jev_choice": "none", "chosen_choice": None, "restock_eta": eta})
+    deps.offer_store.put({**base, "offer_id": "none", "original_product_id": "P0001", "product_id": None,
+                          "offer_type": "NOTIFY_ME", "discount_pct": 0, "decision_reason": "no_good_substitute",
+                          "jev_choice": "none", "chosen_choice": None, "restock_eta": None})
+    offers = {o["offer_id"]: o for o in client.get("/api/offers?cart_id=c").get_json()["offers"]}
+    parts = {k: (o["alternative"] is not None, o["restock_notice"], o["no_offer"]) for k, o in offers.items()}
+    assert parts == {"both": (True, True, False), "alt": (True, False, False),
+                     "restock": (False, True, False), "none": (False, False, True)}
+    assert offers["both"]["restock_eta"] == eta.isoformat() and offers["alt"]["restock_eta"] is None
+    assert offers["none"]["jev_choice_label"] == "no substitute"
 
 
 def test_restock_notice_is_an_offer(make):

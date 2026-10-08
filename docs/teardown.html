@@ -125,7 +125,7 @@ aws<span class="w"> </span>ecs<span class="w"> </span>list-clusters<span class="
 </code></pre></div>
 <p>The list should not contain a <code>dd-demo-hybrid</code> environment. In the console, also check that no cluster or Flink compute pool remains under a <code>dd-demo-*</code> environment. Confluent billing is delayed: charges can appear for up to 72 hours after deletion, and the last partial hour is billed as a full hour. A cost page with no new charges right after teardown therefore does not prove that nothing is billing.</p>
 <h4 id="4-check-datadog">4. Check Datadog <a class="header-anchor" href="#4-check-datadog">#</a></h4>
-<p>Search Monitors and Synthetic tests for <code>stack:hybrid</code>, and Dashboards for <code>dd-demo-hybrid</code>. You should find none. They have no hourly cost, but a Synthetics test that you forget to delete keeps testing a URL that no longer exists.</p>
+<p>Search the <a href="#4-check-datadog" data-stack-link="monitors">monitors</a> and the <a href="#4-check-datadog" data-stack-link="synthetics">synthetic tests</a> of the stack, and Dashboards for <code>dd-demo-hybrid</code>. You should find none. They have no hourly cost, but a Synthetics test that you forget to delete keeps testing a URL that no longer exists.</p>
 <h4 id="5-clean-up-credentials">5. Clean up credentials <a class="header-anchor" href="#5-clean-up-credentials">#</a></h4>
 <p>If you no longer need them, delete the Confluent Cloud API key and the Datadog application key that you created for this workshop. Also delete the local files <code>demo.yaml</code>, <code>.env</code>, <code>.env.secrets</code> and <code>.env.cloud-hybrid</code> if they still exist.</p>
 <p>The teardown keeps the account-wide pieces on purpose: the Cost and Usage Report export, the Datadog AWS integration, the read-only Confluent identity and the account cost dashboard. They have no hourly cost. To remove them too, see <a href="reference.html#f-remove-the-account-wide-pieces">Remove the account-wide pieces</a>.</p>
@@ -158,7 +158,7 @@ aws<span class="w"> </span>ecs<span class="w"> </span>list-clusters<span class="
   </div>
 </dialog>
 <div class="sr-only" aria-live="polite" id="live"></div>
-<script src="assets/stack.js?v=d196eb9022"></script>
+<script src="assets/stack.js?v=68c01d4930"></script>
 <script src="assets/site.js?v=1de1666aca" defer></script>
 </body>
 </html>

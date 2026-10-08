@@ -7,7 +7,7 @@ import OfferCard from './components/OfferCard.jsx';
 import CartDrawer from './components/CartDrawer.jsx';
 import { EMPTY_CART, readCartPointer, toCart, writeCartPointer } from './cart.js';
 import Toast from './components/Toast.jsx';
-import { initRum, recordOfferAccepted } from './rum.js';
+import { initRum, recordOfferAccepted, recordRestockNoticeConfirmed } from './rum.js';
 
 export default function App() {
   const [config, setConfig] = useState(null);
@@ -17,6 +17,7 @@ export default function App() {
   const [offer, setOffer] = useState(null);  // the most recent offer of the cart (home page)
   const [offers, setOffers] = useState([]);  // one per sold-out cart item (product page, cart drawer)
   const [offerError, setOfferError] = useState(null);
+  const [notified, setNotified] = useState([]);  // offer ids whose Restock notice the shopper confirmed
   const { toast, show, clear } = useToast();
   const route = useHashRoute();
 
@@ -125,10 +126,22 @@ export default function App() {
     }
   }, [cart.id, show]);
 
+  // "Notify me" on a Restock notice: the shop confirms it on screen and records it in RUM; no cart change.
+  const notifyMe = useCallback((offer) => {
+    setNotified((ids) => (ids.includes(offer.offer_id) ? ids : [...ids, offer.offer_id]));
+    recordRestockNoticeConfirmed(offer);
+    show('We will let you know when it is back', 'success');
+  }, [show]);
+
+  const compression = config ? config.time_compression : null;
   const productOffer = route.page === 'product'
     ? offers.find((o) => o.original_product_id === route.productId) || null : null;
+  const shownOffer = route.page === 'product' ? productOffer : offer;
   const offerCard = offersOn
-    ? <OfferCard offer={route.page === 'product' ? productOffer : offer} error={offerError} hasCart={hasCart} /> : null;
+    ? (
+      <OfferCard offer={shownOffer} error={offerError} hasCart={hasCart} compression={compression} onSwap={swapItem}
+        onNotify={notifyMe} notified={Boolean(shownOffer && notified.includes(shownOffer.offer_id))} />
+    ) : null;
 
   return (
     <div className="page">
@@ -139,7 +152,8 @@ export default function App() {
             Cart <span className="badge" data-testid="cart-count">{cart.count}</span>
           </button>
           {cartOpen && <CartDrawer cart={cart} offers={offersOn ? offers : []} onRemove={removeItem}
-            onSwap={swapItem} onClose={() => setCartOpen(false)} />}
+            onSwap={swapItem} onClose={() => setCartOpen(false)} compression={compression} onNotify={notifyMe}
+            notified={notified} />}
         </div>
       </header>
       {configError && <div className="banner banner-error">Cannot load configuration: {configError}</div>}

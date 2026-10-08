@@ -54,8 +54,11 @@ def _cart_json(cart_id: str, scenario_id: str, quantities: dict[str, int]) -> di
 
 def _jev_choice_label(choice: str | None, original_product_id: str) -> str | None:
     """Jev's choice as the shopper reads it: the product name ("Pathfinder Air"), plus its colour when it is the
-    same model as the sold-out item ("Dolomia Evo in Glacier blue"); "a restock notice" for notify-me. None when Jev
-    returned no choice or the id is not in the catalogue (the card then shows the id)."""
+    same model as the sold-out item ("Dolomia Evo in Glacier blue"); "no substitute" for Jev's "none", "a restock
+    notice" in older records. None when Jev returned no choice or the id is not in the catalogue (the card then shows
+    the id)."""
+    if choice == "none":
+        return "no substitute"
     if choice == "notify_me":
         return "a restock notice"
     if not choice or not choice.startswith("alt:"):
@@ -71,14 +74,15 @@ def _jev_choice_label(choice: str | None, original_product_id: str) -> str | Non
 
 def _offer_json(offer: dict) -> dict:
     """Offer as served, plus the offered alternative's display facts from the catalogue (null without one),
-    Jev's choice by name, and `no_offer`: the worker found no eligible alternative and no near restock, so it
-    published the case without an Offer (offer-worker README: chosen_choice null, no product)."""
+    Jev's choice by name, `restock_notice` and `no_offer`. The Offer has two independent parts: the alternative
+    (`product_id`) and the Restock notice (`restock_eta`; an older record marks it with chosen_choice "notify_me").
+    Neither: no Offer (offer-worker README, "Card states")."""
     body = offer_to_json(offer)
     alt = get_product(body["product_id"]) if body.get("product_id") else None
     body["alternative"] = display(alt) if alt else None
     body["jev_choice_label"] = _jev_choice_label(body.get("jev_choice"), body["original_product_id"])
-    body["no_offer"] = (body["chosen_choice"] is None and body.get("product_id") is None
-                        and body.get("decision_reason") in ("no_alternative", "invalid_choice"))
+    body["restock_notice"] = body["restock_eta"] is not None or body.get("chosen_choice") == "notify_me"
+    body["no_offer"] = body.get("product_id") is None and not body["restock_notice"]
     return body
 
 
