@@ -27,6 +27,7 @@ class FakeMetrics:
     def text(self, route, reason): self.calls.append(("text", route, reason))
     def completed(self, offer_type, restock_included): self.calls.append(("completed", offer_type, restock_included))
     def stock_unconfirmed(self, reason): self.calls.append(("stock_unconfirmed", reason))
+    def delay(self, tags, total_s, upstream_s, worker_s): self.calls.append(("delay", tags, total_s, upstream_s, worker_s))
 
 
 def make_cfg(**over):

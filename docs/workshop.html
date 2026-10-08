@@ -36,7 +36,7 @@
     <span class="burger" aria-hidden="true"></span><span class="sr-only">Table of contents</span>
   </button>
   <a class="brand" href="index.html" title="Home"><span class="brand-mark" aria-hidden="true"></span><span>Observable inventory streaming</span></a>
-  <div class="search" role="search" data-index="assets/search-index.json?v=0efdd1dd1b">
+  <div class="search" role="search" data-index="assets/search-index.json?v=0090fde4d4">
     <button type="button" class="search-toggle" aria-label="Search the guide" aria-expanded="false" aria-controls="search-input" title="Search (press /)"><span class="search-icon" aria-hidden="true"></span></button>
     <div class="search-box">
       <input type="search" class="search-input" id="search-input" placeholder="Search the guide" aria-label="Search the guide" autocomplete="off" autocapitalize="off" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="search-results" aria-autocomplete="list">
@@ -2191,7 +2191,7 @@ make<span class="w"> </span>layer-on<span class="w"> </span><span class="nv">L</
 <p>Across the labs, APM found the slow request, freshness and DSM showed that the data path was fine, version tags checked the canary, and the integrations and monitors gave you the view of the whole platform. <strong>Next:</strong> <a href="#teardown">Teardown</a>.</p>
 <hr />
 <h2 id="troubleshooting">Troubleshooting <a class="header-anchor" href="#troubleshooting">#</a></h2>
-<p>When a step fails, read the last lines before the failure. Every script prints the step, the command and, where it can, the fix. If a step fails twice, stop and read before you try a third time. Running the build again without knowing why it failed is the most expensive way to debug.</p>
+<p>When <code>./demo</code> stops on a failed step, it ends with one red block (plain text when <code>NO_COLOR</code> is set or the output is not a terminal): <code>✗ create failed at &lt;step&gt;: &lt;cause&gt;</code>, then <code>Fix:</code> with the command to run and <code>Log:</code> with the full log. For the common problems the cause and the fix are exact, for example <code>AWS login session is missing or has expired</code> with <code>Fix: aws login --profile dd-demo</code>. For anything else the cause is the last error line of the log. The tables below list the same problems with more detail. When a step fails, read the last lines before the failure. Every script prints the step, the command and, where it can, the fix. If a step fails twice, stop and read before you try a third time. Running the build again without knowing why it failed is the most expensive way to debug.</p>
 <p><strong>Setup and preflight</strong></p>
 <div class="table-wrap" tabindex="0"><table>
 <thead>
@@ -2273,6 +2273,36 @@ make<span class="w"> </span>layer-on<span class="w"> </span><span class="nv">L</
 <td><code>AWS login expired during apply of terraform/...</code>, or <code>ExpiredToken: The security token included in the request is expired</code> during <code>./demo create</code></td>
 <td>Your AWS login session ended during the build, often while Terraform waited for ElastiCache or the load balancer. A login lasts at most 12 hours, and the script cannot read how much is left</td>
 <td><code>aws login --profile dd-demo</code>, then <code>./demo create</code> again. Resources that were being created when it failed are rebuilt, which costs extra minutes (we have not measured how many). To prevent it, sign in again right before a long build</td>
+</tr>
+<tr>
+<td><code>Confluent Cloud rejected the API key (401/403)</code></td>
+<td>The Cloud resource-management key in <code>demo.yaml</code> is wrong, expired or lacks rights</td>
+<td>Check <code>confluent_cloud_api_key</code> and <code>confluent_cloud_api_secret</code> in <code>demo.yaml</code>, then run <code>./demo create</code> again</td>
+</tr>
+<tr>
+<td><code>Datadog rejected the API or application key (403)</code></td>
+<td>A Datadog key is wrong, or belongs to another site</td>
+<td>Check <code>dd_api_key</code>, <code>dd_app_key</code> and <code>datadog_site</code> in <code>demo.yaml</code>, then run <code>./demo create</code> again</td>
+</tr>
+<tr>
+<td><code>Terraform state is locked by another run</code></td>
+<td>Another run holds the lock, or one crashed</td>
+<td>Wait for the other run. If none is running, <code>terraform force-unlock &lt;ID&gt;</code> in the directory named in the log</td>
+</tr>
+<tr>
+<td><code>cannot reach the VM over SSH or its docker context, or cloud-init has not finished</code></td>
+<td>A new VM is still starting, or its SSH or Docker context is not reachable</td>
+<td>Wait 2 to 3 minutes and run <code>./demo create</code> again. If it persists, compare <code>allowed_cidr</code> with <code>curl -s https://checkip.amazonaws.com</code></td>
+</tr>
+<tr>
+<td><code>your public IP probably changed, so the security groups reject SSH or the load balancer</code></td>
+<td>Your address no longer matches <code>allowed_cidr</code></td>
+<td>Run <code>./demo create</code> again, or set <code>allowed_cidr: &lt;your IP&gt;/32</code> in <code>demo.yaml</code></td>
+</tr>
+<tr>
+<td><code>Docker is not running on this machine (or is not installed)</code></td>
+<td>Local image builds need the Docker engine</td>
+<td>Start Docker Desktop (or your engine), then run the command again</td>
 </tr>
 <tr>
 <td>You changed a table in <code>flink/*.sql</code> and nothing changed</td>

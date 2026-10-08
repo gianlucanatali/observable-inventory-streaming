@@ -67,7 +67,18 @@ OUTCOME_FILE="$STATE_DIR/stack-$STACK.outcome"   # up/down: exit=<n>, then the f
 CAUSE_FILE=""   # when set, die and note_cause append the failure reason here (the banner quotes its first line)
 LEFT_FILE=""    # when set, the leftover check appends one "<provider> <resource>" line per billable leftover
 note_cause() { if [ -n "$CAUSE_FILE" ]; then printf '%s\n' "$*" >> "$CAUSE_FILE"; fi; }
-die() { echo "stack.sh: $*" >&2; note_cause "$*"; exit 1; }
+# Red only when stderr was a terminal and NO_COLOR is unset (no-color.org). run_logged decides once (STACK_COLOR), because
+# below it stderr is the tee pipe; the log copy is stripped of escape codes afterwards, so grep on "stack.sh:" keeps working.
+use_color() { [ -z "${NO_COLOR:-}" ] && { [ "${STACK_COLOR:-}" = 1 ] || { [ -z "${STACK_COLOR:-}" ] && [ -t 2 ]; }; }; }
+die() {
+  if use_color; then printf '\033[1;31m✗\033[0m stack.sh: %s\n' "$*" >&2; else echo "stack.sh: $*" >&2; fi
+  note_cause "$*"; exit 1
+}
+strip_ansi() { # strip_ansi <file> : remove colour codes (and the die marker) in place; the log stays plain text
+  local tmp; tmp="$(mktemp "$1.XXXXXX")" || return 0
+  sed -e "s/$(printf '\033')\[[0-9;]*m✗$(printf '\033')\[[0-9;]*m //" -e "s/$(printf '\033')\[[0-9;]*[A-Za-z]//g" "$1" > "$tmp" && cat "$tmp" > "$1"
+  rm -f "$tmp"
+}
 first_line() { # first_line <file> : first non-empty line, trimmed, at most 220 characters; nothing when the file is empty
   if [ -s "$1" ]; then awk 'NF { sub(/^[ \t]+/, ""); print substr($0, 1, 220); exit }' "$1"; fi
 }
@@ -98,6 +109,9 @@ run_logged() { # run_logged <command> <function> [args...]
   local command="$1" log_file latest_link status statuses=() color=0
   shift
   if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then color=1; fi   # decided here: below, stdout is the tee pipe
+  if [ -z "${STACK_COLOR:-}" ]; then   # an outer run_logged already decided: its stderr was the terminal
+    if [ -t 2 ] && [ -z "${NO_COLOR:-}" ]; then STACK_COLOR=1; else STACK_COLOR=0; fi
+  fi; export STACK_COLOR
   case "$command" in up|down) rm -f "$OUTCOME_FILE" || die "could not remove the old banner $OUTCOME_FILE";; esac
   mkdir -p "$LOG_DIR" || die "could not create log directory $LOG_DIR"
   chmod 700 "$LOG_DIR" || die "could not protect log directory $LOG_DIR"
@@ -117,6 +131,7 @@ run_logged() { # run_logged <command> <function> [args...]
     status="${statuses[0]}"
     [ "${statuses[1]}" = 0 ] || status="${statuses[1]}"
   fi
+  strip_ansi "$log_file"
   printf '== log finished: %s (exit %s)\n' "$log_file" "$status" | tee -a "$log_file"
   if case "$command" in up|down) true;; *) false;; esac && [ -s "$OUTCOME_FILE" ]; then
     # The final banner is the last thing printed. Under ./demo (DEMO_BANNER=1) ./demo prints it after make exits instead.

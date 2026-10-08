@@ -473,6 +473,94 @@ class DemoCliTest(unittest.TestCase):
         self.assertNotIn("\033[", result.stderr)
         self.assertIn("DESTROY COMPLETE: nothing left billing for stack hybrid", result.stderr)
 
+    def _fake_failing_preflight(self, log_lines: list[str], code: int = 2, name: str = "hybrid-preflight-20261008-101421.log") -> str:
+        """A make that fails stack-preflight after writing a stack.sh style log; returns the log path."""
+        logs = self.root / ".state" / "logs"
+        logs.mkdir(parents=True, exist_ok=True)
+        log = logs / name
+        text = "\n".join([f"== log started: {log}", *log_lines, f"== log finished: {log} (exit 1)"]) + "\n"
+        fake = self.root / "make"
+        fake.write_text(textwrap.dedent(f"""\
+            #!/usr/bin/env python3
+            import sys
+            from pathlib import Path
+            if "stack-preflight" not in sys.argv:
+                sys.exit(0)
+            Path({str(log)!r}).write_text({text!r})
+            print("make: *** [stack-preflight] Error 1", file=sys.stderr)
+            sys.exit({code})
+            """))
+        fake.chmod(0o755)
+        return str(log)
+
+    FAILED = "\u2717 create failed at stack-preflight: "
+
+    def test_make_step_failure_prints_one_block_with_cause_fix_and_log_and_keeps_the_exit_code(self) -> None:
+        log = self._fake_failing_preflight(["== [preflight]", "stack.sh: AWS login session unavailable; run: aws login --profile dd-demo"], code=7)
+        result = self._run_with_fake_make("create", "--yes")
+        self.assertEqual(result.returncode, 7, result.stderr)
+        self.assertIn(f"{self.FAILED}AWS login session is missing or has expired\n  Fix: aws login --profile dd-demo, then run the same command again\n  Log: {log}\n", result.stderr)
+        for noise in ("Traceback", "CalledProcessError", "returned non-zero", "MODE=cloud", "--no-print-directory"):
+            self.assertNotIn(noise, result.stderr)
+        self.assertNotIn("\033[", result.stderr)
+
+    def test_unknown_failure_falls_back_to_the_last_terraform_error_line(self) -> None:
+        log = self._fake_failing_preflight([
+            "stack.sh: step 'terraform aws' FAILED (command: terraform apply)",
+            "\u2577", "\u2502 Error: creating EC2 Instance: InsufficientInstanceCapacity: no t4g.xlarge left", "\u2502 ", "\u2502   with aws_instance.vm,", "\u2575"])
+        result = self._run_with_fake_make("create", "--yes")
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn(f"{self.FAILED}Error: creating EC2 Instance: InsufficientInstanceCapacity: no t4g.xlarge left\n", result.stderr)
+        self.assertIn("  Fix: read the log, fix the cause, then run the same command again", result.stderr)
+        self.assertIn(f"  Log: {log}", result.stderr)
+
+    def test_stack_sh_line_is_the_cause_when_no_error_block_exists(self) -> None:
+        self._fake_failing_preflight(["stack.sh: OWNER 'a b' is not valid"])
+        result = self._run_with_fake_make("create", "--yes")
+        self.assertIn(f"{self.FAILED}OWNER 'a b' is not valid\n", result.stderr)
+
+    def test_known_breakers_map_to_a_cause_and_an_exact_fix(self) -> None:
+        cases = {
+            "expired mid-apply": (["Error: operation error STS: ExpiredToken: The security token included in the request is expired"], "AWS login", "aws login --profile demo-profile"),
+            "confluent": (["Error: 401 Unauthorized", "  with confluent_environment.main,"], "Confluent Cloud rejected", "confluent_cloud_api_key"),
+            "datadog": (["Error: error validating provider credentials: 403 Forbidden", "  with provider[\"datadog\"]"], "Datadog rejected", "dd_api_key, dd_app_key"),
+            "ip changed": (["ssh: connect to host 198.51.100.7 port 22: Operation timed out"], "public IP probably changed", "allowed_cidr"),
+            "cloud-init": (["ssh: connect to host 198.51.100.7 port 22: Connection refused", "cloud-init status: running"], "cloud-init has not finished", "wait 2 to 3 minutes"),
+            "state lock": (["Error: Error acquiring the state lock", "  ID:        1234-abcd"], "state is locked", "terraform force-unlock 1234-abcd"),
+            "docker": (["Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?"], "Docker is not running", "start Docker"),
+        }
+        for name, (lines, cause, fix) in cases.items():
+            with self.subTest(case=name):
+                self._fake_failing_preflight(lines)
+                result = self._run_with_fake_make("create", "--yes")
+                self.assertEqual(result.returncode, 2, result.stderr)
+                self.assertIn(cause, result.stderr)
+                self.assertIn(fix, result.stderr)
+
+    def test_failure_block_is_red_on_a_terminal_and_plain_with_no_color(self) -> None:
+        self._fake_failing_preflight(["stack.sh: AWS login session unavailable; run: aws login --profile dd-demo"])
+        code, screen = self._stderr_on_a_terminal("create", "--yes")
+        self.assertEqual(code, 2, screen)
+        self.assertIn("\033[1;31m\u2717 create failed at stack-preflight: AWS login session is missing or has expired", screen)
+        self.assertTrue(screen.rstrip().endswith("\033[0m"), repr(screen))
+        code, screen = self._stderr_on_a_terminal("create", "--yes", no_color=True)
+        self.assertEqual(code, 2, screen)
+        self.assertNotIn("\033[", screen)
+        self.assertIn(self.FAILED + "AWS login session is missing or has expired", screen)
+
+    def test_log_from_an_earlier_run_is_not_blamed(self) -> None:
+        old = self.root / ".state" / "logs" / "hybrid-preflight-old.log"
+        old.parent.mkdir(parents=True)
+        old.write_text("stack.sh: AWS login session unavailable\n")
+        os.utime(old, (1, 1))
+        fake = self.root / "make"
+        fake.write_text("#!/bin/sh\ncase \"$*\" in *stack-preflight*) exit 3;; esac\n")
+        fake.chmod(0o755)
+        result = self._run_with_fake_make("create", "--yes")
+        self.assertEqual(result.returncode, 3, result.stderr)
+        self.assertIn("exited 3 before stack.sh wrote a log", result.stderr)
+        self.assertNotIn("AWS login", result.stderr)
+
     def test_jr_dockerfile_is_resolved_from_the_jr_build_context(self) -> None:
         compose = (self.root / "compose" / "compose.yaml").read_text()
         makefile = (self.root / "Makefile").read_text()

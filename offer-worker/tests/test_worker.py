@@ -689,3 +689,74 @@ def test_p0042_ai_unsure_is_the_safe_rule_p0160_with_the_ai_suggestion_kept(cata
     assert (o["decision_route"], o["decision_reason"], o["product_id"]) == ("RULE_DEFAULT", "low_confidence", "P0160")
     assert (o["jev_choice"], o["jev_confidence"], o["min_confidence"]) == ("alt:P0061", 0.4, 0.8)
     assert o["restock_eta"] is not None
+
+
+# --- Offer delay metrics --------------------------------------------------------------------------------------------
+def delay_worker(catalogue, redis_client, detected_ago, publish_takes=0.7):
+    """Worker whose clock moves forward by publish_takes when the Offer is published (receive time = NOW)."""
+    t, out, m = [NOW], [], FakeMetrics()
+
+    def publish(k, v):
+        t[0] += publish_takes
+        out.append((k, v))
+
+    w = OfferWorker(make_cfg(JEV_API_KEY="k"), redis_client, catalogue, publish, m, FakeJev(choice=None), None,
+                    clock=lambda: t[0])
+    return w, m, risk(detected=NOW - detected_ago)
+
+
+def delays(m):
+    return [c for c in m.calls if c[0] == "delay"]
+
+
+def test_offer_delay_splits_into_upstream_and_worker(catalogue, redis_client):
+    w, m, r = delay_worker(catalogue, redis_client, detected_ago=3.0, publish_takes=0.7)
+    assert w.handle(r) == "published"
+    [(_, tags, total, upstream, worker)] = delays(m)
+    assert (round(total, 3), round(upstream, 3), round(worker, 3)) == (3.7, 3.0, 0.7)
+    assert tags == {"product_id": "P0042", "decided_by": "ai", "route": "JEV", "offer_type": "ALTERNATIVE_PRODUCT"}
+
+
+def test_offer_delay_decided_by_rule_when_not_the_ai(catalogue, redis_client):
+    w, m, r = delay_worker(catalogue, redis_client, detected_ago=1.0)
+    w._jev = None
+    w.handle(r)
+    [(_, tags, *_)] = delays(m)
+    assert tags["decided_by"] == "rule" and tags["route"] == "RULE_DEFAULT"
+
+
+@pytest.mark.parametrize("ago", [-5.0, 601.0])
+def test_offer_delay_garbage_is_not_emitted_and_warns_with_the_risk_id(catalogue, redis_client, caplog, ago):
+    w, m, r = delay_worker(catalogue, redis_client, detected_ago=ago)
+    w._live = type("L", (), {"get": staticmethod(lambda k, d, lo, hi: 10**10)})()  # do not drop the old risk as stale
+    with caplog.at_level("WARNING", logger="offer_worker"):
+        assert w.handle(r) == "published"
+    assert delays(m) == []
+    assert any("offer delay" in rec.getMessage() and r["risk_id"] in str(getattr(rec, "ctx", "")) for rec in caplog.records)
+
+
+def test_offer_delay_missing_detected_at_is_not_emitted(catalogue, redis_client, caplog):
+    w, m, r = delay_worker(catalogue, redis_client, detected_ago=1.0)
+    w._clock = lambda: NOW
+    r["detected_at"] = 0
+    w._live = type("L", (), {"get": staticmethod(lambda k, d, lo, hi: 10**10)})()
+    with caplog.at_level("WARNING", logger="offer_worker"):
+        w.handle(r)
+    assert delays(m) == []
+    assert any("offer delay" in rec.getMessage() for rec in caplog.records)
+
+
+def test_metrics_delay_sends_three_distributions_with_the_same_tags():
+    from offer_worker.metrics import Metrics
+
+    class Stats:
+        def __init__(self):
+            self.sent = []
+
+        def distribution(self, name, value, tags=None):
+            self.sent.append((name, value, sorted(tags)))
+
+    s = Stats()
+    Metrics(s).delay({"product_id": "P0042", "decided_by": "ai", "route": "JEV", "offer_type": "NOTIFY_ME"}, 3.7, 3.0, 0.7)
+    tags = ["decided_by:ai", "offer_type:NOTIFY_ME", "product_id:P0042", "route:JEV"]
+    assert s.sent == [("offer.delay", 3.7, tags), ("offer.delay.upstream", 3.0, tags), ("offer.delay.worker", 0.7, tags)]

@@ -267,6 +267,15 @@ resource "datadog_metric_tag_configuration" "stock_display_delay" {
   include_percentiles = true
 }
 
+# offer.delay* are distributions emitted by the offer-worker; the home dashboard's p95 needs percentiles enabled.
+resource "datadog_metric_tag_configuration" "offer_delay" {
+  for_each            = toset(["offer.delay", "offer.delay.upstream", "offer.delay.worker"])
+  metric_name         = each.key
+  metric_type         = "distribution"
+  tags                = ["env", "service", "version", "product_id", "decided_by", "route", "offer_type"]
+  include_percentiles = true
+}
+
 resource "datadog_dashboard_json" "stock" {
   # Guard: the state in use must be the one of this stack (terraform workspace new <stack>).
   lifecycle {

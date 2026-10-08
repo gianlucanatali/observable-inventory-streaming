@@ -13,6 +13,7 @@ import subprocess
 import sys
 import tempfile
 import textwrap
+import time
 import urllib.request
 from pathlib import Path
 
@@ -251,8 +252,7 @@ def stack_of(command: list[str]) -> str:
 
 def print_banner(lines: list[str], failed: bool) -> None:
     """The final banner of a create or destroy, always the last output of ./demo (red/green on a terminal)."""
-    colour = sys.stderr.isatty() and not os.environ.get("NO_COLOR")
-    on, off = (("\033[1;31m" if failed else "\033[1;32m"), "\033[0m") if colour else ("", "")
+    on, off = (("\033[1;31m" if failed else "\033[1;32m"), "\033[0m") if use_colour() else ("", "")
     sys.stdout.flush()
     print("\n" + "\n".join(f"{on}{line}{off}" for line in lines), file=sys.stderr, flush=True)
 
@@ -263,6 +263,7 @@ def run_stack(command: list[str], action: str) -> None:
     stack = stack_of(command)
     outcome = ROOT / ".state" / f"stack-{stack}.outcome"
     outcome.unlink(missing_ok=True)
+    started = time.time() - 2
     result = subprocess.run(command, check=False, env={**os.environ, "DEMO_BANNER": "1"})
     code, lines = 0, []
     if outcome.is_file():
@@ -271,13 +272,115 @@ def run_stack(command: list[str], action: str) -> None:
     if result.returncode != 0 and not lines:  # stack.sh never reported (make or stack.sh failed before it could)
         head = (f"DESTROY INCOMPLETE: stack {stack} may be STILL BILLING" if action == "destroy"
                 else f"CREATE FAILED: stack {stack} may be half-built and STILL BILLING")
-        lines = [RULE, head, f"Cause: make {next(item for item in command if item in STACK_ACTIONS)} exited {result.returncode} before stack.sh reported a result (see above)",
-                 f"Fix: fix the cause, then ./demo {action} --yes   (it resumes)", RULE]
+        cause, fix, log = diagnose(command, started, result.returncode)
+        lines = [RULE, head, f"Cause: {cause}", f"Fix: {fix}; then ./demo {action} --yes (it resumes)", f"Log: {log}", RULE]
     failed = result.returncode != 0 or code != 0
     if lines:
         print_banner(lines, failed)
     if failed:
         raise StackFailed(code or result.returncode)
+
+
+ANSI = re.compile(r"\x1b\[[0-9;]*m")
+# Known breakers: (all of these regexes must match the log tail) -> cause, fix. First match wins, so order matters.
+# {profile} and {lock_id} are filled from the log or the make arguments.
+FAILURE_PATTERNS = (
+    ("aws-login", (r"AWS login session unavailable|AWS login expired|AWS session expired or missing|ExpiredToken(Exception)?:|"
+                   r"security token included in the request is expired|Unable to locate credentials|"
+                   r"Error when retrieving credentials|Your session has expired|SSO session .* expired",),
+     "AWS login session is missing or has expired", "aws login --profile {profile}, then run the same command again"),
+    ("datadog-keys", (r"(?i)datadog", r"(?i)\b403\b|forbidden|invalid.{0,20}(api|application|app) key"),
+     "Datadog rejected the API or application key (403)",
+     "check dd_api_key, dd_app_key and datadog_site in demo.yaml, then run the same command again"),
+    ("confluent-keys", (r"(?i)confluent", r"(?i)\b40[13]\b|unauthori[sz]ed|forbidden|invalid api key|authentication failed"),
+     "Confluent Cloud rejected the API key (401/403)",
+     "check confluent_cloud_api_key and confluent_cloud_api_secret in demo.yaml (a Cloud resource-management key, not a cluster key)"),
+    ("state-lock", (r"(?i)error acquiring the state lock|state lock",),
+     "Terraform state is locked by another run (or one that crashed)",
+     "wait for the other run to finish; if none is running: terraform force-unlock {lock_id} in the directory named in the log"),
+    ("public-ip", (r"(?i)(port 22: (operation|connection) timed out|connect to host \S+ port 22.*timed out|"
+                   r"(alb|elb|load balancer|amazonaws\.com).{0,120}(timed out|timeout|deadline exceeded))",),
+     "your public IP probably changed, so the security groups reject SSH or the load balancer",
+     "run ./demo create again (it detects your IP), or set allowed_cidr: <your IP>/32 in demo.yaml"),
+    ("vm-ssh", (r"(?i)cloud-init|kex_exchange_identification|connection (refused|closed|reset)|permission denied \(publickey|"
+                r"daemon at ssh://|error during connect.{0,80}ssh|docker context .{0,40}(fail|not found)",),
+     "cannot reach the VM over SSH or its docker context, or cloud-init has not finished",
+     "wait 2 to 3 minutes and run the command again; if it persists, check allowed_cidr against curl -s https://checkip.amazonaws.com"),
+    ("docker-local", (r"(?i)cannot connect to the docker daemon|is the docker daemon running|docker: command not found|"
+                      r"MISSING docker",),
+     "Docker is not running on this machine (or is not installed)",
+     "start Docker Desktop (or your Docker engine), wait until docker info works, then run the command again"),
+    ("ssh-key", (r"MISSING ~/\.ssh/id_ed25519\.pub",),
+     "no Ed25519 SSH public key", "ssh-keygen -t ed25519, then run the command again"),
+)
+
+
+def use_colour() -> bool:
+    """Red only on a terminal and when NO_COLOR is unset or empty (no-color.org)."""
+    return sys.stderr.isatty() and not os.environ.get("NO_COLOR")
+
+
+def newest_log(since: float) -> Path | None:
+    """The newest real log under .state/logs written at or after `since` (the *-latest.log links are skipped)."""
+    logs = [p for p in (ROOT / ".state" / "logs").glob("*.log") if not p.is_symlink() and p.stat().st_mtime >= since]
+    return max(logs, key=lambda p: p.stat().st_mtime, default=None)
+
+
+def last_cause(lines: list[str]) -> str:
+    """The reason to show when no known pattern matches: the last stack.sh: line, else the last Error: line, else the
+    last line. A generic "step ... FAILED" stack.sh line gives way to a Terraform "Error:" line above it."""
+    def find(pattern: str) -> str | None:
+        for line in reversed(lines):
+            found = re.match(pattern, line.strip())
+            if found:
+                return found.group(1).strip()[:240]
+        return None
+    stack, error = find(r"^(?:✗ )?stack\.sh: (.*)"), find(r"^[│ ]*(?:Error|ERROR): (.*)")
+    if stack and not (error and stack.startswith("step '")):
+        return stack
+    if error:
+        return "Error: " + error
+    useful = [line.strip() for line in lines if line.strip() and not line.startswith("== log")]
+    return useful[-1][:240] if useful else "no error line found"
+
+
+def diagnose(command: list[str], since: float, code: int) -> tuple[str, str, str]:
+    """(cause, fix, log path) for a failed make step, read from the newest log written since the step started."""
+    log = newest_log(since)
+    if log is None:
+        return (f"make {next((i for i in command[1:] if not i.startswith('-') and '=' not in i and i != str(ROOT)), 'step')} "
+                f"exited {code} before stack.sh wrote a log (the output above has the reason)"), "read the output above", "none"
+    lines = [ANSI.sub("", line) for line in log.read_text(encoding="utf-8", errors="replace").splitlines()[-200:]]
+    tail = "\n".join(lines)
+    finished = next((m for line in reversed(lines) if (m := re.match(r"== log finished: (.+) \(exit \d+\)", line))), None)
+    log_path = finished.group(1) if finished else str(log)
+    profile = next((m.group(1) for m in map(lambda x: re.search(r"aws login --profile (\S+)", x), reversed(lines)) if m), None) \
+        or next((item.split("=", 1)[1] for item in command if item.startswith("AWS_PROFILE=")), "<aws_profile>")
+    recent = "\n".join(lines[-40:])
+    lock = re.search(r"\bID:\s+(\S+)", tail)
+    for _name, regexes, cause, fix in FAILURE_PATTERNS:
+        if all(re.search(r, recent) for r in regexes):
+            return cause, fix.format(profile=profile, lock_id=lock.group(1) if lock else "<lock id>"), log_path
+    return last_cause(lines), "read the log, fix the cause, then run the same command again (create and destroy resume)", log_path
+
+
+class StepFailed(Exception):
+    """A make step failed; the red block is already printed, main() only sets the exit code."""
+
+    def __init__(self, code: int) -> None:
+        super().__init__(f"exit {code}")
+        self.code = code
+
+
+ACTION = "run"  # the ./demo action being executed, for the failure block
+
+
+def report_failure(command: list[str], code: int, since: float) -> None:
+    step = next((item for item in command[1:] if not item.startswith("-") and "=" not in item and item != str(ROOT)), "make")
+    cause, fix, log = diagnose(command, since, code)
+    on, off = ("\033[1;31m", "\033[0m") if use_colour() else ("", "")
+    sys.stdout.flush()
+    print(f"\n{on}✗ {ACTION} failed at {step}: {cause}\n  Fix: {fix}\n  Log: {log}{off}", file=sys.stderr, flush=True)
 
 
 def invoke(command: list[str], dry_run: bool) -> None:
@@ -287,8 +390,12 @@ def invoke(command: list[str], dry_run: bool) -> None:
     action = next((STACK_ACTIONS[item] for item in command if item in STACK_ACTIONS), None)
     if action:
         run_stack(command, action)
-    else:
-        subprocess.run(command, check=True)
+        return
+    started = time.time() - 2
+    code = subprocess.run(command, check=False).returncode
+    if code != 0:
+        report_failure(command, code, started)
+        raise StepFailed(code)
 
 
 def prompt(message: str, yes: bool) -> None:
@@ -356,6 +463,8 @@ def main() -> int:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--purge", action="store_true", help="mode: local destroy also deletes the local data volumes")
     args = parser.parse_args()
+    global ACTION
+    ACTION = args.action
     try:
         values = parse_yaml(CONFIG)
         validate(values)
@@ -385,7 +494,7 @@ def main() -> int:
         else:
             invoke([*base, {"status": "stack-status", "links": "links", "reset": "reset"}[args.action]], args.dry_run)
         return 0
-    except StackFailed as failure:  # the banner is already the last output; nothing may be printed after it
+    except (StackFailed, StepFailed) as failure:  # the banner is already the last output; nothing may be printed after it
         return failure.code
     except (ValueError, OSError, subprocess.CalledProcessError) as error:
         print(f"demo: {error}", file=sys.stderr)

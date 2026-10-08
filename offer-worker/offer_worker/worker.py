@@ -21,6 +21,7 @@ from .prompt import Cart
 from .stock import ConfirmedStock, MalformedStock
 
 log = logging.getLogger("offer_worker")
+MAX_PLAUSIBLE_DELAY_S = 600  # a larger Offer delay is clock skew or a bad timestamp, not a measurement
 DEFAULT_TIME_COMPRESSION = 60  # contracts/demo-params.json time_compression default
 
 
@@ -223,12 +224,27 @@ class OfferWorker:
             return headline, body, "TEMPLATE", "invalid_text"
         return headline, text.strip(), "BEDROCK", "accepted"
 
+    def _emit_delay(self, risk: dict, received_at: float, published_at: float, route: str, offer_type: str) -> None:
+        """Offer delay = publish time - sell-out detected_at; upstream = receive time - detected_at; worker = the rest.
+        A missing, negative or absurd value (clock skew, bad timestamp) is logged with the risk_id and not emitted."""
+        detected_s = _ms(risk["detected_at"]) / 1000.0 if risk.get("detected_at") else None
+        total = published_at - detected_s if detected_s is not None else None
+        if total is None or not (0 <= total <= MAX_PLAUSIBLE_DELAY_S):
+            log.warning("offer delay not emitted: detected_at missing or delay implausible",
+                        extra={"ctx": {"risk_id": risk["risk_id"], "detected_at": risk.get("detected_at"),
+                                       "delay_s": None if total is None else round(total, 3)}})
+            return
+        tags = {"product_id": risk["product_id"], "decided_by": "ai" if route == "JEV" else "rule", "route": route,
+                "offer_type": offer_type}
+        self._m.delay(tags, total, received_at - detected_s, published_at - received_at)
+
     # --- main ----------------------------------------------------------------------------------------------------
     def handle(self, risk: dict | None) -> str:
         """Returns an outcome label: published | tombstone | duplicate | stale | expired | unknown_product."""
         if risk is None:
             log.info("risk ended (tombstone); nothing to do")
             return "tombstone"
+        received_at = self._clock()
         rid = risk["risk_id"]
         ctx = {"risk_id": rid, "cart_id": risk["cart_id"], "scenario_id": risk["scenario_id"], "product_id": risk["product_id"]}
         with tracer.trace("offer.process", service=self._cfg.dd_service, resource="carts.at-risk") as span:
@@ -297,6 +313,7 @@ class OfferWorker:
             self._publish({"offer_id": offer["offer_id"]}, offer)
             type_tag = ("ALTERNATIVE_PRODUCT" if chosen else "NOTIFY_ME") if (chosen or restock_included) else "NONE"
             self._m.completed(type_tag, restock_included)
+            self._emit_delay(risk, received_at, self._clock(), route, type_tag)
             span.set_tag("offer.type", type_tag)
             span.set_tag("offer.restock_included", restock_included)
             with tracer.trace("offer.decision", service=self._cfg.dd_service, resource="offer") as decision_span:

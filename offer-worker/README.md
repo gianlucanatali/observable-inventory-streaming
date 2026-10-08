@@ -27,6 +27,16 @@ Optional: `JEV_API_KEY` (unset = no Jev, reason `disabled`), `JEV_URL` (default 
 
 DogStatsD (contract section 7): `offer.decision{route,reason}`, `offer.text{route,reason}`, `offer.completed{offer_type}`, `offer.stock.unconfirmed{reason}` (`not_ready, not_found, redis_error, malformed, stores_unknown`). Reasons: decision `accepted, no_good_substitute` (any confidence), `low_confidence` (an alternative below the threshold), `invalid_choice, timeout, error, rate_limited, kill_switch, disabled, no_alternative` (`no_choice` appears only in older records); text `accepted, invalid_text, timeout, error, disabled` plus `no_offer` (fixed wording, no Bedrock call). `offer.completed{offer_type,restock_included}`: `offer_type` `ALTERNATIVE_PRODUCT`, `NOTIFY_ME` (Restock notice alone) or `NONE` (no Offer); `restock_included` `true`/`false`. JSON logs carry `risk_id`, `cart_id`, `scenario_id`, `product_id`, `offer_id`, `decision` (`JEV/accepted`, `JEV/no_good_substitute`, `RULE_DEFAULT/low_confidence`, ...), `restock_included` and Datadog trace ids. The `offer.decision` span carries `offer.route`, `offer.reason`, `jev.choice`, `jev.confidence`, `offer.min_confidence`, `rule.choice`, `offer.chosen` (`none` without an alternative) and `offer.restock_included`. APM: `offer.process` span per record, child spans `offer.jev.call` (service `jev`) and `offer.bedrock.call` (service `bedrock`), plus ddtrace's automatic Kafka/Redis spans and Data Streams Monitoring.
 
+**Offer delay metrics** (DogStatsD distributions, in seconds, so p50/p95 work in Datadog), emitted once per published Offer:
+
+- `offer.delay`: Offer published minus the sell-out `detected_at` (the full Offer delay).
+- `offer.delay.upstream`: time the worker received the at-risk event minus `detected_at` (CDC plus Flink; the Flink share is about this minus the CDC time).
+- `offer.delay.worker`: Offer published minus time received (decision, AI and publish).
+
+Tags: `product_id`, `decided_by` (`ai` or `rule`), `route`, `offer_type`, plus the `env`, `service` and `version` tags every metric carries. If `detected_at` is missing, or the delay is negative or above 10 minutes, nothing is emitted and a warning with the `risk_id` is logged.
+
+Clock note: `detected_at` comes from the source side; the receive and publish times come from the worker's clock. Both hosts are NTP-synced, so expect an error of milliseconds.
+
 Routes: none (no HTTP server, no health endpoint; compose should use restart policy, a crash is the failure signal).
 
 ## Tests and build

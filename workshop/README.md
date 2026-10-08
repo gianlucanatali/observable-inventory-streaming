@@ -2657,7 +2657,7 @@ Across the labs, APM found the slow request, freshness and DSM showed that the d
 
 ## Troubleshooting
 
-When a step fails, read the last lines before the failure. Every script prints the step, the command and, where it can, the fix. If a step fails twice, stop and read before you try a third time. Running the build again without knowing why it failed is the most expensive way to debug.
+When `./demo` stops on a failed step, it ends with one red block (plain text when `NO_COLOR` is set or the output is not a terminal): `✗ create failed at <step>: <cause>`, then `Fix:` with the command to run and `Log:` with the full log. For the common problems the cause and the fix are exact, for example `AWS login session is missing or has expired` with `Fix: aws login --profile dd-demo`. For anything else the cause is the last error line of the log. The tables below list the same problems with more detail. When a step fails, read the last lines before the failure. Every script prints the step, the command and, where it can, the fix. If a step fails twice, stop and read before you try a third time. Running the build again without knowing why it failed is the most expensive way to debug.
 
 **Setup and preflight**
 
@@ -2680,6 +2680,12 @@ When a step fails, read the last lines before the failure. Every script prints t
 | `after 5 minutes only N sellable:P* keys in Redis (expected 200)` | The Flink `sellable` statement or the `sellable-redis` connector is not running | Fix that piece, then run `./demo create` again |
 | `ECS service ... did not reach steady state` | A task does not start. Check: AWS console > ECS > `dd-demo-hybrid` > service > Events | Fix the cause shown there, then run `./demo create` again |
 | `AWS login expired during apply of terraform/...`, or `ExpiredToken: The security token included in the request is expired` during `./demo create` | Your AWS login session ended during the build, often while Terraform waited for ElastiCache or the load balancer. A login lasts at most 12 hours, and the script cannot read how much is left | `aws login --profile dd-demo`, then `./demo create` again. Resources that were being created when it failed are rebuilt, which costs extra minutes (we have not measured how many). To prevent it, sign in again right before a long build |
+| `Confluent Cloud rejected the API key (401/403)` | The Cloud resource-management key in `demo.yaml` is wrong, expired or lacks rights | Check `confluent_cloud_api_key` and `confluent_cloud_api_secret` in `demo.yaml`, then run `./demo create` again |
+| `Datadog rejected the API or application key (403)` | A Datadog key is wrong, or belongs to another site | Check `dd_api_key`, `dd_app_key` and `datadog_site` in `demo.yaml`, then run `./demo create` again |
+| `Terraform state is locked by another run` | Another run holds the lock, or one crashed | Wait for the other run. If none is running, `terraform force-unlock <ID>` in the directory named in the log |
+| `cannot reach the VM over SSH or its docker context, or cloud-init has not finished` | A new VM is still starting, or its SSH or Docker context is not reachable | Wait 2 to 3 minutes and run `./demo create` again. If it persists, compare `allowed_cidr` with `curl -s https://checkip.amazonaws.com` |
+| `your public IP probably changed, so the security groups reject SSH or the load balancer` | Your address no longer matches `allowed_cidr` | Run `./demo create` again, or set `allowed_cidr: <your IP>/32` in `demo.yaml` |
+| `Docker is not running on this machine (or is not installed)` | Local image builds need the Docker engine | Start Docker Desktop (or your engine), then run the command again |
 | You changed a table in `flink/*.sql` and nothing changed | Output tables use `CREATE TABLE IF NOT EXISTS`, so an existing table is not replaced | Change the schema in a compatible way, or tear down and rebuild |
 
 **Labs**

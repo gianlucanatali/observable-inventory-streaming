@@ -24,6 +24,14 @@ class Metrics:
         self._c.increment("offer.completed", tags=[f"offer_type:{offer_type}",
                                                    f"restock_included:{str(restock_included).lower()}"])
 
+    def delay(self, tags: dict[str, str], total_s: float, upstream_s: float, worker_s: float) -> None:
+        """Offer delay as distributions (p50/p95 in Datadog): total = upstream (CDC + Flink, until the worker received
+        the at-risk event) + worker (decision, AI, publish). Tags: product_id, decided_by, route, offer_type."""
+        t = [f"{k}:{v}" for k, v in tags.items()]
+        self._c.distribution("offer.delay", total_s, tags=t)
+        self._c.distribution("offer.delay.upstream", upstream_s, tags=t)
+        self._c.distribution("offer.delay.worker", worker_s, tags=t)
+
 
 def dogstatsd_from_config(host: str, env: str, service: str, version: str) -> DogStatsd:
     return DogStatsd(host=host, port=8125, constant_tags=[f"env:{env}", f"service:{service}", f"version:{version}"])
