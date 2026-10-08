@@ -36,7 +36,7 @@
     <span class="burger" aria-hidden="true"></span><span class="sr-only">Table of contents</span>
   </button>
   <a class="brand" href="intro.html" title="Start of the workshop"><span class="brand-mark" aria-hidden="true"></span><span>Observable inventory streaming</span></a>
-  <div class="search" role="search" data-index="assets/search-index.json?v=0090fde4d4">
+  <div class="search" role="search" data-index="assets/search-index.json?v=9386d615e4">
     <button type="button" class="search-toggle" aria-label="Search the guide" aria-expanded="false" aria-controls="search-input" title="Search (press /)"><span class="search-icon" aria-hidden="true"></span></button>
     <div class="search-box">
       <input type="search" class="search-input" id="search-input" placeholder="Search the guide" aria-label="Search the guide" autocomplete="off" autocapitalize="off" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="search-results" aria-autocomplete="list">
@@ -356,7 +356,7 @@
 </tbody>
 </table></div>
 <p><strong>The scenario API.</strong> <code>scenario-api</code> is another service on the VM. It runs the same scenario package as the <code>scenario</code> tool (load, verify and canary gate) inside its own process, with no shell and no Docker socket. It can therefore run only those three things, with limited parameters and one run at a time. Every path except <code>/healthz</code> needs the bearer token <code>SCENARIO_API_TOKEN</code>. <code>make secrets</code> generates the token into <code>.env.secrets</code>, and <code>stack-up</code> passes it to both the VM and the control panel. Port 8090 is published on the VM and must stay private, like 8083: never add it to <code>allowed_cidr</code>. On a stack built before this card existed, run <code>make secrets</code> once (it adds the token and does not change your passwords) and then <code>./demo create</code>.</p>
-<p><strong>Release sizing.</strong> All three releases run with 0.5 vCPU and 1 GB (each including the Agent sidecar). The slow release does not get a larger task to absorb its CPU-bound regression. It is shipped like any other release and stopped when its canary gate fails (Lab 3.1). Because the sizes are equal, p95 and CPU by version compare the code, not the task size.</p>
+<p><strong>Release sizing.</strong> All three releases run with 0.5 vCPU and 1 GB (each including the Agent sidecar). The slow release does not get a larger task to absorb its CPU-bound regression. It is shipped like any other release and stopped when its canary gate fails (Lab 3). Because the sizes are equal, p95 and CPU by version compare the code, not the task size.</p>
 <p><strong>Datadog wiring.</strong> Each Fargate task runs the app, a Datadog Agent sidecar and a FireLens log router that sends JSON logs to Datadog and CloudWatch Logs. The Python services run <code>ddtrace</code> with unified service tags, log injection and DSM. On the VM, the Agent collects host and container metrics, logs, PostgreSQL checks and the <code>freshness-probe</code> freshness metrics.</p>
 <h3 id="c-datadog-signals">C. Datadog signals <a class="header-anchor" href="#c-datadog-signals">#</a></h3>
 <div class="table-wrap" tabindex="0"><table>
@@ -715,11 +715,11 @@
 <tbody>
 <tr>
 <td><strong>Canary 1.1.0 (10%)</strong></td>
-<td>90 / 10 / 0 (Lab 3.1)</td>
+<td>90 / 10 / 0 (Lab 3)</td>
 </tr>
 <tr>
 <td><strong>Canary 1.2.0 (10%)</strong></td>
-<td>90 / 0 / 10 (Lab 4.1)</td>
+<td>90 / 0 / 10 (Lab 4)</td>
 </tr>
 <tr>
 <td><strong>Canary 1.2.0 (50%)</strong></td>
@@ -735,7 +735,7 @@
 </tr>
 <tr>
 <td><strong>Incident (all to 1.1.0)</strong></td>
-<td>0 / 100 / 0 (optional step at the end of Lab 3.1)</td>
+<td>0 / 100 / 0 (optional step at the end of Lab 3)</td>
 </tr>
 <tr>
 <td><strong>Rollback</strong></td>
@@ -776,10 +776,10 @@
 </tr>
 </tbody>
 </table></div>
-<p><strong>Check canary</strong> picks the gate from the live routing and shows it below the buttons. At 90 / 10 / 0 (Lab 3.1) it checks 1.1.0 against 1.0.0. At 90 / 0 / 10 and 50 / 0 / 50 (Lab 4.1) it checks 1.2.0 against 1.0.0. At 0 / 0 / 100 it checks 1.2.0 alone. At 100 / 0 / 0 there is nothing to check, so it refuses. It also refuses if the routing changed since the last load you ran in the panel, because that load measured a different split. <strong>Run load</strong> blocks the cards for about 2 minutes.</p>
+<p><strong>Check canary</strong> picks the gate from the live routing and shows it below the buttons. At 90 / 10 / 0 (Lab 3) it checks 1.1.0 against 1.0.0. At 90 / 0 / 10 and 50 / 0 / 50 (Lab 4) it checks 1.2.0 against 1.0.0. At 0 / 0 / 100 it checks 1.2.0 alone. At 100 / 0 / 0 there is nothing to check, so it refuses. It also refuses if the routing changed since the last load you ran in the panel, because that load measured a different split. <strong>Run load</strong> blocks the cards for about 2 minutes.</p>
 <details>
 <summary>How the panel's gate matches the make commands</summary>
-<p>The canary is the newer release that receives traffic, and the baseline is the older one. When the canary has less than 50% of the traffic, the gate lowers the minimum number of samples from 100 to 30. These are the same gates as the <code>canary-check CHECK_ARGS=...</code> commands in Labs 3.1 and 4.1.</p>
+<p>The canary is the newer release that receives traffic, and the baseline is the older one. When the canary has less than 50% of the traffic, the gate lowers the minimum number of samples from 100 to 30. These are the same gates as the <code>canary-check CHECK_ARGS=...</code> commands in Labs 3 and 4.</p>
 </details>
 <p>The <strong>Demo reset</strong> card has one button, <strong>Full demo reset</strong>. It is not a sales action: it puts the whole demo back to its start. Like <code>make reset</code>: <strong>Sales off</strong>, then <strong>Baseline</strong> (100 / 0 / 0), then <strong>Reset demo data</strong>. When the restock layer runs, it also cancels open purchase orders before the data reset and clears the restock ETA keys after it. Otherwise its progress line says it did not change them. It needs the hybrid stack, which has the load balancer routing</p>
 <p>The <strong>Background sales</strong> card controls the sales generator, so you do not need a terminal. The rate tile shows the sales per minute per store (24 by default), or <code>OFF</code> with <code>rate 0 · Sales on restores 24/min</code> when sales are off.</p>
@@ -802,7 +802,7 @@
 </tbody>
 </table></div>
 <p>The panel turns sales on and off by changing the rate, while the sales containers keep running.</p>
-<p>Every action also sends a Datadog event named <code>demo action: &lt;name&gt; started</code>, then <code>succeeded</code> or <code>failed</code> (see <a href="chapter-6.html#5-monitors">Lab 6.1</a>).</p>
+<p>Every action also sends a Datadog event named <code>demo action: &lt;name&gt; started</code>, then <code>succeeded</code> or <code>failed</code> (see <a href="chapter-6.html#5-monitors">Lab 6</a>).</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Actions card with the product field P0042, the Sell out product and Reset demo data buttons, and the status line succeeded: Source and Redis verification completed"><img src="img/build-04-control-actions.png" alt="Actions card with the product field P0042, the Sell out product and Reset demo data buttons, and the status line succeeded: Source and Redis verification completed" width="2328" height="569" loading="lazy" decoding="async"></button><figcaption>Actions card with the product field P0042, the Sell out product and Reset demo data buttons, and the status line succeeded: Source and Redis verification completed</figcaption></figure>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Release routing and Store feed cards"><img src="img/build-05-routing-store-feed.png" alt="Release routing and Store feed cards" width="2328" height="1801" loading="lazy" decoding="async"></button><figcaption>Release routing and Store feed cards</figcaption></figure>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Checks and Background sales cards"><img src="img/build-06-checks-sales.png" alt="Checks and Background sales cards" width="2328" height="1938" loading="lazy" decoding="async"></button><figcaption>Checks and Background sales cards</figcaption></figure>

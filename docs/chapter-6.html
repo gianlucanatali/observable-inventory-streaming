@@ -36,7 +36,7 @@
     <span class="burger" aria-hidden="true"></span><span class="sr-only">Table of contents</span>
   </button>
   <a class="brand" href="intro.html" title="Start of the workshop"><span class="brand-mark" aria-hidden="true"></span><span>Observable inventory streaming</span></a>
-  <div class="search" role="search" data-index="assets/search-index.json?v=0090fde4d4">
+  <div class="search" role="search" data-index="assets/search-index.json?v=9386d615e4">
     <button type="button" class="search-toggle" aria-label="Search the guide" aria-expanded="false" aria-controls="search-input" title="Search (press /)"><span class="search-icon" aria-hidden="true"></span></button>
     <div class="search-box">
       <input type="search" class="search-input" id="search-input" placeholder="Search the guide" aria-label="Search the guide" autocomplete="off" autocapitalize="off" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="search-results" aria-autocomplete="list">
@@ -61,7 +61,7 @@
 <div class="layout">
   <nav id="toc" class="toc" aria-label="Table of contents">
     <p class="toc-title">Workshop</p><ol class="chapter-list"><li><a href="intro.html">Intro</a></li><li><a href="setup.html"><span class="cl-n">0</span>Setup</a></li><li><a href="chapter-1.html"><span class="cl-n">1</span>One honest number</a></li><li><a href="chapter-2.html"><span class="cl-n">2</span>Unknown is not zero</a></li><li><a href="chapter-3.html"><span class="cl-n">3</span>The incident</a></li><li><a href="chapter-4.html"><span class="cl-n">4</span>Canary the fix</a></li><li><a href="chapter-5.html"><span class="cl-n">5</span>The AI offer</a></li><li><a href="chapter-6.html" aria-current="page"><span class="cl-n">6</span>Datadog on top</a></li></ol><p class="toc-title">Help and reference</p><ol class="chapter-list chapter-list-help"><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="teardown.html">Teardown</a></li><li><a href="recap.html">Recap</a></li><li><a href="reference.html">Reference</a></li><li><a class="guide-link" href="workshop.html">One-page guide</a></li></ol><p class="toc-title toc-title-page">On this page</p><ol class="toc-list">
-<li class="toc-h2"><a href="#lab-61-datadog-on-top-of-the-solution">Lab 6.1: Datadog on top of the solution</a>
+<li class="toc-h2"><a href="#lab-6-datadog-on-top-of-the-solution">Lab 6: Datadog on top of the solution</a>
 <ol class="toc-sub">
 <li class="toc-h3"><a href="#start-from-the-demo-home">Start from the demo home</a></li>
 <li class="toc-h3"><a href="#turn-on-the-datadog-layers">Turn on the Datadog layers</a></li>
@@ -86,7 +86,7 @@
 <aside class="see-box"><p class="see-title">What you will see</p><p><em>About 20 minutes.</em> In the earlier labs you looked at one incident at a time. Here you use Datadog to watch the whole platform: the VM, Confluent Cloud and AWS. You look at the integrations, at tests that call the shop from outside, at monitors and at cost.</p>
 <p><strong>Needs:</strong> up to three small layers that only change what Datadog collects: <code>dd-streams</code>, <code>dd-synthetics</code> and <code>dd-rum</code>. The step &quot;Turn on the Datadog layers&quot; turns on the ones you want (skip it if you chose everything at once).</p>
 </aside>
-<h3 id="lab-61-datadog-on-top-of-the-solution" class="lab lab">Lab 6.1: Datadog on top of the solution <a class="header-anchor" href="#lab-61-datadog-on-top-of-the-solution">#</a></h3>
+<h3 id="lab-6-datadog-on-top-of-the-solution" class="lab lab">Lab 6: Datadog on top of the solution <a class="header-anchor" href="#lab-6-datadog-on-top-of-the-solution">#</a></h3>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Datadog layer: Confluent consumer lag, VM Agent, dashboards, AWS metrics, APM, Synthetics and LLM Observability under the whole architecture"><img src="img/arch-5-datadog.png" alt="Datadog layer: Confluent consumer lag, VM Agent, dashboards, AWS metrics, APM, Synthetics and LLM Observability under the whole architecture" width="3820" height="1620" loading="lazy" decoding="async"></button>
 <figcaption>Figure 6: everything Datadog collects, as in Figure 1.</figcaption></figure>
 <h4 id="start-from-the-demo-home">Start from the demo home <a class="header-anchor" href="#start-from-the-demo-home">#</a></h4>
@@ -168,7 +168,7 @@ make<span class="w"> </span>layer-on<span class="w"> </span><span class="nv">L</
 <p><strong>Why not DSM for connectors.</strong> This is where you check connectors. DSM shows the data flow, but it does not show connector status.</p>
 </details>
 <h4 id="2-aws-native-online-dashboard">2. AWS-native online dashboard <a class="header-anchor" href="#2-aws-native-online-dashboard">#</a></h4>
-<p>Open the <a href="setup.html#3-open-the-datadog-stock-dashboard" data-stack-link="online-dashboard">AWS-native online dashboard</a>. It shows Fargate CPU and memory by service and version, ElastiCache memory and CPU, and ALB unhealthy targets, next to <code>inventory-api</code> lookup p95 by version. If you ran Lab 3.1, you can see the CPU peak of release 1.1.0.</p>
+<p>Open the <a href="setup.html#3-open-the-datadog-stock-dashboard" data-stack-link="online-dashboard">AWS-native online dashboard</a>. It shows Fargate CPU and memory by service and version, ElastiCache memory and CPU, and ALB unhealthy targets, next to <code>inventory-api</code> lookup p95 by version. If you ran Lab 3, you can see the CPU peak of release 1.1.0.</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: AWS-native online dashboard"><img src="img/lab7-01-aws-online-dashboard.png" alt="AWS-native online dashboard" width="2880" height="2300" loading="lazy" decoding="async"></button><figcaption>AWS-native online dashboard</figcaption></figure>
 <h4 id="3-confluent-cloud-integration">3. Confluent Cloud integration <a class="header-anchor" href="#3-confluent-cloud-integration">#</a></h4>
 <p>On the <a href="setup.html#3-open-the-datadog-stock-dashboard" data-stack-link="stock-dashboard">stock dashboard</a>, in the <strong>Pipeline</strong> group, the chart &quot;Confluent Cloud consumer lag (offsets) by group&quot; comes from the Confluent <abbr title="Datadog reading metrics from another provider's account, here Confluent Cloud.">integration</abbr> (the <code>dd-streams</code> layer). <abbr title="The number of messages a consumer group has not read yet.">Consumer lag</abbr> for <code>stock-projector</code> and <code>connect-sellable-redis</code> should stay near zero, which agrees with the probe.</p>
@@ -201,7 +201,7 @@ make<span class="w"> </span>layer-on<span class="w"> </span><span class="nv">L</
 <p><code>Burn now (estimate)</code> is the cost per hour right now. <code>Spent this month, cumulative</code> shows the month-to-date bill per vendor and the total, and <code>Confluent credit left</code> shows what remains of the $400 trial credit.</p>
 <details><summary>More about this step</summary>
 <p><strong>Where the numbers come from, and when the billed cost arrives.</strong> The <code>cost-meter</code> service estimates the hourly cost of the AWS pieces from list prices and reads Confluent usage. The billed AWS cost arrives later: AWS writes it to the <abbr title="AWS's detailed billing export, delivered to an S3 bucket.">Cost and Usage Report</abbr>, and Datadog Cloud Cost Management reads it from there, typically 48 to 72 hours after the first complete report.</p>
-<p><strong>Why the fix does not change the price of a task.</strong> Fargate bills each task by its vCPU and memory size, so the cost estimate follows the task size set in <code>service_sizing</code> (<code>terraform/aws/variables.tf</code>). All three releases use the same size (0.5 vCPU / 1 GB). The fix therefore does not change the hourly price of a task. It changes how much traffic one task can handle (see the CPU comparison in <a href="chapter-4.html#5-prove-it-latency-cpu-and-cost">Lab 4.1</a>).</p>
+<p><strong>Why the fix does not change the price of a task.</strong> Fargate bills each task by its vCPU and memory size, so the cost estimate follows the task size set in <code>service_sizing</code> (<code>terraform/aws/variables.tf</code>). All three releases use the same size (0.5 vCPU / 1 GB). The fix therefore does not change the hourly price of a task. It changes how much traffic one task can handle (see the CPU comparison in <a href="chapter-4.html#5-prove-it-latency-cpu-and-cost">Lab 4</a>).</p>
 </details>
 <h4 id="7-check-rum-on-your-run">7. Check RUM on your run <a class="header-anchor" href="#7-check-rum-on-your-run">#</a></h4>
 <p><abbr title="Real User Monitoring: Datadog's record of what real browsers do in the Online shop, such as page loads and API calls.">RUM</abbr> should record your browser sessions. Check that it works on your run: open <code>http://&lt;alb-dns-name&gt;/config</code> in your browser.</p>

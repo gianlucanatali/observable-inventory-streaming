@@ -96,7 +96,7 @@ describe('App', () => {
     expect(screen.queryByRole('combobox')).toBeNull();
   });
 
-  it('counts only live stores and shows a quiet store as last seen (Lab 2.1)', async () => {
+  it('counts only live stores and shows a quiet store as last seen (Lab 2)', async () => {
     window.location.hash = '#/product/P0042';
     mockFetch({
       '/api/products/P0042': P42,

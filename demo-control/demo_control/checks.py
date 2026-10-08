@@ -27,7 +27,7 @@ LOW_SHARE_MIN_SAMPLES = 30  # a canary below 50% gets ~60 samples in two minutes
 # both): the newer release with traffic is the canary (release_b), the older one the baseline (release_a). 90/10/0 gates
 # 1.1.0 against 1.0.0 (the canary-first incident), 90/0/10 and 50/0/50 (fix after rollback) 1.2.0 against 1.0.0, 0/90/10
 # and 0/50/50 (explicit make weights) 1.2.0 against 1.1.0, a release alone other
-# than 1.0.0 is gated without a baseline (0/0/100). Below 50% the sample minimum is 30. See workshop Labs 3.1 and 4.1.
+# than 1.0.0 is gated without a baseline (0/0/100). Below 50% the sample minimum is 30. See workshop Labs 3 and 4.
 CHECK_KINDS = ("load", "verify", "canary-check")
 
 

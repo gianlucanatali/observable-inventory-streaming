@@ -23,7 +23,7 @@ describe('describeStock', () => {
     expect(v.warning).toBe(false);
     expect(v.stores.map((s) => s.text).join(' · ')).toBe('Milano 2 · Torino 1 · Bologna 3 · Roma 1 · Firenze 2');
   });
-  it('counts only live stores and shows a quiet store as last seen (Lab 2.1)', () => {
+  it('counts only live stores and shows a quiet store as last seen (Lab 2)', () => {
     const lab2 = stores.map((s) => (s.store_id === 'S03' ? { ...s, feed: 'stale', live: false } : { ...s, live: true }));
     const v = describeStock({ ...base, sellable: 9, confirmed_min: 6, at_least: true, feed: 'stale', stores: lab2 });
     expect(v.tone).toBe('available');

@@ -26,7 +26,9 @@ def test_cart_at_risk_path_uses_uncommitted_flink_output_within_budget():
     # statement must see the sellable update before that commit; both app consumers
     # deliberately accept duplicate correct records and deduplicate by risk/offer id.
     assert "'kafka.consumer.isolation-level' = 'read-uncommitted'" in sellable_sql
-    assert "JOIN `stock.sellable` /*+ OPTIONS('kafka.consumer.isolation-level' = 'read-uncommitted') */ AS s" in (ROOT / "flink" / "cart_at_risk.sql").read_text()
+    # The offers query no longer reads stock.sellable back from Kafka: it computes the aggregation in-job
+    # (test_offers_statement_set.py), so there is no Flink-to-Flink read-committed hop on the offers path.
+    assert "JOIN sellable AS s" in (ROOT / "flink" / "cart_at_risk.sql").read_text()
     sellable_statements = [part for part in sellable_sql.split(";") if any(
         not line.strip().startswith("--") and line.strip() for line in part.splitlines()
     )]

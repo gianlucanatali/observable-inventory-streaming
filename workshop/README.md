@@ -44,11 +44,11 @@ You choose one of two ways. Both build the same stack. The difference is when th
 | Chapter | Labs | Layers needed | What the layers add |
 |---|---|---|---|
 | 1. One honest number | [1.1](#lab-11-one-product-five-stores-one-online-number), [1.2](#lab-12-optional-look-inside-confluent) (optional) | `core` | The five stores, Debezium, Confluent Cloud, Flink, Redis, the stock API and the Online shop, with Datadog on top. |
-| 2. Unknown is not zero | [2.1](#lab-21-unknown-is-not-zero) | `core` | Nothing new. |
-| 3. The incident | [3.1](#lab-31-the-incident) | `core,releases` | Releases 1.1.0 (slow) and 1.2.0 (fix), the traffic split and the p95-by-version monitor |
-| 4. Canary the fix | [4.1](#lab-41-canary-the-fix) | `core,releases` | Nothing new: `releases` is already on from Chapter 3. |
+| 2. Unknown is not zero | [2.1](#lab-2-unknown-is-not-zero) | `core` | Nothing new. |
+| 3. The incident | [3.1](#lab-3-the-incident) | `core,releases` | Releases 1.1.0 (slow) and 1.2.0 (fix), the traffic split and the p95-by-version monitor |
+| 4. Canary the fix | [4.1](#lab-4-canary-the-fix) | `core,releases` | Nothing new: `releases` is already on from Chapter 3. |
 | 5. The AI offer | [5.1](#lab-51-offers-with-a-safe-default), [5.2](#lab-52-restock-that-learns) (optional) | `offers` for 5.1, `restock` for 5.2, each turned on by its Lab | `offers`: offers for carts. `restock`: automatic reordering |
-| 6. Datadog on top | [6.1](#lab-61-datadog-on-top-of-the-solution) | `dd-streams`, `dd-synthetics`, `dd-rum` (keep only the ones you want) | Datadog integrations and tests |
+| 6. Datadog on top | [6.1](#lab-6-datadog-on-top-of-the-solution) | `dd-streams`, `dd-synthetics`, `dd-rum` (keep only the ones you want) | Datadog integrations and tests |
 
 A stack with every layer is `layers: core,releases,restock,offers,dd-streams,dd-synthetics,dd-rum`. What each group of layers bills:
 
@@ -91,7 +91,7 @@ This is the full architecture. You do not need to understand it now: each Chapte
 ## Contents
 
 - **0. Getting started:** [Which layers each Chapter needs](#which-layers-each-chapter-needs), [The whole picture, for later](#the-whole-picture-for-later), [Why change events](#why-change-events), [The architecture at a glance](#the-architecture-at-a-glance), [0.1 Prerequisites](#01-prerequisites), including [0.1.4 Get the code](#014-get-the-code), and [0.2 Build the stack](#02-build-the-stack)
-- **Labs**, one Chapter each: Chapter 1 [Lab 1.1](#lab-11-one-product-five-stores-one-online-number) and [Lab 1.2](#lab-12-optional-look-inside-confluent) (optional); Chapter 2 [Lab 2.1](#lab-21-unknown-is-not-zero); Chapter 3 [Lab 3.1](#lab-31-the-incident); Chapter 4 [Lab 4.1](#lab-41-canary-the-fix); Chapter 5 [Lab 5.1](#lab-51-offers-with-a-safe-default) and [Lab 5.2](#lab-52-restock-that-learns) (optional); Chapter 6 [Lab 6.1](#lab-61-datadog-on-top-of-the-solution). See [Labs](#labs)
+- **Labs**, one Chapter each: Chapter 1 [Lab 1.1](#lab-11-one-product-five-stores-one-online-number) and [Lab 1.2](#lab-12-optional-look-inside-confluent) (optional); Chapter 2 [Lab 2](#lab-2-unknown-is-not-zero); Chapter 3 [Lab 3](#lab-3-the-incident); Chapter 4 [Lab 4](#lab-4-canary-the-fix); Chapter 5 [Lab 5.1](#lab-51-offers-with-a-safe-default) and [Lab 5.2](#lab-52-restock-that-learns) (optional); Chapter 6 [Lab 6](#lab-6-datadog-on-top-of-the-solution). See [Labs](#labs)
 - [Troubleshooting](#troubleshooting)
 - [Teardown](#teardown)
 - [Recap and further reading](#recap-and-further-reading)
@@ -207,11 +207,11 @@ A *stack* is one complete deployment, separate from any other. This guide uses a
 
 | Layer | Adds | Lab |
 |---|---|---|
-| `core` | Sources, Debezium, Kafka, Flink sum, Redis, lookup service, Online shop | [1.1](#lab-11-one-product-five-stores-one-online-number), [2.1](#lab-21-unknown-is-not-zero) |
-| `releases` | Lookup releases 1.1.0 (slow) and 1.2.0 (fix), a traffic split | [3.1](#lab-31-the-incident), [4.1](#lab-41-canary-the-fix) |
+| `core` | Sources, Debezium, Kafka, Flink sum, Redis, lookup service, Online shop | [1.1](#lab-11-one-product-five-stores-one-online-number), [2.1](#lab-2-unknown-is-not-zero) |
+| `releases` | Lookup releases 1.1.0 (slow) and 1.2.0 (fix), a traffic split | [3.1](#lab-3-the-incident), [4.1](#lab-4-canary-the-fix) |
 | `restock` | Demand-driven restocking with a procurement database | [5.2](#lab-52-restock-that-learns) |
 | `offers` | Offers for carts whose product just sold out, with an optional AI choice | [5.1](#lab-51-offers-with-a-safe-default) |
-| `dd-streams`, `dd-synthetics`, `dd-rum` | Confluent integration, Synthetics tests, Real User Monitoring | [6.1](#lab-61-datadog-on-top-of-the-solution) |
+| `dd-streams`, `dd-synthetics`, `dd-rum` | Confluent integration, Synthetics tests, Real User Monitoring | [6.1](#lab-6-datadog-on-top-of-the-solution) |
 
 </details>
 
@@ -669,9 +669,9 @@ It is a secret: do not paste it into a chat, a screenshot or a recording.
 | **Demo reset** (**Full demo reset**) | Every lab, to start from a clean state |
 | **Actions** (**Sell out product**) | Labs 1.1, 5.1 and 5.2 |
 | **Store feed** | Labs 1.1 and 2.1 |
-| **Release routing** | Labs 3.1 and 4.1 |
+| **Release routing** | Labs 3 and 4 |
 | **Checks** (**Run load**, **Verify**, **Check canary**) | Start from a clean state, Labs 1.1 to 4.1 |
-| **Background sales** (**Sales on**) | Lab 6.1 |
+| **Background sales** (**Sales on**) | Lab 6 |
 
 [Reference H](#h-the-control-panel-button-by-button) describes every button, for when you want the details.
 
@@ -707,7 +707,7 @@ The examples here come from a run with every layer on. Open the [stock dashboard
 
 ![Stack-status and links output](img/build-02-status-and-links.png)
 
-**Optional: see what the build created in AWS.** Open the [ECS cluster](#2-open-the-control-panel "stack-link:ecs") in the AWS console in `eu-west-1` (Ireland). It lists the running services. With every layer on, that includes the three `inventory-api` releases side by side; with core only, the 1.1.0 and 1.2.0 services exist but run no tasks until Lab 3.1 turns on the `releases` layer. On the load balancer, the listener rule for `/api/availability/*` sends traffic to three <abbr title="The set of containers that receives one release's share of the traffic.">target groups</abbr>, one per release, and the weight on each group sets its share. ElastiCache runs the Redis serving view.
+**Optional: see what the build created in AWS.** Open the [ECS cluster](#2-open-the-control-panel "stack-link:ecs") in the AWS console in `eu-west-1` (Ireland). It lists the running services. With every layer on, that includes the three `inventory-api` releases side by side; with core only, the 1.1.0 and 1.2.0 services exist but run no tasks until Lab 3 turns on the `releases` layer. On the load balancer, the listener rule for `/api/availability/*` sends traffic to three <abbr title="The set of containers that receives one release's share of the traffic.">target groups</abbr>, one per release, and the weight on each group sets its share. ElastiCache runs the Redis serving view.
 
 ![ECS cluster services list](img/build-07-aws-ecs-services.png)
 
@@ -799,14 +799,14 @@ The last line is `verify`: every store matches Redis. If you run `verify` before
 |---|---|---|
 | [1.1](#lab-11-one-product-five-stores-one-online-number) | A product sells out in all five stores | The online number follows within seconds, without querying any store |
 | [1.2](#lab-12-optional-look-inside-confluent) (optional) | The same sale, seen from inside | The change event in Confluent Cloud, and its path in Stream Lineage |
-| [2.1](#lab-21-unknown-is-not-zero) | One store stops reporting | The shop shows "at least" instead of a wrong number, and Datadog names the store |
-| [3.1](#lab-31-the-incident) | A new release is slow | The canary check stops it at 10% of traffic; APM shows why |
-| [4.1](#lab-41-canary-the-fix) | The fix goes out | The same check lets it through, step by step, with a way back |
+| [2.1](#lab-2-unknown-is-not-zero) | One store stops reporting | The shop shows "at least" instead of a wrong number, and Datadog names the store |
+| [3.1](#lab-3-the-incident) | A new release is slow | The canary check stops it at 10% of traffic; APM shows why |
+| [4.1](#lab-4-canary-the-fix) | The fix goes out | The same check lets it through, step by step, with a way back |
 | [5.1](#lab-51-offers-with-a-safe-default) (optional layer) | A shopper's product sells out in their cart | An offer, chosen by AI only when it is confident enough |
 | [5.2](#lab-52-restock-that-learns) (optional layer) | A product runs out | The system orders more and the stock comes back |
-| [6.1](#lab-61-datadog-on-top-of-the-solution) | Nothing breaks | Datadog's view of the whole platform: integrations, tests, monitors, cost |
+| [6.1](#lab-6-datadog-on-top-of-the-solution) | Nothing breaks | Datadog's view of the whole platform: integrations, tests, monitors, cost |
 
-Every lab follows the same pattern: start from a clean state with **Full demo reset** (or `make reset`; Lab 1.2 and Lab 4.1 continue from the lab before, and Lab 6.1 turns background sales on instead), do one thing to the shop, look at the result in the shop and in Datadog, then tick the checkpoint.
+Every lab follows the same pattern: start from a clean state with **Full demo reset** (or `make reset`; Lab 1.2 and Lab 4 continue from the lab before, and Lab 6 turns background sales on instead), do one thing to the shop, look at the result in the shop and in Datadog, then tick the checkpoint.
 
 <details><summary>Before each lab: the stack name, and where to get help</summary>
 
@@ -1107,7 +1107,7 @@ Kafka Connect and Flink do not run a Datadog tracer, so they appear only through
 - [ ] The connectors are running. **Control panel:** the **Store feed** card shows all five stores `RUNNING` · **Terminal:** `make status` shows every connector `RUNNING` ([step 4](#4-check-the-connectors)).
 - [ ] The Freshness group shows five probe-age series ([step 5](#5-check-freshness-in-datadog)).
 
-The one number in the Online shop comes from five separate databases through one change stream, and Datadog measures how fresh it is. **Next:** [Lab 1.2](#lab-12-optional-look-inside-confluent) (optional) or [Lab 2.1](#lab-21-unknown-is-not-zero).
+The one number in the Online shop comes from five separate databases through one change stream, and Datadog measures how fresh it is. **Next:** [Lab 1.2](#lab-12-optional-look-inside-confluent) (optional) or [Lab 2](#lab-2-unknown-is-not-zero).
 
 ### Lab 1.2 (optional): Look inside Confluent
 
@@ -1164,9 +1164,9 @@ Self-managed connectors appear as clients, not as connector boxes.
 - [ ] You found the `S05` / `P0042` sale record with quantity 0 (`op: "u"`, `change_reason: "sale"`) in Confluent Cloud ([step 1](#1-see-the-change-event-in-confluent-cloud)).
 - [ ] You found the path `inventory.cdc` > `stock-projector` > `stock.sellable` > Redis sink in Stream Lineage ([step 2](#2-follow-the-path-in-stream-lineage)).
 
-You open the consoles only when you want to look. Datadog measures the same path all the time. **Next:** [Lab 2.1](#lab-21-unknown-is-not-zero).
+You open the consoles only when you want to look. Datadog measures the same path all the time. **Next:** [Lab 2](#lab-2-unknown-is-not-zero).
 
-### Lab 2.1: Unknown is not zero
+### Lab 2: Unknown is not zero
 
 *About 10 minutes.* Sometimes one store stops sending changes, for example because its connector stops. If the Online shop then shows zero, it turns shoppers away from stock that exists. If it keeps showing the last number, it can sell stock that is already gone. You stop one store's change stream and see that the Online shop shows only the stock it can confirm, and Datadog tells you which store stopped.
 
@@ -1337,13 +1337,13 @@ Debezium continues from where it stopped, because Connect keeps its position in 
 - [ ] While S03 was paused, the page showed "At least 6 available online" and "Bologna 3 (last seen, not live)" ([step 3](#3-watch-the-page)).
 - [ ] All five `stock.feed.state` series are back at 1 ([step 5](#5-find-the-store-in-datadog)).
 
-The probe decides which stores are live. The Online shop counts only those, shows a quiet store's last seen value without counting it, and the same probe tells operations which feed stopped. **Next:** [Lab 3.1](#lab-31-the-incident), a problem that has nothing to do with the stream.
+The probe decides which stores are live. The Online shop counts only those, shows a quiet store's last seen value without counting it, and the same probe tells operations which feed stopped. **Next:** [Lab 3](#lab-3-the-incident), a problem that has nothing to do with the stream.
 
-### Lab 3.1: The incident
+### Lab 3: The incident
 
 *About 20 minutes.* A new release of the stock lookup service makes every stock request slow. The team ships it as a <abbr title="A new release that gets a small share of traffic next to the current one, so you can compare the two before going further.">canary</abbr> with 10% of the traffic. You run the canary check, it fails, and you roll back before the other 90% of lookups are affected. Then you use Datadog on the canary's traffic to show that the cause is in the release code, not in the stream.
 
-**Needs:** one more layer, `releases`. Lab 3.1 starts by turning it on (skip that if you chose everything at once).
+**Needs:** one more layer, `releases`. Lab 3 starts by turning it on (skip that if you chose everything at once).
 
 ![Releases layer: the load balancer splits stock calls by weight between releases 1.0.0 healthy, 1.1.0 slow and 1.2.0 fix](img/arch-2-releases.png)
 
@@ -1713,7 +1713,7 @@ make route-baseline
 
 </div>
 
-While the load runs, every lookup goes to 1.1.0 and requests queue up. On 0.5 vCPU, 1.1.0 cannot keep up with 5 requests per second. In our run (2026-10-06) 532 of the 600 requests timed out on the client, the 15 that were answered had a p95 of about 9.4 s, the task used its whole 0.5 vCPU, and ECS replaced it after it failed its health check. This is what the 10% canary kept away from 90% of the lookups. To see it in Datadog, open the [demo home](#3-open-the-datadog-stock-dashboard "stack-link:overview-dashboard"), group "3. The incident", and use its link "The night of the incident": it opens the same dashboard on 2026-10-06 18:10-18:30 UTC, our run, where ECS CPU of 1.1.0 stays at 100% for about four minutes, the target turns unhealthy and the Amazon ECS events show the task being replaced. That fixed window has data only on the stack `hybrid`; for your own run, set the time picker to the minutes of your load. ECS starts a new 1.1.0 task by itself; Lab 4.1 does not need it. This run also gives you the CPU comparison under the same load that you use at the end of [Lab 4.1](#5-prove-it-latency-cpu-and-cost).
+While the load runs, every lookup goes to 1.1.0 and requests queue up. On 0.5 vCPU, 1.1.0 cannot keep up with 5 requests per second. In our run (2026-10-06) 532 of the 600 requests timed out on the client, the 15 that were answered had a p95 of about 9.4 s, the task used its whole 0.5 vCPU, and ECS replaced it after it failed its health check. This is what the 10% canary kept away from 90% of the lookups. To see it in Datadog, open the [demo home](#3-open-the-datadog-stock-dashboard "stack-link:overview-dashboard"), group "3. The incident", and use its link "The night of the incident": it opens the same dashboard on 2026-10-06 18:10-18:30 UTC, our run, where ECS CPU of 1.1.0 stays at 100% for about four minutes, the target turns unhealthy and the Amazon ECS events show the task being replaced. That fixed window has data only on the stack `hybrid`; for your own run, set the time picker to the minutes of your load. ECS starts a new 1.1.0 task by itself; Lab 4 does not need it. This run also gives you the CPU comparison under the same load that you use at the end of [Lab 4](#5-prove-it-latency-cpu-and-cost).
 
 </details>
 
@@ -1724,11 +1724,11 @@ While the load runs, every lookup goes to 1.1.0 and requests queue up. On 0.5 vC
 - [ ] APM shows a much higher p95 for 1.1.0 than for 1.0.0, and a 1.1.0 trace shows `catalogue.prepare` ([steps 6 and 7](#6-compare-releases-in-apm)).
 - [ ] The Freshness group shows no change ([step 8](#8-rule-out-the-stream)).
 
-The failed gate stopped the slow release at 10%, and the rollback removed it. The version tags changed "the canary is slow" into "release 1.1.0 prepares a catalogue in every request". Do not reset: Lab 4.1 starts from 100 / 0 / 0. **Next:** [Lab 4.1](#lab-41-canary-the-fix).
+The failed gate stopped the slow release at 10%, and the rollback removed it. The version tags changed "the canary is slow" into "release 1.1.0 prepares a catalogue in every request". Do not reset: Lab 4 starts from 100 / 0 / 0. **Next:** [Lab 4](#lab-4-canary-the-fix).
 
-### Lab 4.1: Canary the fix
+### Lab 4: Canary the fix
 
-*About 25 minutes.* Release 1.2.0 fixes the slowdown from Lab 3.1: it prepares the product catalogue once, when the service starts. A fix is still a change, and if it is wrong, sending everyone to it at once gives everyone the problem. So you ship 1.2.0 the way you shipped 1.1.0: 10% of traffic next to 1.0.0, then wider steps. Before each step you run the <abbr title="canary-check, or Check canary in the panel: a pass or fail check of samples, errors, p95 and correctness. You run it yourself.">gate</abbr> and go on only if it passes. You also practise the way back. This time the gates pass.
+*About 25 minutes.* Release 1.2.0 fixes the slowdown from Lab 3: it prepares the product catalogue once, when the service starts. A fix is still a change, and if it is wrong, sending everyone to it at once gives everyone the problem. So you ship 1.2.0 the way you shipped 1.1.0: 10% of traffic next to 1.0.0, then wider steps. Before each step you run the <abbr title="canary-check, or Check canary in the panel: a pass or fail check of samples, errors, p95 and correctness. You run it yourself.">gate</abbr> and go on only if it passes. You also practise the way back. This time the gates pass.
 
 **Needs:** `releases`, already on from Chapter 3.
 
@@ -1752,7 +1752,7 @@ flowchart TB
   btn -.->|"set weights"| alb
 ```
 
-Every step uses the same loop as Lab 3.1: set the weight, read it back, generate load, verify the data, then run the gate.
+Every step uses the same loop as Lab 3: set the weight, read it back, generate load, verify the data, then run the gate.
 
 <details><summary>The three steps at a glance</summary>
 
@@ -1827,7 +1827,7 @@ make verify
 make canary-check CHECK_ARGS="--release-a 1.0.0 --release-b 1.2.0 --min-samples 30 --verify-file /out/verify.json"
 ```
 
-This is the same gate as in Lab 3.1, with 1.2.0 as the canary. You should see:
+This is the same gate as in Lab 3, with 1.2.0 as the canary. You should see:
 
 ```text
 PASS min_samples_a: release 1.0.0: <n> samples, need >= 30
@@ -1851,7 +1851,7 @@ If a gate fails, its `FAIL` line names it: stop and roll back.
 
 **With the control panel**
 
-**Which gate the card picks.** The card picks the gate for this step from the live routing, `CHECK_ARGS="--release-a 1.0.0 --release-b 1.2.0 --min-samples 30 --verify-file /out/verify.json"`, the same gate as in Lab 3.1 with 1.2.0 as the canary.
+**Which gate the card picks.** The card picks the gate for this step from the live routing, `CHECK_ARGS="--release-a 1.0.0 --release-b 1.2.0 --min-samples 30 --verify-file /out/verify.json"`, the same gate as in Lab 3 with 1.2.0 as the canary.
 
 </div>
 
@@ -1875,7 +1875,7 @@ Open the [`inventory-api` service page](#3-open-the-datadog-stock-dashboard "sta
 
 <details><summary>Why the filter and the time range</summary>
 
-After a canary ends, the only traffic left on that version is the load balancer's health checks (`get_/readyz`, about 6 per minute per version). A long or late window without the filter averages them in, so 1.1.0 shows a p95 of about 2 ms, or the window holds no lookups at all. The Deployments section lists three versions: 1.0.0, 1.1.0 (from the Lab 3.1 canary) and 1.2.0.
+After a canary ends, the only traffic left on that version is the load balancer's health checks (`get_/readyz`, about 6 per minute per version). A long or late window without the filter averages them in, so 1.1.0 shows a p95 of about 2 ms, or the window holds no lookups at all. The Deployments section lists three versions: 1.0.0, 1.1.0 (from the Lab 3 canary) and 1.2.0.
 
 </details>
 
@@ -1998,11 +1998,11 @@ You should see `PASS` for `min_samples_b`, `error_rate_b`, `p95_b` and `correctn
 
 You have now run the same load (120 s at 5 requests per second) with 1.2.0 taking all traffic. Compare it with 1.1.0 in [Datadog APM](#2-compare-the-versions-in-apm "stack-link:apm"):
 
-1. Latency: use the Metrics Explorer query from [Lab 3.1](#6-compare-releases-in-apm) and compare the versions. 1.2.0 should be much lower than 1.1.0.
+1. Latency: use the Metrics Explorer query from [Lab 3](#6-compare-releases-in-apm) and compare the versions. 1.2.0 should be much lower than 1.1.0.
 
 <details><summary>CPU and cost, with the query and our numbers</summary>
 
-In our run the load script measured a client-side p95 of about 8 ms for 1.2.0 with all traffic (575 requests, no errors), and APM showed about 3 ms. 1.1.0 with all traffic timed out, as in Lab 3.1 step 9.
+In our run the load script measured a client-side p95 of about 8 ms for 1.2.0 with all traffic (575 requests, no errors), and APM showed about 3 ms. 1.1.0 with all traffic timed out, as in Lab 3 step 9.
 
 2. CPU: open Metrics > Explorer and paste the query below. It is the query of the **Fargate CPU usage by service/version** widget on the stock dashboard (group *ElastiCache and VM host*, tags `service` and `version`). The stack in angle brackets is your stack name; a connected guide fills it in:
 
@@ -2010,7 +2010,7 @@ In our run the load script measured a client-side p95 of about 8 ms for 1.2.0 wi
    sum:ecs.fargate.cpu.usage{project:dd-demo,stack:<stack>} by {service,version}
    ```
 
-   The values are in nanocores (1 vCPU = 10⁹ nanocores), averaged over the whole task, including the Agent sidecar container. To compare fairly, each version must get the same load. The optional all-traffic step at the end of [Lab 3.1](#lab-31-the-incident) gives you that. In our run, with 5 requests per second sent to each release in turn, 1.1.0 used its whole 0.5 vCPU until ECS replaced it, and 1.2.0 used about 0.02 vCPU (AWS Container Insights, `CpuUtilized`, 2026-10-06). That is at least 20 times less CPU for the same traffic; the real gap is larger, because 1.1.0 hit its limit.
+   The values are in nanocores (1 vCPU = 10⁹ nanocores), averaged over the whole task, including the Agent sidecar container. To compare fairly, each version must get the same load. The optional all-traffic step at the end of [Lab 3](#lab-3-the-incident) gives you that. In our run, with 5 requests per second sent to each release in turn, 1.1.0 used its whole 0.5 vCPU until ECS replaced it, and 1.2.0 used about 0.02 vCPU (AWS Container Insights, `CpuUtilized`, 2026-10-06). That is at least 20 times less CPU for the same traffic; the real gap is larger, because 1.1.0 hit its limit.
 3. Cost: all three releases run on the same task size (0.5 vCPU / 1 GB in `service_sizing`, `terraform/aws/variables.tf`), so each task costs the same per hour on Fargate. The saving comes from capacity: the fix uses much less CPU per request, so the same tasks can serve more traffic before you need more tasks. We did not measure at what traffic level either release needs more tasks.
 
 </details>
@@ -2115,7 +2115,7 @@ You should see, a few seconds after the last store sells out, a card that reads 
 
 <details><summary>What just happened</summary>
 
-Flink joined your cart (topic `carts.events`) with the `stock.sellable` value of 0 and emitted a cart at risk for this cart item. `offer-worker` found two eligible alternatives in EU 42, the Brenta Storm (an approach shoe) and the Pathfinder Air (a hiking shoe for dry paths, not waterproof), and asked Jev whether either is a good substitute for the Trailrunner GTX, a waterproof trail running shoe. Jev answered `none`: neither is a close match. When the AI says none, no alternative is offered, even if its confidence is below the threshold; the card shows the confidence it had, and the decision is still the AI's. The worker checked the stock again and published the offer to the `offers` topic, where the Online shop reads it. If the restock layer is on, the card also shows "Back in about N hours" with **Notify me**: the restock date is a fact, not part of the AI's question ([Lab 5.2](#lab-52-restock-that-learns)). Unlike the Pathfinder Lite in step 4, this product does have eligible alternatives, so the AI was asked. The AI is not deterministic, so over many runs its answer for this shoe could differ, but today it says none.
+Flink joined your cart (topic `carts.events`) with the sellable stock of 0 (the same value it publishes to `stock.sellable`) and emitted a cart at risk for this cart item. `offer-worker` found two eligible alternatives in EU 42, the Brenta Storm (an approach shoe) and the Pathfinder Air (a hiking shoe for dry paths, not waterproof), and asked Jev whether either is a good substitute for the Trailrunner GTX, a waterproof trail running shoe. Jev answered `none`: neither is a close match. When the AI says none, no alternative is offered, even if its confidence is below the threshold; the card shows the confidence it had, and the decision is still the AI's. The worker checked the stock again and published the offer to the `offers` topic, where the Online shop reads it. If the restock layer is on, the card also shows "Back in about N hours" with **Notify me**: the restock date is a fact, not part of the AI's question ([Lab 5.2](#lab-52-restock-that-learns)). Unlike the Pathfinder Lite in step 4, this product does have eligible alternatives, so the AI was asked. The AI is not deterministic, so over many runs its answer for this shoe could differ, but today it says none.
 
 Earlier wording of this step: "an offer card with 'Decided by: AI'. Either the AI chose an alternative, for example 'Decided by: AI — chose Pathfinder Air (confidence 0.90, threshold 0.8)', or it judged that none is a good substitute and the card reads 'Sold out everywhere. We found similar items, but none is a good match for this one.' with 'Decided by: AI — no good substitute'. Both are correct, and the confidence changes a little from run to run." The first outcome came from an earlier question, which asked Jev to choose the best of two alternatives; it now also allows the answer "none". Alone, the safe rule would have picked the Brenta Storm, the closest in price.
 
@@ -2243,7 +2243,7 @@ make reset
 - [ ] An `offer.jev.call` span showed the options in its input and the choice and confidence in its output ([step 6](#6-read-a-jev-call-in-llm-observability)).
 - [ ] With the kill switch on, the safe rule decided every offer ([step 7](#7-use-the-kill-switch)).
 
-The shop does not depend on the AI. Fixed rules decide what may be offered, the safe rule always gives an answer, the AI is asked only when there is a real choice, and the trace shows why each offer was made. An offer is only an offer: nothing in this lab proves that it saved a sale. **Next:** [Lab 5.2](#lab-52-restock-that-learns) (optional) or [Lab 6.1](#lab-61-datadog-on-top-of-the-solution).
+The shop does not depend on the AI. Fixed rules decide what may be offered, the safe rule always gives an answer, the AI is asked only when there is a real choice, and the trace shows why each offer was made. An offer is only an offer: nothing in this lab proves that it saved a sale. **Next:** [Lab 5.2](#lab-52-restock-that-learns) (optional) or [Lab 6](#lab-6-datadog-on-top-of-the-solution).
 
 <!-- box: also-lab-5-2
 Also in this chapter: Lab 5.2, restock that learns (optional)
@@ -2426,7 +2426,7 @@ On the [stock dashboard](#3-open-the-datadog-stock-dashboard "stack-link:stock-d
 
 If you saved the lead-time change in the panel, it shows as an event marker on `restock.orders.open` and as a `demo config: lead_time_s = 7200` entry in the **Demo panel: config changes and actions** list. That list also shows each panel action, such as a sell-out or a reset, as `demo action: <name> started`, then `succeeded` or `failed`. These events have the tags `project:dd-demo`, `stack:hybrid` and `demo_event:config` or `demo_event:action`, so you can also find them in the Events Explorer.
 
-Optional: in the Confluent Cloud console, open the environment's Flink section. It lists the <abbr title="SQL queries that run continuously on the stream.">Flink statements</abbr> `dd-demo-hybrid-*`. The `-0` statements create the output tables. The `-1` statements are the long-running inserts (`sellable-1`, `demand-1`, `procurement-1`, `restock-1`, `offers-1`).
+Optional: in the Confluent Cloud console, open the environment's Flink section. It lists the <abbr title="SQL queries that run continuously on the stream.">Flink statements</abbr> `dd-demo-hybrid-*`. The `-0` statements create the output tables. The `-1` statements are the long-running inserts (`sellable-1`, `demand-1`, `procurement-1`, `restock-1`). With the offers layer on, `offers-set` replaces `sellable-1`: one statement set that writes both `stock.sellable` and `carts.at-risk`.
 
 </details>
 
@@ -2435,9 +2435,9 @@ Optional: in the Confluent Cloud console, open the environment's Flink section. 
 - [ ] The page shows P0042 available again ([step 5](#5-watch-the-delivery)).
 - [ ] Verify passes. **Control panel:** **Verify** on the **Checks** card shows `VERIFY PASSED` · **Terminal:** `make verify` prints zero mismatches ([how in Lab 1.1](#hop-1-the-store-table)).
 
-The stream triggered the reorder directly, with no batch job, and you could change its parameters from the panel while it ran. The restock numbers come from a simulation. They are not a forecast. **Next:** [Lab 6.1](#lab-61-datadog-on-top-of-the-solution).
+The stream triggered the reorder directly, with no batch job, and you could change its parameters from the panel while it ran. The restock numbers come from a simulation. They are not a forecast. **Next:** [Lab 6](#lab-6-datadog-on-top-of-the-solution).
 
-### Lab 6.1: Datadog on top of the solution
+### Lab 6: Datadog on top of the solution
 
 *About 20 minutes.* In the earlier labs you looked at one incident at a time. Here you use Datadog to watch the whole platform: the VM, Confluent Cloud and AWS. You look at the integrations, at tests that call the shop from outside, at monitors and at cost.
 
@@ -2557,7 +2557,7 @@ You should see the six core connectors, plus `restock-procurement` and `procurem
 
 #### 2. AWS-native online dashboard
 
-Open the [AWS-native online dashboard](#3-open-the-datadog-stock-dashboard "stack-link:online-dashboard"). It shows Fargate CPU and memory by service and version, ElastiCache memory and CPU, and ALB unhealthy targets, next to `inventory-api` lookup p95 by version. If you ran Lab 3.1, you can see the CPU peak of release 1.1.0.
+Open the [AWS-native online dashboard](#3-open-the-datadog-stock-dashboard "stack-link:online-dashboard"). It shows Fargate CPU and memory by service and version, ElastiCache memory and CPU, and ALB unhealthy targets, next to `inventory-api` lookup p95 by version. If you ran Lab 3, you can see the CPU peak of release 1.1.0.
 
 ![AWS-native online dashboard](img/lab7-01-aws-online-dashboard.png)
 
@@ -2623,7 +2623,7 @@ Open the [`account-cost dashboard:` link](#3-open-the-datadog-stock-dashboard "s
 
 **Where the numbers come from, and when the billed cost arrives.** The `cost-meter` service estimates the hourly cost of the AWS pieces from list prices and reads Confluent usage. The billed AWS cost arrives later: AWS writes it to the <abbr title="AWS's detailed billing export, delivered to an S3 bucket.">Cost and Usage Report</abbr>, and Datadog Cloud Cost Management reads it from there, typically 48 to 72 hours after the first complete report.
 
-**Why the fix does not change the price of a task.** Fargate bills each task by its vCPU and memory size, so the cost estimate follows the task size set in `service_sizing` (`terraform/aws/variables.tf`). All three releases use the same size (0.5 vCPU / 1 GB). The fix therefore does not change the hourly price of a task. It changes how much traffic one task can handle (see the CPU comparison in [Lab 4.1](#5-prove-it-latency-cpu-and-cost)).
+**Why the fix does not change the price of a task.** Fargate bills each task by its vCPU and memory size, so the cost estimate follows the task size set in `service_sizing` (`terraform/aws/variables.tf`). All three releases use the same size (0.5 vCPU / 1 GB). The fix therefore does not change the hourly price of a task. It changes how much traffic one task can handle (see the CPU comparison in [Lab 4](#5-prove-it-latency-cpu-and-cost)).
 
 </details>
 
@@ -2703,7 +2703,7 @@ When `./demo` stops on a failed step, it ends with one red block (plain text whe
 | `failed: Action failed: S01/P9999 not found in its source ...` | The product does not exist in a store's Source | Use a product between `P0001` and `P0200` |
 | `failed: Action failed: source verification failed for S0n/P0042: ...` | A store's Source did not end with a live position of zero | Check `status` and `verify`, then retry. If in doubt, use `make reset` |
 | **Reset demo data** does not start: `Background sales are on (<rate>/min per store): press Sales off first, or use Full demo reset` | Background sales are on. **Reset demo data** does not stop them, and while sales keep changing the stock the reset can never match the baseline, so the panel refuses to run it | Press **Full demo reset** on the **Demo reset** card (sales off, routing 100 / 0 / 0, data reset), or press **Sales off** and then **Reset demo data**, or run `make reset` |
-| `failed: Action failed: sell-out P0042 did not converge in 30s ...`, or `reset did not converge` with sales already off | The Sources changed, but Redis did not match them in time because a connector or the projector is stopped, for example a store you paused in Lab 2.1 | Run `make status`, resume any paused store, then retry |
+| `failed: Action failed: sell-out P0042 did not converge in 30s ...`, or `reset did not converge` with sales already off | The Sources changed, but Redis did not match them in time because a connector or the projector is stopped, for example a store you paused in Lab 2 | Run `make status`, resume any paused store, then retry |
 | `AWS rejected the weighted forward action ...` from a make routing command, with an expired-session message above it | Your AWS login expired (the make commands run on your laptop) | `aws login --profile dd-demo`, then retry |
 | A Release routing button fails with `AWS rejected the weighted forward action ...: ... AccessDenied ...` on `ModifyRule` | The control panel's task role cannot change the inventory rule. Either the stack was built before the role existed, or the rule changed | Run `./demo create` again to apply the role, then retry (duration not measured) |
 | `ALB rule reports <weights> after requesting <weights>` | The weights read back after the change did not match the request. Someone else changed the rule at the same moment, or AWS did not apply it | Press **Refresh weights**, then run `route-show`, and set the split again |
@@ -2717,15 +2717,15 @@ When `./demo` stops on a failed step, it ends with one red block (plain text whe
 | `scenario API ... unreachable` | The `scenario-api` container on the VM is down, or port 8090 is not open to the control panel | Run `make status`. Run `./demo create` again to restore the container and the security group rule |
 | **Check canary** fails with `canary-check error on the VM: ... does not exist: run load first` (or `verify first`) | The gate needs the summary of a load and the result of a verify, and one of them does not exist yet | Press **Run load** and **Verify**, then **Check canary** |
 | **Check canary** fails with `routing changed since the panel's last load (load ran at <weights>, live is <weights>): run load again before gating` | You changed the routing after the last load you ran from the panel | Press **Run load** again, then **Verify** and **Check canary** |
-| **Check canary** fails with `live routing is 100/0/0 ...` | Only the baseline 1.0.0 receives traffic, so there is no canary to check | First set a canary step on the **Release routing** card (**Canary 1.1.0 (10%)** in Lab 3.1, **Canary 1.2.0 (10%)** in Lab 4.1) |
-| `CANARY GATES FAILED: p95 1.1.0 <ms> ms > budget 200 ms; roll back` in Lab 3.1 | This is expected: the gate exists to catch this regression | Roll back ([Lab 3.1, step 5](#5-roll-back)) and continue. Never send more traffic to a canary after a failed gate |
-| The Lab 3.1 gate passes for 1.1.0 | The p95 of 1.1.0 stayed within the 200 ms budget for this load, for example because few lookups reached it | Press **Run load** and **Check canary** again. If it still passes, roll back anyway and use the APM comparison and the optional all-traffic step of Lab 3.1 |
+| **Check canary** fails with `live routing is 100/0/0 ...` | Only the baseline 1.0.0 receives traffic, so there is no canary to check | First set a canary step on the **Release routing** card (**Canary 1.1.0 (10%)** in Lab 3, **Canary 1.2.0 (10%)** in Lab 4) |
+| `CANARY GATES FAILED: p95 1.1.0 <ms> ms > budget 200 ms; roll back` in Lab 3 | This is expected: the gate exists to catch this regression | Roll back ([Lab 3, step 5](#5-roll-back)) and continue. Never send more traffic to a canary after a failed gate |
+| The Lab 3 gate passes for 1.1.0 | The p95 of 1.1.0 stayed within the 200 ms budget for this load, for example because few lookups reached it | Press **Run load** and **Check canary** again. If it still passes, roll back anyway and use the APM comparison and the optional all-traffic step of Lab 3 |
 | **Sales on** fails with `no background sale was recorded in any store for ... s: the jr-sales containers are probably stopped` | The sales containers are stopped, for example after `make sales-off` or `reset` | Run `make sales-on` to start them, then press **Sales on** |
 | **Full demo reset** is disabled, or fails with `Full demo reset needs ALB release routing (hybrid stack)` | The control panel runs without the routing settings | Use `make reset`, or use the hybrid stack |
 | No data in Datadog charts | Telemetry needs a few minutes to fill a 15-minute window | Wait 10 to 15 minutes. The freshness probe sends data even while background sales are off |
 | `route-show` shows an unexpected split | Someone changed the ALB rule | Set the split you want with `route-baseline`, `canary-110-10`, `canary-*` or `incident` |
-| `canary-check` fails on samples at 10% | The canary (1.1.0 in Lab 3.1, 1.2.0 in Lab 4.1) received too few responses. A weight does not give an exact split | Run a longer `load`, or pass `--min-samples` explicitly ([Lab 4.1](#lab-41-canary-the-fix)) |
-| `smoke` fails with a feed not ok | A store is paused (Lab 2.1) or a connector is down. Check: `status` | Run `make store-resume STORE=S0n`, then `reset` |
+| `canary-check` fails on samples at 10% | The canary (1.1.0 in Lab 3, 1.2.0 in Lab 4) received too few responses. A weight does not give an exact split | Run a longer `load`, or pass `--min-samples` explicitly ([Lab 4](#lab-4-canary-the-fix)) |
+| `smoke` fails with a feed not ok | A store is paused (Lab 2) or a connector is down. Check: `status` | Run `make store-resume STORE=S0n`, then `reset` |
 | Offers are always `disabled` although you have a Jev key | You added the key after the build | Uncomment `jev_api_key` in `demo.yaml`, set your key and run `./demo create` again (billed while it runs) |
 | No offer after the sell-out | No product was added to a cart after the last reset | Run `reset`, reload, press **Add to cart**, and sell out again |
 | AI Observability shows another application | The application picker selected another application by default | Select `urbanstreet-offers` |
@@ -2962,7 +2962,7 @@ Nothing on the shopper's path reads the Sources. Only Debezium (which reads the 
 
 **The scenario API.** `scenario-api` is another service on the VM. It runs the same scenario package as the `scenario` tool (load, verify and canary gate) inside its own process, with no shell and no Docker socket. It can therefore run only those three things, with limited parameters and one run at a time. Every path except `/healthz` needs the bearer token `SCENARIO_API_TOKEN`. `make secrets` generates the token into `.env.secrets`, and `stack-up` passes it to both the VM and the control panel. Port 8090 is published on the VM and must stay private, like 8083: never add it to `allowed_cidr`. On a stack built before this card existed, run `make secrets` once (it adds the token and does not change your passwords) and then `./demo create`.
 
-**Release sizing.** All three releases run with 0.5 vCPU and 1 GB (each including the Agent sidecar). The slow release does not get a larger task to absorb its CPU-bound regression. It is shipped like any other release and stopped when its canary gate fails (Lab 3.1). Because the sizes are equal, p95 and CPU by version compare the code, not the task size.
+**Release sizing.** All three releases run with 0.5 vCPU and 1 GB (each including the Agent sidecar). The slow release does not get a larger task to absorb its CPU-bound regression. It is shipped like any other release and stopped when its canary gate fails (Lab 3). Because the sizes are equal, p95 and CPU by version compare the code, not the task size.
 
 **Datadog wiring.** Each Fargate task runs the app, a Datadog Agent sidecar and a FireLens log router that sends JSON logs to Datadog and CloudWatch Logs. The Python services run `ddtrace` with unified service tags, log injection and DSM. On the VM, the Agent collects host and container metrics, logs, PostgreSQL checks and the `freshness-probe` freshness metrics.
 
@@ -3088,12 +3088,12 @@ The **Release routing** card moves the inventory API traffic between the three r
 
 | Button | Weights 1.0.0 / 1.1.0 / 1.2.0 (%) |
 |---|---|
-| **Canary 1.1.0 (10%)** | 90 / 10 / 0 (Lab 3.1) |
-| **Canary 1.2.0 (10%)** | 90 / 0 / 10 (Lab 4.1) |
+| **Canary 1.1.0 (10%)** | 90 / 10 / 0 (Lab 3) |
+| **Canary 1.2.0 (10%)** | 90 / 0 / 10 (Lab 4) |
 | **Canary 1.2.0 (50%)** | 50 / 0 / 50 |
 | **Canary 1.2.0 (100%)** | 0 / 0 / 100 |
 | **Baseline (all to 1.0.0)** | 100 / 0 / 0 |
-| **Incident (all to 1.1.0)** | 0 / 100 / 0 (optional step at the end of Lab 3.1) |
+| **Incident (all to 1.1.0)** | 0 / 100 / 0 (optional step at the end of Lab 3) |
 | **Rollback** | The split that was in place before the last routing change |
 | **Refresh weights** | Changes nothing. Reads the load balancer again |
 
@@ -3110,12 +3110,12 @@ The **Checks** card runs three tools on the VM through the `scenario-api` servic
 | **Check canary** | Checks the last load and verify results against the gates and ends with `CANARY GATES PASSED` or `CANARY GATES FAILED` (with the failed gates and `roll back`). It prints one `PASS` or `FAIL` line per gate, the samples per release and the p95 |
 | **Refresh** | Changes nothing. Reads the live routing and the last run again |
 
-**Check canary** picks the gate from the live routing and shows it below the buttons. At 90 / 10 / 0 (Lab 3.1) it checks 1.1.0 against 1.0.0. At 90 / 0 / 10 and 50 / 0 / 50 (Lab 4.1) it checks 1.2.0 against 1.0.0. At 0 / 0 / 100 it checks 1.2.0 alone. At 100 / 0 / 0 there is nothing to check, so it refuses. It also refuses if the routing changed since the last load you ran in the panel, because that load measured a different split. **Run load** blocks the cards for about 2 minutes.
+**Check canary** picks the gate from the live routing and shows it below the buttons. At 90 / 10 / 0 (Lab 3) it checks 1.1.0 against 1.0.0. At 90 / 0 / 10 and 50 / 0 / 50 (Lab 4) it checks 1.2.0 against 1.0.0. At 0 / 0 / 100 it checks 1.2.0 alone. At 100 / 0 / 0 there is nothing to check, so it refuses. It also refuses if the routing changed since the last load you ran in the panel, because that load measured a different split. **Run load** blocks the cards for about 2 minutes.
 
 <details>
 <summary>How the panel's gate matches the make commands</summary>
 
-The canary is the newer release that receives traffic, and the baseline is the older one. When the canary has less than 50% of the traffic, the gate lowers the minimum number of samples from 100 to 30. These are the same gates as the `canary-check CHECK_ARGS=...` commands in Labs 3.1 and 4.1.
+The canary is the newer release that receives traffic, and the baseline is the older one. When the canary has less than 50% of the traffic, the gate lowers the minimum number of samples from 100 to 30. These are the same gates as the `canary-check CHECK_ARGS=...` commands in Labs 3 and 4.
 
 </details>
 
@@ -3130,7 +3130,7 @@ The **Background sales** card controls the sales generator, so you do not need a
 
 The panel turns sales on and off by changing the rate, while the sales containers keep running.
 
-Every action also sends a Datadog event named `demo action: <name> started`, then `succeeded` or `failed` (see [Lab 6.1](#5-monitors)).
+Every action also sends a Datadog event named `demo action: <name> started`, then `succeeded` or `failed` (see [Lab 6](#5-monitors)).
 
 ![Actions card with the product field P0042, the Sell out product and Reset demo data buttons, and the status line succeeded: Source and Redis verification completed](img/build-04-control-actions.png)
 

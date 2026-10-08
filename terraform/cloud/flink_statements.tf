@@ -35,10 +35,32 @@ locals {
   ) : f => list if !contains(var.flink_deferred, f) }
 
   # key "<file>-<index>" => SQL, split in DDL (CREATE ...) and the rest
-  flink_ddl     = merge([for f, list in local.statement_files : { for i, s in list : "${f}-${i}" => s if startswith(upper(s), "CREATE") }]...)
-  flink_dml_all = merge([for f, list in local.statement_files : { for i, s in list : "${f}-${i}" => s if !startswith(upper(s), "CREATE") } if !contains(var.flink_dml_deferred, f)]...)
-  # restock joins outputs from demand/procurement. Offers reads stock.sellable, whose CREATE statement
-  # can return before the table is queryable, so it also waits for the first DML wave.
+  flink_ddl      = merge([for f, list in local.statement_files : { for i, s in list : "${f}-${i}" => s if startswith(upper(s), "CREATE") }]...)
+  flink_dml_each = merge([for f, list in local.statement_files : { for i, s in list : "${f}-${i}" => s if !startswith(upper(s), "CREATE") } if !contains(var.flink_dml_deferred, f)]...)
+
+  # Offers layer on: the INSERTs of sellable.sql and cart_at_risk.sql run as ONE statement, an
+  # EXECUTE STATEMENT SET named "<stack>-offers-set", instead of "<stack>-sellable-1" + "<stack>-offers-1".
+  # One job writes both stock.sellable (still the published topic) and carts.at-risk. cart_at_risk.sql computes
+  # the sellable aggregation in-job with the same SELECT, so the planner shares the inventory.state scan and its
+  # normalization, and the offers path loses one Kafka hop and one statement's buffering.
+  # https://docs.confluent.io/cloud/current/flink/reference/queries/statement-set.html
+  # Offers off: sellable-1 runs alone (core). Toggling the layer changes the statement keys, so Terraform creates
+  # the new statement and deletes the old ones: never an in-place update of a running statement's SQL.
+  # Both writers of stock.sellable emit the same upserts for the same key, so a short overlap is harmless.
+  offers_statement_set = contains(keys(local.flink_dml_each), "sellable-1") && contains(keys(local.flink_dml_each), "offers-1")
+  flink_dml_all = merge(
+    { for k, v in local.flink_dml_each : k => v if !(local.offers_statement_set && contains(["sellable-1", "offers-1"], k)) },
+    { for k in ["offers-set"] : k => join("\n", [
+      "EXECUTE STATEMENT SET",
+      "BEGIN",
+      "${lookup(local.flink_dml_each, "sellable-1", "")};",
+      "${lookup(local.flink_dml_each, "offers-1", "")};",
+      "END",
+    ]) if local.offers_statement_set },
+  )
+  # restock joins outputs from demand/procurement. The offers statement (offers-set, or offers-1 while sellable's
+  # DML is held back) writes carts.at-risk and, as a set, stock.sellable. It waits for the first DML wave too:
+  # stack.sh polls every created table before DML, so this ordering is only a second guard.
   flink_dml_late = { for k, v in local.flink_dml_all : k => v if startswith(k, "restock-") || startswith(k, "offers-") }
   flink_dml      = { for k, v in local.flink_dml_all : k => v if !startswith(k, "restock-") && !startswith(k, "offers-") }
 
@@ -48,7 +70,8 @@ locals {
   }
 
   # The offers path (sellable.sql: non-windowed GROUP BY, cart_at_risk.sql: regular join and keep-last
-  # deduplication) has no event-time operator, so its INSERT statements run with watermark alignment off.
+  # deduplication) has no event-time operator, so its INSERT statements (sellable-1, offers-1, offers-set) run
+  # with watermark alignment off.
   # Confluent: setting the drift to 0 "can prevent performance bottlenecks and latency for queries that don't
   # require event-time semantics, like regular joins, non-windowed aggregations, and ETL".
   # https://docs.confluent.io/cloud/current/flink/reference/statements/set.html

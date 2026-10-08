@@ -36,7 +36,7 @@
     <span class="burger" aria-hidden="true"></span><span class="sr-only">Table of contents</span>
   </button>
   <a class="brand" href="intro.html" title="Start of the workshop"><span class="brand-mark" aria-hidden="true"></span><span>Observable inventory streaming</span></a>
-  <div class="search" role="search" data-index="assets/search-index.json?v=0090fde4d4">
+  <div class="search" role="search" data-index="assets/search-index.json?v=9386d615e4">
     <button type="button" class="search-toggle" aria-label="Search the guide" aria-expanded="false" aria-controls="search-input" title="Search (press /)"><span class="search-icon" aria-hidden="true"></span></button>
     <div class="search-box">
       <input type="search" class="search-input" id="search-input" placeholder="Search the guide" aria-label="Search the guide" autocomplete="off" autocapitalize="off" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="search-results" aria-autocomplete="list">
@@ -133,19 +133,19 @@
 </tr>
 <tr>
 <td>2. Unknown is not zero</td>
-<td><a href="chapter-2.html#lab-21-unknown-is-not-zero">2.1</a></td>
+<td><a href="chapter-2.html#lab-2-unknown-is-not-zero">2.1</a></td>
 <td><code>core</code></td>
 <td>Nothing new.</td>
 </tr>
 <tr>
 <td>3. The incident</td>
-<td><a href="chapter-3.html#lab-31-the-incident">3.1</a></td>
+<td><a href="chapter-3.html#lab-3-the-incident">3.1</a></td>
 <td><code>core,releases</code></td>
 <td>Releases 1.1.0 (slow) and 1.2.0 (fix), the traffic split and the p95-by-version monitor</td>
 </tr>
 <tr>
 <td>4. Canary the fix</td>
-<td><a href="chapter-4.html#lab-41-canary-the-fix">4.1</a></td>
+<td><a href="chapter-4.html#lab-4-canary-the-fix">4.1</a></td>
 <td><code>core,releases</code></td>
 <td>Nothing new: <code>releases</code> is already on from Chapter 3.</td>
 </tr>
@@ -157,7 +157,7 @@
 </tr>
 <tr>
 <td>6. Datadog on top</td>
-<td><a href="chapter-6.html#lab-61-datadog-on-top-of-the-solution">6.1</a></td>
+<td><a href="chapter-6.html#lab-6-datadog-on-top-of-the-solution">6.1</a></td>
 <td><code>dd-streams</code>, <code>dd-synthetics</code>, <code>dd-rum</code> (keep only the ones you want)</td>
 <td>Datadog integrations and tests</td>
 </tr>
@@ -316,12 +316,12 @@
 <tr>
 <td><code>core</code></td>
 <td>Sources, Debezium, Kafka, Flink sum, Redis, lookup service, Online shop</td>
-<td><a href="chapter-1.html#lab-11-one-product-five-stores-one-online-number">1.1</a>, <a href="chapter-2.html#lab-21-unknown-is-not-zero">2.1</a></td>
+<td><a href="chapter-1.html#lab-11-one-product-five-stores-one-online-number">1.1</a>, <a href="chapter-2.html#lab-2-unknown-is-not-zero">2.1</a></td>
 </tr>
 <tr>
 <td><code>releases</code></td>
 <td>Lookup releases 1.1.0 (slow) and 1.2.0 (fix), a traffic split</td>
-<td><a href="chapter-3.html#lab-31-the-incident">3.1</a>, <a href="chapter-4.html#lab-41-canary-the-fix">4.1</a></td>
+<td><a href="chapter-3.html#lab-3-the-incident">3.1</a>, <a href="chapter-4.html#lab-4-canary-the-fix">4.1</a></td>
 </tr>
 <tr>
 <td><code>restock</code></td>
@@ -336,7 +336,7 @@
 <tr>
 <td><code>dd-streams</code>, <code>dd-synthetics</code>, <code>dd-rum</code></td>
 <td>Confluent integration, Synthetics tests, Real User Monitoring</td>
-<td><a href="chapter-6.html#lab-61-datadog-on-top-of-the-solution">6.1</a></td>
+<td><a href="chapter-6.html#lab-6-datadog-on-top-of-the-solution">6.1</a></td>
 </tr>
 </tbody>
 </table></div>
@@ -362,17 +362,17 @@
 <td>The change event in Confluent Cloud, and its path in Stream Lineage</td>
 </tr>
 <tr>
-<td><a href="chapter-2.html#lab-21-unknown-is-not-zero">2.1</a></td>
+<td><a href="chapter-2.html#lab-2-unknown-is-not-zero">2.1</a></td>
 <td>One store stops reporting</td>
 <td>The shop shows &quot;at least&quot; instead of a wrong number, and Datadog names the store</td>
 </tr>
 <tr>
-<td><a href="chapter-3.html#lab-31-the-incident">3.1</a></td>
+<td><a href="chapter-3.html#lab-3-the-incident">3.1</a></td>
 <td>A new release is slow</td>
 <td>The canary check stops it at 10% of traffic; APM shows why</td>
 </tr>
 <tr>
-<td><a href="chapter-4.html#lab-41-canary-the-fix">4.1</a></td>
+<td><a href="chapter-4.html#lab-4-canary-the-fix">4.1</a></td>
 <td>The fix goes out</td>
 <td>The same check lets it through, step by step, with a way back</td>
 </tr>
@@ -387,13 +387,13 @@
 <td>The system orders more and the stock comes back</td>
 </tr>
 <tr>
-<td><a href="chapter-6.html#lab-61-datadog-on-top-of-the-solution">6.1</a></td>
+<td><a href="chapter-6.html#lab-6-datadog-on-top-of-the-solution">6.1</a></td>
 <td>Nothing breaks</td>
 <td>Datadog's view of the whole platform: integrations, tests, monitors, cost</td>
 </tr>
 </tbody>
 </table></div>
-<p>Every lab follows the same pattern: start from a clean state with <strong>Full demo reset</strong> (or <code>make reset</code>; Lab 1.2 and Lab 4.1 continue from the lab before, and Lab 6.1 turns background sales on instead), do one thing to the shop, look at the result in the shop and in Datadog, then tick the checkpoint.</p>
+<p>Every lab follows the same pattern: start from a clean state with <strong>Full demo reset</strong> (or <code>make reset</code>; Lab 1.2 and Lab 4 continue from the lab before, and Lab 6 turns background sales on instead), do one thing to the shop, look at the result in the shop and in Datadog, then tick the checkpoint.</p>
 <details><summary>Before each lab: the stack name, and where to get help</summary>
 <p>The labs tell one story about UrbanStreet's Online shop. Do them in order: each lab uses what the one before showed you. They are grouped by the layers they need (<a href="#which-layers-each-chapter-needs">Which layers each Chapter needs</a>).</p>
 <p>Every lab expects the stack from <a href="setup.html#02-build-the-stack">0.2 Build the stack</a> to be running and warmed up. On the terminal path, run the commands from the repository root: the make commands read your stack name from <code>demo.yaml</code>. The examples use the stack name <code>hybrid</code>; if you chose another one (<a href="setup.html#the-stack-name">the stack name in 0.2.1</a>), read <code>dd-demo-&lt;your name&gt;</code> for the <code>hybrid</code> environment name and <code>stack:&lt;your name&gt;</code> for the <code>hybrid</code> stack tag. Each lab first says what you will do and why, then shows the part of the architecture it uses. If something does not work, see <a href="troubleshooting.html#troubleshooting">Troubleshooting</a>.</p>

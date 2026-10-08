@@ -23,9 +23,9 @@ aws_region: eu-west-1
 #   releases        releases 1.1.0 (slow) and 1.2.0 (fix), the traffic split (Chapters 3-4)
 #   offers          offers for carts at risk (Lab 5.1)
 #   restock         automatic reordering (Lab 5.2)
-#   dd-streams      Datadog Confluent Cloud integration, consumer lag (Lab 6.1)
-#   dd-synthetics   Synthetics private location on the VM and two tests (Lab 6.1)
-#   dd-rum          Real User Monitoring on the Online shop (Lab 6.1)
+#   dd-streams      Datadog Confluent Cloud integration, consumer lag (Lab 6)
+#   dd-synthetics   Synthetics private location on the VM and two tests (Lab 6)
+#   dd-rum          Real User Monitoring on the Online shop (Lab 6)
 #   control-center  Confluent Control Center, a web console for the Connect worker on the VM; no lab needs it
 # layers: core
 # layers: all

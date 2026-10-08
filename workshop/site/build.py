@@ -544,13 +544,13 @@ def check_landing(page: str, guide_ids: set[str], page_ids_by_file: dict[str, se
 CHAPTERS = [
     dict(n=1, title="One honest number",
          labs=["lab-11-one-product-five-stores-one-online-number", "lab-12-optional-look-inside-confluent"]),
-    dict(n=2, title="Unknown is not zero", labs=["lab-21-unknown-is-not-zero"]),
-    dict(n=3, title="The incident", labs=["lab-31-the-incident"]),
-    dict(n=4, title="Canary the fix", labs=["lab-41-canary-the-fix"]),
+    dict(n=2, title="Unknown is not zero", labs=["lab-2-unknown-is-not-zero"]),
+    dict(n=3, title="The incident", labs=["lab-3-the-incident"]),
+    dict(n=4, title="Canary the fix", labs=["lab-4-canary-the-fix"]),
     dict(n=5, title="The AI offer",
          labs=["lab-51-offers-with-a-safe-default", "lab-52-restock-that-learns"],
          also={"lab-52-restock-that-learns": "also-lab-5-2"}),
-    dict(n=6, title="Datadog on top", labs=["lab-61-datadog-on-top-of-the-solution"]),
+    dict(n=6, title="Datadog on top", labs=["lab-6-datadog-on-top-of-the-solution"]),
 ]
 TOTAL = len(CHAPTERS)
 # Pages in reading order: (file, key, short name). The progress bar shows the first eight.
@@ -649,7 +649,7 @@ def page_ids(body: str) -> set[str]:
 
 
 def summary_boxes(body: str) -> tuple[str, int]:
-    """A lab's closing paragraph '... **Next:** [Lab 2.1](...)' becomes a Summary box; Previous/Next replace the pointer."""
+    """A lab's closing paragraph '... **Next:** [Lab 2](...)' becomes a Summary box; Previous/Next replace the pointer."""
     pat = re.compile(r"<p>((?:(?!</p>).)*?)\s*<strong>Next:</strong>.*?</p>", re.S)
     return pat.subn(lambda m: f'<aside class="summary-box"><p class="see-title">Summary</p><p>{m.group(1)}</p></aside>', body)
 
@@ -752,7 +752,7 @@ def page_shell(template: str, key, title: str, toc: str, content: str) -> str:
         p = p.replace(old, new)
     swap('<p class="toc-title">Contents</p>\n    ', "")
     swap('<a class="brand" href="index.html" title="Home">', f'<a class="brand" href="{INTRO_PAGE}" title="Start of the workshop">')
-    swap('<a class="topbar-current" href="#top" aria-current="page">Workshop</a>',
+    swap('<a href="intro.html">Workshop</a>\n    <a class="topbar-current" href="#top" aria-current="page">One-page guide</a>',
          f'<a class="topbar-current" href="{INTRO_PAGE}" aria-current="page">Workshop</a>'
          f'<a class="topbar-extra" href="{GUIDE_PAGE}">One-page guide</a>')
     swap('<p><a href="#top">Back to top</a></p>', f'<p><a href="#top">Back to top</a> &middot; <a href="{GUIDE_PAGE}">One-page guide</a></p>')
@@ -1124,6 +1124,11 @@ def main() -> None:
     shutil.copytree(SITE / "vendor", OUT / "assets" / "vendor")
     write_search_index(search_entries)
     shutil.copytree(SITE / "images", OUT / "images", ignore=shutil.ignore_patterns("*.md"))
+    # The top bar marks exactly one current item: One-page guide on the guide, Workshop on every chapter page.
+    for fname, html_text, want in [(GUIDE_PAGE, page, "One-page guide"), *((f, c, "Workshop") for f, c in chapter_pages.items())]:
+        current = re.findall(r'<a class="topbar-current"[^>]*>([^<]*)</a>', html_text)
+        if current != [want]:
+            die(f"{fname}: top bar must mark only {want!r} as current, found {current!r}")
     (OUT / GUIDE_PAGE).write_text(bust_cache(external_links_in_new_tab(page)), encoding="utf-8")
     for fname, chapter_page in chapter_pages.items():
         (OUT / fname).write_text(bust_cache(external_links_in_new_tab(chapter_page)), encoding="utf-8")

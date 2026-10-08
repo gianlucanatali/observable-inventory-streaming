@@ -36,7 +36,7 @@
     <span class="burger" aria-hidden="true"></span><span class="sr-only">Table of contents</span>
   </button>
   <a class="brand" href="intro.html" title="Start of the workshop"><span class="brand-mark" aria-hidden="true"></span><span>Observable inventory streaming</span></a>
-  <div class="search" role="search" data-index="assets/search-index.json?v=0090fde4d4">
+  <div class="search" role="search" data-index="assets/search-index.json?v=9386d615e4">
     <button type="button" class="search-toggle" aria-label="Search the guide" aria-expanded="false" aria-controls="search-input" title="Search (press /)"><span class="search-icon" aria-hidden="true"></span></button>
     <div class="search-box">
       <input type="search" class="search-input" id="search-input" placeholder="Search the guide" aria-label="Search the guide" autocomplete="off" autocapitalize="off" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="search-results" aria-autocomplete="list">
@@ -61,7 +61,7 @@
 <div class="layout">
   <nav id="toc" class="toc" aria-label="Table of contents">
     <p class="toc-title">Workshop</p><ol class="chapter-list"><li><a href="intro.html">Intro</a></li><li><a href="setup.html"><span class="cl-n">0</span>Setup</a></li><li><a href="chapter-1.html"><span class="cl-n">1</span>One honest number</a></li><li><a href="chapter-2.html"><span class="cl-n">2</span>Unknown is not zero</a></li><li><a href="chapter-3.html" aria-current="page"><span class="cl-n">3</span>The incident</a></li><li><a href="chapter-4.html"><span class="cl-n">4</span>Canary the fix</a></li><li><a href="chapter-5.html"><span class="cl-n">5</span>The AI offer</a></li><li><a href="chapter-6.html"><span class="cl-n">6</span>Datadog on top</a></li></ol><p class="toc-title">Help and reference</p><ol class="chapter-list chapter-list-help"><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="teardown.html">Teardown</a></li><li><a href="recap.html">Recap</a></li><li><a href="reference.html">Reference</a></li><li><a class="guide-link" href="workshop.html">One-page guide</a></li></ol><p class="toc-title toc-title-page">On this page</p><ol class="toc-list">
-<li class="toc-h2"><a href="#lab-31-the-incident">Lab 3.1: The incident</a>
+<li class="toc-h2"><a href="#lab-3-the-incident">Lab 3: The incident</a>
 <ol class="toc-sub">
 <li class="toc-h3"><a href="#turn-on-the-releases-layer">Turn on the releases layer</a></li>
 <li class="toc-h3"><a href="#1-check-that-routing-works-from-your-machine">1. Check that routing works from your machine</a></li>
@@ -84,9 +84,9 @@
 <p class="chapter-kicker">Chapter 3 of 6</p>
 <h1 class="chapter-title">The incident</h1>
 <aside class="see-box"><p class="see-title">What you will see</p><p><em>About 20 minutes.</em> A new release of the stock lookup service makes every stock request slow. The team ships it as a <abbr title="A new release that gets a small share of traffic next to the current one, so you can compare the two before going further.">canary</abbr> with 10% of the traffic. You run the canary check, it fails, and you roll back before the other 90% of lookups are affected. Then you use Datadog on the canary's traffic to show that the cause is in the release code, not in the stream.</p>
-<p><strong>Needs:</strong> one more layer, <code>releases</code>. Lab 3.1 starts by turning it on (skip that if you chose everything at once).</p>
+<p><strong>Needs:</strong> one more layer, <code>releases</code>. Lab 3 starts by turning it on (skip that if you chose everything at once).</p>
 </aside>
-<h3 id="lab-31-the-incident" class="lab lab">Lab 3.1: The incident <a class="header-anchor" href="#lab-31-the-incident">#</a></h3>
+<h3 id="lab-3-the-incident" class="lab lab">Lab 3: The incident <a class="header-anchor" href="#lab-3-the-incident">#</a></h3>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Releases layer: the load balancer splits stock calls by weight between releases 1.0.0 healthy, 1.1.0 slow and 1.2.0 fix"><img src="img/arch-2-releases.png" alt="Releases layer: the load balancer splits stock calls by weight between releases 1.0.0 healthy, 1.1.0 slow and 1.2.0 fix" width="3820" height="1620" loading="lazy" decoding="async"></button>
 <figcaption>Figure 3: the releases layer. Three releases of the stock lookup service, all reading only Redis, each behind its own target group of the load balancer.</figcaption></figure>
 <p>A <em>release</em> is one deployed build of the lookup service, identified by its version. 1.0.0 is healthy. 1.1.0 adds product details by preparing a product catalogue inside every request: the regression. 1.2.0 prepares the catalogue once at startup: the fix. The load balancer (ALB) rule for <code>/api/availability/*</code> sends requests to the three releases by weight, one <abbr title="The set of containers that receives one release's share of the traffic.">target group</abbr> per release.</p>
@@ -303,7 +303,7 @@ current=100 0 0 previous=90 10 0
 <div class="code code-cmd" data-lang="sh"><div class="code-bar"><span class="code-label">Terminal<span class="code-both"> (both paths)</span></span><button type="button" class="copy" aria-label="Copy terminal to clipboard"><span class="copy-icon" aria-hidden="true"></span><span class="copy-text">Copy</span></button></div><pre tabindex="0"><code>make<span class="w"> </span>route-baseline
 </code></pre></div>
 </div>
-<p>While the load runs, every lookup goes to 1.1.0 and requests queue up. On 0.5 vCPU, 1.1.0 cannot keep up with 5 requests per second. In our run (2026-10-06) 532 of the 600 requests timed out on the client, the 15 that were answered had a p95 of about 9.4 s, the task used its whole 0.5 vCPU, and ECS replaced it after it failed its health check. This is what the 10% canary kept away from 90% of the lookups. To see it in Datadog, open the <a href="setup.html#3-open-the-datadog-stock-dashboard" data-stack-link="overview-dashboard">demo home</a>, group &quot;3. The incident&quot;, and use its link &quot;The night of the incident&quot;: it opens the same dashboard on 2026-10-06 18:10-18:30 UTC, our run, where ECS CPU of 1.1.0 stays at 100% for about four minutes, the target turns unhealthy and the Amazon ECS events show the task being replaced. That fixed window has data only on the stack <code>hybrid</code>; for your own run, set the time picker to the minutes of your load. ECS starts a new 1.1.0 task by itself; Lab 4.1 does not need it. This run also gives you the CPU comparison under the same load that you use at the end of <a href="chapter-4.html#5-prove-it-latency-cpu-and-cost">Lab 4.1</a>.</p>
+<p>While the load runs, every lookup goes to 1.1.0 and requests queue up. On 0.5 vCPU, 1.1.0 cannot keep up with 5 requests per second. In our run (2026-10-06) 532 of the 600 requests timed out on the client, the 15 that were answered had a p95 of about 9.4 s, the task used its whole 0.5 vCPU, and ECS replaced it after it failed its health check. This is what the 10% canary kept away from 90% of the lookups. To see it in Datadog, open the <a href="setup.html#3-open-the-datadog-stock-dashboard" data-stack-link="overview-dashboard">demo home</a>, group &quot;3. The incident&quot;, and use its link &quot;The night of the incident&quot;: it opens the same dashboard on 2026-10-06 18:10-18:30 UTC, our run, where ECS CPU of 1.1.0 stays at 100% for about four minutes, the target turns unhealthy and the Amazon ECS events show the task being replaced. That fixed window has data only on the stack <code>hybrid</code>; for your own run, set the time picker to the minutes of your load. ECS starts a new 1.1.0 task by itself; Lab 4 does not need it. This run also gives you the CPU comparison under the same load that you use at the end of <a href="chapter-4.html#5-prove-it-latency-cpu-and-cost">Lab 4</a>.</p>
 </details>
 <h4 id="checkpoint-3" class="checkpoint checkpoint">Checkpoint <a class="header-anchor" href="#checkpoint-3">#</a></h4>
 <ul class="contains-task-list">
@@ -312,7 +312,7 @@ current=100 0 0 previous=90 10 0
 <li class="task-list-item enabled"><input class="task-list-item-checkbox"  type="checkbox"> APM shows a much higher p95 for 1.1.0 than for 1.0.0, and a 1.1.0 trace shows <code>catalogue.prepare</code> (<a href="#6-compare-releases-in-apm">steps 6 and 7</a>).</li>
 <li class="task-list-item enabled"><input class="task-list-item-checkbox"  type="checkbox"> The Freshness group shows no change (<a href="#8-rule-out-the-stream">step 8</a>).</li>
 </ul>
-<aside class="summary-box"><p class="see-title">Summary</p><p>The failed gate stopped the slow release at 10%, and the rollback removed it. The version tags changed &quot;the canary is slow&quot; into &quot;release 1.1.0 prepares a catalogue in every request&quot;. Do not reset: Lab 4.1 starts from 100 / 0 / 0.</p></aside>
+<aside class="summary-box"><p class="see-title">Summary</p><p>The failed gate stopped the slow release at 10%, and the rollback removed it. The version tags changed &quot;the canary is slow&quot; into &quot;release 1.1.0 prepares a catalogue in every request&quot;. Do not reset: Lab 4 starts from 100 / 0 / 0.</p></aside>
 
 <nav class="pager" aria-label="Previous and next"><a class="pager-btn pager-prev" href="chapter-2.html"><span class="pager-dir">Previous</span><span class="pager-title">Chapter 2: Unknown is not zero</span></a><a class="pager-btn pager-next" href="chapter-4.html"><span class="pager-dir">Next</span><span class="pager-title">Chapter 4: Canary the fix</span></a></nav>
     </article>

@@ -11,6 +11,9 @@ locals {
   # The ALB health-checks every release (get_/readyz, ~6/min, even at 0% traffic). Latency, error and hit queries filter to the lookup
   # resource, or an idle release shows readyz at ~2 ms and dilutes the p95 of one with traffic.
   lookup = "resource_name:get_/api/availability/_product_id"
+  # Span searches (Trace Explorer, list_stream, spans widgets) match the raw span resource, not the normalised trace-metric tag above.
+  # Checked in the Trace Explorer (2026-10-08): get_/api/availability/_product_id matches 0 spans, this one matches the lookups.
+  lookup_span = "resource_name:\"GET /api/availability/<product_id>\""
   # Live check (2026-10-06): the integration tags the cluster as resource_id:<lkc-...>; kafka_id is N/A.
   confluent_scope = var.confluent_cluster_id != null ? "resource_id:${var.confluent_cluster_id}" : "*"
 
@@ -264,15 +267,6 @@ resource "datadog_metric_tag_configuration" "stock_display_delay" {
   metric_name         = "stock.display.delay"
   metric_type         = "distribution"
   tags                = ["env", "service", "version"]
-  include_percentiles = true
-}
-
-# offer.delay* are distributions emitted by the offer-worker; the home dashboard's p95 needs percentiles enabled.
-resource "datadog_metric_tag_configuration" "offer_delay" {
-  for_each            = toset(["offer.delay", "offer.delay.upstream", "offer.delay.worker"])
-  metric_name         = each.key
-  metric_type         = "distribution"
-  tags                = ["env", "service", "version", "product_id", "decided_by", "route", "offer_type"]
   include_percentiles = true
 }
 

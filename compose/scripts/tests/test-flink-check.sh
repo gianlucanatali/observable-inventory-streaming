@@ -26,7 +26,7 @@ SH
 cat >"$TMP/bin/confluent" <<'SH'
 #!/usr/bin/env bash
 [ "$1 $2 $3" = "flink statement describe" ] || { echo "unexpected confluent call (not read-only): $*" >&2; exit 9; }
-[ "$4" = "dd-demo-hybrid-offers-1" ] || { echo "wrong statement $4" >&2; exit 9; }
+[ "$4" = "dd-demo-hybrid-offers-set" ] || { echo "wrong statement $4" >&2; exit 9; }
 [ -z "${DESCRIBE_FAILS:-}" ] || { echo "Error: not logged in" >&2; exit 1; }
 echo "No Flink endpoint is specified, defaulting to public endpoint: https://x" >&2   # CLI notice on stderr
 cat "$DESCRIBE_FILE"
@@ -61,7 +61,7 @@ f() { printf '{\\"name\\":\\"%s\\",\\"type\\":\\"string\\"}' "$1"; }
 GOODKEY="$(f scenario_id),$(f cart_id),$(f product_id)"
 
 # 1. all good
-echo '{"name":"dd-demo-hybrid-offers-1","statement":"-- upsert key note","status":"RUNNING"}' >"$TMP/describe.json"; key "$GOODKEY"
+echo '{"name":"dd-demo-hybrid-offers-set","statement":"-- upsert key note","status":"RUNNING"}' >"$TMP/describe.json"; key "$GOODKEY"
 out="$(run)" || fail "good case failed: $out"
 case "$out" in *"flink-check: PASS"*) ;; *) fail "good case did not PASS: $out";; esac
 

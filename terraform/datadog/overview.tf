@@ -127,7 +127,7 @@ locals {
               data_source = "spans"
               name        = "q2"
               compute     = { aggregation = "avg", metric = "@duration" }
-              search      = { query = "service:${var.service} $env operation_name:flask.request ${local.lookup}" }
+              search      = { query = "service:${var.service} $env operation_name:flask.request ${local.lookup_span}" }
               group_by    = [{ facet = "version", limit = 10, sort = { aggregation = "count", order = "desc" } }]
               indexes     = []
             },
@@ -137,9 +137,8 @@ locals {
     }
     slow_lookups = {
       definition = {
-        type        = "list_stream"
-        title       = "Slowest lookups in the window (over 1 s): version, duration, resource; click a row to open the trace"
-        show_legend = false
+        type  = "list_stream"
+        title = "Slowest lookups in the window (over 1 s): version, duration, resource; click a row to open the trace"
         requests = [{
           response_format = "event_list"
           columns = [
@@ -150,7 +149,7 @@ locals {
           ]
           query = {
             data_source  = "trace_stream"
-            query_string = "service:${var.service} $env operation_name:flask.request ${local.lookup} @duration:>1000000000"
+            query_string = "service:${var.service} $env operation_name:flask.request ${local.lookup_span} @duration:>1000000000"
             indexes      = []
           }
         }]
@@ -164,9 +163,8 @@ locals {
   overview_events = {
     list = {
       definition = {
-        type        = "list_stream"
-        title       = "Events behind the markers: Amazon ECS events and control-panel actions"
-        show_legend = false
+        type  = "list_stream"
+        title = "Events behind the markers: Amazon ECS events and control-panel actions"
         requests = [{
           response_format = "event_list"
           columns = [
@@ -184,13 +182,14 @@ locals {
     }
   }
 
-  # Chapter 5: the Offer delay emitted live by the offer-worker (distributions; percentiles are enabled by
-  # datadog_metric_tag_configuration.offer_delay). Parts are p95s of their own, so they do not add up exactly.
+  # Chapter 5: the Offer delay emitted live by the offer-worker (distributions; read with max, which needs no
+  # metric tag configuration and exists only once the worker has emitted). One value per sell-out, so max is the delay.
+  # Parts are maxima of their own, so they do not add up exactly.
   overview_offer_delay = {
     chart = {
       definition = {
         type  = "timeseries"
-        title = "Offer delay: sell-out to offer card (s), p95: total, upstream (CDC + Flink), worker (AI + publish)"
+        title = "Offer delay: sell-out to offer card (s), max: total, upstream (CDC + Flink), worker (AI + publish)"
         requests = [{
           display_type    = "line"
           response_format = "timeseries"
@@ -200,9 +199,9 @@ locals {
             { formula = "q3", alias = "worker (AI + publish)" },
           ]
           queries = [
-            { data_source = "metrics", name = "q1", query = "p95:offer.delay{${local.dscope}}" },
-            { data_source = "metrics", name = "q2", query = "p95:offer.delay.upstream{${local.dscope}}" },
-            { data_source = "metrics", name = "q3", query = "p95:offer.delay.worker{${local.dscope}}" },
+            { data_source = "metrics", name = "q1", query = "max:offer.delay{${local.dscope}}" },
+            { data_source = "metrics", name = "q2", query = "max:offer.delay.upstream{${local.dscope}}" },
+            { data_source = "metrics", name = "q3", query = "max:offer.delay.worker{${local.dscope}}" },
           ]
         }]
       }
@@ -217,7 +216,7 @@ locals {
           queries = [{
             data_source = "metrics"
             name        = "q1"
-            query       = "avg:offer.delay{${local.dscope}} by {product_id}"
+            query       = "max:offer.delay{${local.dscope}} by {product_id}"
             aggregator  = "last"
           }]
         }]
@@ -253,7 +252,7 @@ locals {
         "Deeper: [store-feed monitor](${local.home_link.feed_monitor}) · [stock dashboard](${local.home_link.stock}) · [all monitors of this stack](${local.home_link.monitors}) · ${local.home_panel_md}",
       ])
       c3 = join("\n", [
-        "**Chapter 3: the incident.** What you are seeing: p95 per release, the CPU of each ECS service against its whole vCPU (100%), and the load balancer's unhealthy targets, with the Amazon ECS events (task replaced, stopped, steady state) as markers. Markers: ECS events and control-panel actions, listed in the event list beside the p95 chart. Two span views show where the time goes: the `catalogue.prepare` span against the whole lookup, by version (1.1.0 prepares the catalogue on every request, 1.0.0 and 1.2.0 do not), and the slowest lookups in the window, each with its version and duration and a click into the trace. At 10% the gate stops 1.1.0 while it is only slow. [The night of the incident](${local.home_link.night}) (2026-10-06 18:10-18:30 UTC, all traffic on 1.1.0): CPU flat at 100% for about four minutes, p95 above 3 s, the target unhealthy, ECS replaced the task. That fixed range has data only for `dd-demo-hybrid`; on another stack the link opens the same window, empty.",
+        "**Chapter 3: the incident.** [The night of the incident](${local.home_link.night}) (2026-10-06 18:10-18:30 UTC, all traffic on 1.1.0; data only on `dd-demo-hybrid`): CPU flat at 100% for about four minutes, p95 above 3 s, the target unhealthy, ECS replaced the task. Live view: p95 per release, the CPU of each ECS service against its whole vCPU, and unhealthy targets; markers are ECS events and control-panel actions, listed beside the p95 chart. Two span views show where the time goes: `catalogue.prepare` against the whole lookup by version (only 1.1.0 prepares the catalogue on every request) and the slowest lookups, each opening its trace. At 10% the gate stops 1.1.0 while it is only slow.",
         "",
         "Deeper: [APM inventory-api, compare versions (Deployments)](${local.home_link.apm}) · [1.1.0 spans of `catalogue.prepare`](${local.home_link.trace_110}) · [Amazon ECS events](${local.home_link.ecs_events}) · ${local.home_online_md} · ${local.home_panel_md}",
       ])
@@ -263,7 +262,7 @@ locals {
         "Deeper: [APM inventory-api, Deployments](${local.home_link.apm}) · [stock dashboard, Service objective](${local.home_link.stock}) · ${local.home_panel_md}",
       ])
       c5 = join("\n", [
-        "**Chapter 5: the AI offer.** What you are seeing: every offer decision by route (AI or the safe rule) and reason, and the offers completed. The Offer delay chart shows how long a shopper waits from the sell-out to the offer card (p95), split into upstream (CDC plus Flink, until the worker receives the at-risk event) and worker (decision, AI, publish); the Flink share is about upstream minus the CDC time (about 0.5 to 0.9 s). The list shows the last delay per product. Empty without the offers layer.",
+        "**Chapter 5: the AI offer.** What you are seeing: every offer decision by route (AI or the safe rule) and reason, and the offers completed. The Offer delay chart shows how long a shopper waits from the sell-out to the offer card (the slowest sell-out in each interval), split into upstream (CDC plus Flink, until the worker receives the at-risk event) and worker (decision, AI, publish); the Flink share is about upstream minus the CDC time (about 0.5 to 0.9 s). The list shows the last delay per product. Empty without the offers layer.",
         "",
         "Deeper: [LLM Observability, `urbanstreet-offers` root spans](${local.home_link.llmobs}) (the application is shared by all stacks) · [APM offer-worker](${local.home_link.offer_worker}) · ${local.home_panel_md}",
       ])

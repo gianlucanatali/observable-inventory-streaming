@@ -56,10 +56,11 @@ def test_no_state_ttl_on_the_offers_join():
     assert "STATE_TTL" not in code and "sql.state-ttl" not in code
 
 
-def test_reader_hint_is_exact_and_create_remains_zero_state_only():
+def test_reader_default_is_uncommitted_and_create_remains_zero_state_only():
     sellable = (ROOT / "flink/sellable.sql").read_text()
     offers = (ROOT / "flink/cart_at_risk.sql").read_text()
     assert "'kafka.consumer.isolation-level' = 'read-uncommitted'" in sellable
-    assert "JOIN `stock.sellable` /*+ OPTIONS('kafka.consumer.isolation-level' = 'read-uncommitted') */ AS s" in offers
+    # The offers query computes sellable in-job (statement set), so it carries no reader hint on stock.sellable.
+    assert "JOIN sellable AS s" in offers
     assert "CREATE TABLE IF NOT EXISTS `carts.at-risk`" in offers
     assert "CREATE TABLE IF NOT EXISTS `stock.sellable`" in sellable

@@ -67,7 +67,7 @@ _dd = urlsplit(dd["DSM map"])
 llm_obs = (f"{_dd.scheme}://{_dd.netloc}/llm/traces"
            "?query=%40ml_app%3Aurbanstreet-offers%20%40event_type%3Aspan%20%40is_root_span%3Atrue")
 # Datadog list pages filtered to this stack, on the same site as the DSM link; the filters are the ones the guide
-# tells the reader to type in Lab 6.1. No account ids: Datadog picks the organisation from the login.
+# tells the reader to type in Lab 6. No account ids: Datadog picks the organisation from the login.
 from urllib.parse import quote
 _dd_base = f"{_dd.scheme}://{_dd.netloc}"
 synthetics = f"{_dd_base}/synthetics/tests?q={quote('dd-demo-' + stack)}"

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Read-only check of the offers Flink output after `./demo create` (layers core,releases,offers):
-#   1. the offers INSERT statement is RUNNING and its description carries no UPSERT_AND_PRIMARY_KEYS_DIFFERENT / upsert-key warning
+#   1. the offers statement (statement set) is RUNNING and its description carries no UPSERT_AND_PRIMARY_KEYS_DIFFERENT / upsert-key warning
 #   2. the latest carts.at-risk-key subject has exactly the fields scenario_id, cart_id, product_id
 # Run via make:  make flink-check   (cloud stack from demo.yaml, or MODE=cloud STACK=<name> make flink-check)
 #
@@ -52,7 +52,7 @@ host="${flink_endpoint#https://}"; host="${host%%/*}"
 IFS=. read -r _ region cloud _ <<<"$host"
 [ -n "${region:-}" ] && [ -n "${cloud:-}" ] || die "cannot read region and cloud from the Flink endpoint '$flink_endpoint' (expected https://flink.<region>.<cloud>.confluent.cloud)"
 
-stmt="${CTX}-offers-1"   # the INSERT of overlay/flink/cart_at_risk.sql (statement 0 is the CREATE TABLE)
+stmt="${CTX}-offers-set"   # the EXECUTE STATEMENT SET with the INSERTs of sellable.sql and cart_at_risk.sql (offers-0 is the CREATE TABLE)
 
 say "== 1. Flink statement $stmt (environment $env_id, $cloud $region)"
 errf="$(mktemp)"; trap 'rm -f "$errf"' EXIT   # the CLI prints notices on stderr: keep them out of the JSON

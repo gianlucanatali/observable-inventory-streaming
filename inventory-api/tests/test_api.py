@@ -88,7 +88,7 @@ def test_all_live_confirmed_min_is_the_flink_total(factory, mode, version):
 
 @pytest.mark.parametrize("mode,version", RELEASES)
 def test_stale_store_with_stock_is_last_seen_not_counted(factory, redis_client, mode, version):
-    """Lab 2.1: Bologna S03 paused with 3 units. The minimum counts only the live stores: 2+1+1+2 = 6."""
+    """Lab 2: Bologna S03 paused with 3 units. The minimum counts only the live stores: 2+1+1+2 = 6."""
     set_feed(redis_client, "S03", "stale")
     app = factory(mode, version)
     b = body(app, "P0042")

@@ -36,7 +36,7 @@
     <span class="burger" aria-hidden="true"></span><span class="sr-only">Table of contents</span>
   </button>
   <a class="brand" href="intro.html" title="Start of the workshop"><span class="brand-mark" aria-hidden="true"></span><span>Observable inventory streaming</span></a>
-  <div class="search" role="search" data-index="assets/search-index.json?v=0090fde4d4">
+  <div class="search" role="search" data-index="assets/search-index.json?v=9386d615e4">
     <button type="button" class="search-toggle" aria-label="Search the guide" aria-expanded="false" aria-controls="search-input" title="Search (press /)"><span class="search-icon" aria-hidden="true"></span></button>
     <div class="search-box">
       <input type="search" class="search-input" id="search-input" placeholder="Search the guide" aria-label="Search the guide" autocomplete="off" autocapitalize="off" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="search-results" aria-autocomplete="list">
@@ -639,7 +639,7 @@ stack hybrid, core always on; optional layers:
 </tr>
 <tr>
 <td><strong>Release routing</strong></td>
-<td>Labs 3.1 and 4.1</td>
+<td>Labs 3 and 4</td>
 </tr>
 <tr>
 <td><strong>Checks</strong> (<strong>Run load</strong>, <strong>Verify</strong>, <strong>Check canary</strong>)</td>
@@ -647,7 +647,7 @@ stack hybrid, core always on; optional layers:
 </tr>
 <tr>
 <td><strong>Background sales</strong> (<strong>Sales on</strong>)</td>
-<td>Lab 6.1</td>
+<td>Lab 6</td>
 </tr>
 </tbody>
 </table></div>
@@ -671,7 +671,7 @@ DSM map: https://app.datadoghq.eu/data-streams?env=dd-demo-hybrid
 </code></pre></div>
 <p>The examples here come from a run with every layer on. Open the <a href="#3-open-the-datadog-stock-dashboard" data-stack-link="stock-dashboard">stock dashboard</a> (the <code>stock dashboard:</code> link).</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: Stack-status and links output"><img src="img/build-02-status-and-links.png" alt="Stack-status and links output" width="2600" height="1573" loading="lazy" decoding="async"></button><figcaption>Stack-status and links output</figcaption></figure>
-<p><strong>Optional: see what the build created in AWS.</strong> Open the <a href="#2-open-the-control-panel" data-stack-link="ecs">ECS cluster</a> in the AWS console in <code>eu-west-1</code> (Ireland). It lists the running services. With every layer on, that includes the three <code>inventory-api</code> releases side by side; with core only, the 1.1.0 and 1.2.0 services exist but run no tasks until Lab 3.1 turns on the <code>releases</code> layer. On the load balancer, the listener rule for <code>/api/availability/*</code> sends traffic to three <abbr title="The set of containers that receives one release's share of the traffic.">target groups</abbr>, one per release, and the weight on each group sets its share. ElastiCache runs the Redis serving view.</p>
+<p><strong>Optional: see what the build created in AWS.</strong> Open the <a href="#2-open-the-control-panel" data-stack-link="ecs">ECS cluster</a> in the AWS console in <code>eu-west-1</code> (Ireland). It lists the running services. With every layer on, that includes the three <code>inventory-api</code> releases side by side; with core only, the 1.1.0 and 1.2.0 services exist but run no tasks until Lab 3 turns on the <code>releases</code> layer. On the load balancer, the listener rule for <code>/api/availability/*</code> sends traffic to three <abbr title="The set of containers that receives one release's share of the traffic.">target groups</abbr>, one per release, and the weight on each group sets its share. ElastiCache runs the Redis serving view.</p>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: ECS cluster services list"><img src="img/build-07-aws-ecs-services.png" alt="ECS cluster services list" width="2880" height="2000" loading="lazy" decoding="async"></button><figcaption>ECS cluster services list</figcaption></figure>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: ALB listener rule with the three weighted target groups"><img src="img/build-08-aws-alb-weights.png" alt="ALB listener rule with the three weighted target groups" width="4200" height="2000" loading="lazy" decoding="async"></button><figcaption>ALB listener rule with the three weighted target groups</figcaption></figure>
 <figure class="figure"><button type="button" class="zoom" aria-label="Enlarge image: ElastiCache cluster overview"><img src="img/build-09-aws-elasticache.png" alt="ElastiCache cluster overview" width="2880" height="2000" loading="lazy" decoding="async"></button><figcaption>ElastiCache cluster overview</figcaption></figure>

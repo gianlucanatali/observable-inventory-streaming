@@ -2,6 +2,10 @@
 -- Run in the order below, one statement at a time (Terraform splits this file on the semicolon
 -- character: do not put a semicolon inside a comment or a string).
 -- Statements starting with CREATE are applied first, then the rest (see overlay/terraform/cloud).
+-- Core layer: the INSERT runs as its own statement (<stack>-sellable-1). With the offers layer on, Terraform runs
+-- it together with the INSERT of cart_at_risk.sql in one EXECUTE STATEMENT SET (<stack>-offers-set): one job
+-- that writes both `stock.sellable` and `carts.at-risk`. Keep the SELECT below identical to the CTE `sellable`
+-- in cart_at_risk.sql (overlay/flink/tests checks it) so the planner can share the identical sub-plan.
 --
 -- Input: `inventory.state` is inferred by Confluent Cloud Flink from the topic and its Schema
 -- Registry schemas (compacted topic, so the default changelog mode is upsert). Nothing to create.
@@ -18,8 +22,8 @@ CREATE TABLE IF NOT EXISTS `stock.sellable` (
 ) WITH (
   'changelog.mode' = 'upsert',
   'kafka.cleanup-policy' = 'compact',
-  -- Bootstrap default for a fresh table. cart_at_risk.sql also carries the
-  -- reader-side OPTIONS hint so an existing inferred table changes immediately.
+  -- Bootstrap default for Flink readers of this table (ad-hoc queries). The offers query does not
+  -- read this topic: it computes the same aggregation in-job (cart_at_risk.sql).
   'kafka.consumer.isolation-level' = 'read-uncommitted',
   'key.format' = 'avro-registry',
   'value.format' = 'avro-registry',

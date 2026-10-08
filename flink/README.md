@@ -8,11 +8,17 @@ Confluent Cloud Flink SQL for the demo (`overlay/contracts/README.md` section 3b
 | `demand.sql` | Sink `stock.demand` and the HOP (1 min / 10 min) INSERT over SALE movements |
 | `procurement.sql` | Sink `restock.forecast` and the INSERT: on-order and last-5 lead time from the Debezium `procurement.orders` |
 | `restock.sql` | Sink `restock.requests` and the INSERT with the demand-driven reorder rule (state, demand, forecast, config) |
-| `cart_at_risk.sql` | Written by the offers work (not here) |
+| `cart_at_risk.sql` | Sink `carts.at-risk` and the INSERT that joins active cart items with the sellable aggregation (computed in-query from `inventory.state`, not read from `stock.sellable`) |
 
 ## What `sellable.sql` does
 
 Per `product_id` (the probe product `__probe__` included on purpose, it gives the aggregate path its own freshness signal): `sellable = SUM(CASE WHEN deleted THEN 0 ELSE quantity END)` (BIGINT), `stores_reporting = SUM(CASE WHEN deleted THEN 0 ELSE 1 END)` (INT), `last_changed_at_ms` = max `changed_at` as epoch milliseconds (BIGINT, plain long: the Redis sink stringifies fields). Output key is a record with only `product_id`; schemas in `overlay/contracts/avro/sellable_key.avsc` and `sellable.avsc`.
+
+## Offers layer: one statement set
+
+With the offers layer on, Terraform does not run the two INSERTs as separate statements. It runs them as one `EXECUTE STATEMENT SET` named `<stack>-offers-set` (https://docs.confluent.io/cloud/current/flink/reference/queries/statement-set.html). One job writes `stock.sellable` (still the published topic for the Redis sink and any other reader) and `carts.at-risk`. The at-risk INSERT computes the sellable aggregation in-job with a verbatim copy of the `sellable.sql` SELECT (CTE `sellable`), so the offers path no longer reads `stock.sellable` back from Kafka. A test keeps the two SELECTs identical. Inside the set the planner shares the `inventory.state` scan and its changelog normalization. The per-product aggregation runs twice, because the two sinks need different changelog modes (upsert sink versus join input with update-before), which an OSS Flink 1.20 `EXPLAIN` shows. That state is one row per product. With offers off, `sellable-1` runs alone.
+
+Check on Confluent Cloud: `EXPLAIN STATEMENT SET BEGIN <the two INSERTs> END` shows `(reused)` nodes and no scan of `stock.sellable`.
 
 ## How to run
 

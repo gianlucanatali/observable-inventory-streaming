@@ -36,7 +36,7 @@
     <span class="burger" aria-hidden="true"></span><span class="sr-only">Table of contents</span>
   </button>
   <a class="brand" href="intro.html" title="Start of the workshop"><span class="brand-mark" aria-hidden="true"></span><span>Observable inventory streaming</span></a>
-  <div class="search" role="search" data-index="assets/search-index.json?v=0090fde4d4">
+  <div class="search" role="search" data-index="assets/search-index.json?v=9386d615e4">
     <button type="button" class="search-toggle" aria-label="Search the guide" aria-expanded="false" aria-controls="search-input" title="Search (press /)"><span class="search-icon" aria-hidden="true"></span></button>
     <div class="search-box">
       <input type="search" class="search-input" id="search-input" placeholder="Search the guide" aria-label="Search the guide" autocomplete="off" autocapitalize="off" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="search-results" aria-autocomplete="list">
@@ -258,7 +258,7 @@
 </tr>
 <tr>
 <td><code>failed: Action failed: sell-out P0042 did not converge in 30s ...</code>, or <code>reset did not converge</code> with sales already off</td>
-<td>The Sources changed, but Redis did not match them in time because a connector or the projector is stopped, for example a store you paused in Lab 2.1</td>
+<td>The Sources changed, but Redis did not match them in time because a connector or the projector is stopped, for example a store you paused in Lab 2</td>
 <td>Run <code>make status</code>, resume any paused store, then retry</td>
 </tr>
 <tr>
@@ -329,17 +329,17 @@
 <tr>
 <td><strong>Check canary</strong> fails with <code>live routing is 100/0/0 ...</code></td>
 <td>Only the baseline 1.0.0 receives traffic, so there is no canary to check</td>
-<td>First set a canary step on the <strong>Release routing</strong> card (<strong>Canary 1.1.0 (10%)</strong> in Lab 3.1, <strong>Canary 1.2.0 (10%)</strong> in Lab 4.1)</td>
+<td>First set a canary step on the <strong>Release routing</strong> card (<strong>Canary 1.1.0 (10%)</strong> in Lab 3, <strong>Canary 1.2.0 (10%)</strong> in Lab 4)</td>
 </tr>
 <tr>
-<td><code>CANARY GATES FAILED: p95 1.1.0 &lt;ms&gt; ms &gt; budget 200 ms; roll back</code> in Lab 3.1</td>
+<td><code>CANARY GATES FAILED: p95 1.1.0 &lt;ms&gt; ms &gt; budget 200 ms; roll back</code> in Lab 3</td>
 <td>This is expected: the gate exists to catch this regression</td>
-<td>Roll back (<a href="chapter-3.html#5-roll-back">Lab 3.1, step 5</a>) and continue. Never send more traffic to a canary after a failed gate</td>
+<td>Roll back (<a href="chapter-3.html#5-roll-back">Lab 3, step 5</a>) and continue. Never send more traffic to a canary after a failed gate</td>
 </tr>
 <tr>
-<td>The Lab 3.1 gate passes for 1.1.0</td>
+<td>The Lab 3 gate passes for 1.1.0</td>
 <td>The p95 of 1.1.0 stayed within the 200 ms budget for this load, for example because few lookups reached it</td>
-<td>Press <strong>Run load</strong> and <strong>Check canary</strong> again. If it still passes, roll back anyway and use the APM comparison and the optional all-traffic step of Lab 3.1</td>
+<td>Press <strong>Run load</strong> and <strong>Check canary</strong> again. If it still passes, roll back anyway and use the APM comparison and the optional all-traffic step of Lab 3</td>
 </tr>
 <tr>
 <td><strong>Sales on</strong> fails with <code>no background sale was recorded in any store for ... s: the jr-sales containers are probably stopped</code></td>
@@ -363,12 +363,12 @@
 </tr>
 <tr>
 <td><code>canary-check</code> fails on samples at 10%</td>
-<td>The canary (1.1.0 in Lab 3.1, 1.2.0 in Lab 4.1) received too few responses. A weight does not give an exact split</td>
-<td>Run a longer <code>load</code>, or pass <code>--min-samples</code> explicitly (<a href="chapter-4.html#lab-41-canary-the-fix">Lab 4.1</a>)</td>
+<td>The canary (1.1.0 in Lab 3, 1.2.0 in Lab 4) received too few responses. A weight does not give an exact split</td>
+<td>Run a longer <code>load</code>, or pass <code>--min-samples</code> explicitly (<a href="chapter-4.html#lab-4-canary-the-fix">Lab 4</a>)</td>
 </tr>
 <tr>
 <td><code>smoke</code> fails with a feed not ok</td>
-<td>A store is paused (Lab 2.1) or a connector is down. Check: <code>status</code></td>
+<td>A store is paused (Lab 2) or a connector is down. Check: <code>status</code></td>
 <td>Run <code>make store-resume STORE=S0n</code>, then <code>reset</code></td>
 </tr>
 <tr>

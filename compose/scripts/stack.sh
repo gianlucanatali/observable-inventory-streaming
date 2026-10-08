@@ -1098,7 +1098,7 @@ wait_sellable() { # the Flink aggregate reached Redis through the sink connector
     [ "${n:-0}" -ge 200 ] && { echo "   $n sellable:* keys in Redis"; return 0; }
     sleep 5
   done
-  die "after 5 minutes only ${n:-0} sellable:P* keys in Redis (expected 200): check the Flink statement ${CTX}-sellable-1 and connector sellable-redis"
+  die "after 5 minutes only ${n:-0} sellable:P* keys in Redis (expected 200): check the Flink statement ${CTX}-sellable-1 (${CTX}-offers-set with the offers layer) and connector sellable-redis"
 }
 
 recreate_storefront() { # compose re-reads .env.cloud-<stack> (RUM ids)
