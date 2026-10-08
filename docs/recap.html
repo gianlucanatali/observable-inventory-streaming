@@ -26,7 +26,7 @@
 })();
 </script>
 <link rel="stylesheet" href="assets/fonts.css?v=471d416a0c">
-<link rel="stylesheet" href="assets/site.css?v=84305200bf">
+<link rel="stylesheet" href="assets/site.css?v=e83d654168">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23632CA6'/%3E%3Cpath d='M8 21h4v-6H8zm6 0h4V10h-4zm6 0h4v-9h-4z' fill='white'/%3E%3C/svg%3E">
 </head>
 <body data-connect-href="setup.html#connect-box">
@@ -36,6 +36,15 @@
     <span class="burger" aria-hidden="true"></span><span class="sr-only">Table of contents</span>
   </button>
   <a class="brand" href="intro.html" title="Start of the workshop"><span class="brand-mark" aria-hidden="true"></span><span>Observable inventory streaming</span></a>
+  <div class="search" role="search" data-index="assets/search-index.json?v=c450a02908">
+    <button type="button" class="search-toggle" aria-label="Search the guide" aria-expanded="false" aria-controls="search-input" title="Search (press /)"><span class="search-icon" aria-hidden="true"></span></button>
+    <div class="search-box">
+      <input type="search" class="search-input" id="search-input" placeholder="Search the guide" aria-label="Search the guide" autocomplete="off" autocapitalize="off" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="search-results" aria-autocomplete="list">
+      <kbd class="search-key" aria-hidden="true">/</kbd>
+      <button type="button" class="search-close" aria-label="Close search">&times;</button>
+      <div class="search-results" id="search-results" role="listbox" aria-label="Search results" hidden></div>
+    </div>
+  </div>
   <div class="path-switch" role="group" aria-label="Lab path">
     <span class="path-switch-label" aria-hidden="true">Path</span>
     <button type="button" data-set-path="panel" aria-pressed="true" title="Show the control panel steps">Panel</button>
@@ -153,5 +162,6 @@
 <div class="sr-only" aria-live="polite" id="live"></div>
 <script src="assets/stack.js?v=68c01d4930"></script>
 <script src="assets/site.js?v=1de1666aca" defer></script>
+<script src="assets/search.js?v=11852fca13" defer></script>
 </body>
 </html>

@@ -36,6 +36,15 @@
     <span class="burger" aria-hidden="true"></span><span class="sr-only">Table of contents</span>
   </button>
   <a class="brand" href="index.html" title="Home"><span class="brand-mark" aria-hidden="true"></span><span>Observable inventory streaming</span></a>
+  <div class="search" role="search" data-index="assets/search-index.json">
+    <button type="button" class="search-toggle" aria-label="Search the guide" aria-expanded="false" aria-controls="search-input" title="Search (press /)"><span class="search-icon" aria-hidden="true"></span></button>
+    <div class="search-box">
+      <input type="search" class="search-input" id="search-input" placeholder="Search the guide" aria-label="Search the guide" autocomplete="off" autocapitalize="off" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="search-results" aria-autocomplete="list">
+      <kbd class="search-key" aria-hidden="true">/</kbd>
+      <button type="button" class="search-close" aria-label="Close search">&times;</button>
+      <div class="search-results" id="search-results" role="listbox" aria-label="Search results" hidden></div>
+    </div>
+  </div>
   <div class="path-switch" role="group" aria-label="Lab path">
     <span class="path-switch-label" aria-hidden="true">Path</span>
     <button type="button" data-set-path="panel" aria-pressed="true" title="Show the control panel steps">Panel</button>
@@ -82,5 +91,6 @@
 <div class="sr-only" aria-live="polite" id="live"></div>
 <script src="assets/stack.js"></script>
 <script src="assets/site.js" defer></script>
+<script src="assets/search.js" defer></script>
 </body>
 </html>

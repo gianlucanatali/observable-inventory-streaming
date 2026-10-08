@@ -28,10 +28,12 @@ from __future__ import annotations
 import argparse
 import hashlib
 import html
+import json
 import posixpath
 import re
 import shutil
 import sys
+from html.parser import HTMLParser
 from pathlib import Path
 
 from markdown_it import MarkdownIt
@@ -53,9 +55,13 @@ MERMAID_CACHE = SITE / "mermaid"
 REPO_URL = "https://github.com/gianlucanatali/observable-inventory-streaming"
 REPO_LABEL = "github.com/gianlucanatali/observable-inventory-streaming"
 GUIDE_PAGE = "workshop.html"
+SEARCH_INDEX = "search-index.json"  # written to docs/assets by write_search_index(); search.js fetches it
+# Real markup left in index text (the guide's own "<this>" placeholders are text and fine).
+HTML_TAG_RE = r"</?(?:a|b|i|p|br|hr|div|span|em|strong|code|pre|ul|ol|li|table|thead|tbody|tr|td|th|details|summary|aside|img|svg|button|input|h[1-6]|mark|kbd|nav|section|article|figure|figcaption|script|style)(?:\s[^>]*)?/?>"
+SEARCH_HASH = ""  # content hash of the index, set once it is built, appended to its URL by bust_cache()
 GO_PAGE = "go.html"  # stable redirect links for slides and bookmarks (go.js); a static page, copied as is
 LANDING_PAGE = "index.html"
-ASSETS = ("site.css", "stack.js", "site.js", "go.js", "fonts.css", "landing.css", "landing.js", "landing-noscript.css")
+ASSETS = ("site.css", "stack.js", "site.js", "go.js", "fonts.css", "landing.css", "landing.js", "landing-noscript.css", "search.js")
 BLOB_URL = f"{REPO_URL}/blob/main/"
 SRC_REPO_PATH = "workshop/README.md"
 
@@ -461,6 +467,8 @@ def bust_cache(page: str) -> str:
         if src.is_file():
             h = hashlib.sha256(src.read_bytes()).hexdigest()[:10]
             page = page.replace(f'"assets/{asset}"', f'"assets/{asset}?v={h}"')
+    if SEARCH_HASH:
+        page = page.replace(f'"assets/{SEARCH_INDEX}"', f'"assets/{SEARCH_INDEX}?v={SEARCH_HASH}"')
     return page
 
 def intro_facts(md_text: str) -> dict[str, str]:
@@ -880,6 +888,126 @@ def check_step_stack_links(md_text: str) -> None:
             '([text](#anchor "stack-link:<name>")):\n  ' + "\n  ".join(problems))
 
 
+class _SectionCutter(HTMLParser):
+    """Cut one built page into sections, one per heading that has an id. Collects the visible text of the article
+    (code included); skips the permalink '#', copy buttons, diagrams, the Connect box and the progress and pager bars."""
+    VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"}
+    SKIP_TAGS = {"script", "style", "svg", "textarea", "button", "dialog", "template"}
+    SKIP_CLASSES = {"header-anchor", "chapter-progress", "pager", "connect-box", "code-bar"}
+    BLOCKS = {"p", "li", "div", "pre", "tr", "td", "th", "br", "ul", "ol", "table", "aside", "details", "summary",
+              "h1", "h2", "h3", "h4", "h5", "h6", "figcaption", "blockquote"}
+
+    def __init__(self, page_title: str):
+        super().__init__(convert_charrefs=True)
+        self.sections: list[dict] = [{"id": "top", "level": 0, "heading": page_title, "parts": []}]
+        self.stack: list[tuple[str, bool]] = []
+        self.in_article = False
+        self.heading: dict | None = None  # the section whose heading text is being read
+        self.head_level = 0
+
+    def skipping(self) -> bool:
+        return any(skip for _, skip in self.stack)
+
+    def handle_starttag(self, tag, attrs):
+        a = dict(attrs)
+        if tag in self.VOID:
+            if self.in_article and tag == "br":
+                self.sections[-1]["parts"].append(" ")
+            return
+        classes = set((a.get("class") or "").split())
+        skip = tag in self.SKIP_TAGS or bool(classes & self.SKIP_CLASSES)
+        self.stack.append((tag, skip))
+        if tag == "article" and a.get("id") == "top":
+            self.in_article = True
+            return
+        if not self.in_article or self.skipping():
+            return
+        if tag in {"h1", "h2", "h3", "h4", "h5", "h6"} and a.get("id"):
+            sec = {"id": a["id"], "level": int(tag[1]), "heading": "", "parts": []}
+            self.sections.append(sec)
+            self.heading = sec
+        elif tag in {"h1", "h2", "h3", "h4", "h5", "h6"} and "chapter-title" in classes:
+            self.heading = self.sections[0]
+            self.sections[0]["heading"] = ""
+        if tag in self.BLOCKS:
+            self.sections[-1]["parts"].append(" ")
+
+    def handle_endtag(self, tag):
+        if tag in self.VOID:
+            return
+        while self.stack:
+            t, _ = self.stack.pop()
+            if t == tag:
+                break
+        else:
+            die(f"search index: unbalanced </{tag}> while cutting a page into sections")
+        if tag == "article":
+            self.in_article = False
+        if tag in {"h1", "h2", "h3", "h4", "h5", "h6"}:
+            self.heading = None
+        if self.in_article and tag in self.BLOCKS:
+            self.sections[-1]["parts"].append(" ")
+
+    def handle_data(self, data):
+        if not self.in_article or self.skipping():
+            return
+        if self.heading is not None:
+            self.heading["heading"] += data
+        else:
+            self.sections[-1]["parts"].append(data)
+
+
+def build_search_index(pages: dict[str, str]) -> list[dict]:
+    """One entry per heading of every step page: page file, anchor, heading, chapter label, parent heading, plain text."""
+    names = {f: (f"Chapter {k}: {n}" if isinstance(k, int) else n) for f, k, n in PAGE_LIST}
+    entries: list[dict] = []
+    for file in PAGE_FILES:
+        if file not in pages:
+            die(f"search index: page {file} was not built")
+        cutter = _SectionCutter(names[file])
+        cutter.feed(pages[file])
+        cutter.close()
+        if cutter.stack:
+            die(f"search index: {file}: unclosed <{cutter.stack[-1][0]}> while cutting the page into sections")
+        if len(cutter.sections) < 2:
+            die(f"search index: {file}: found no heading with an id")
+        parents: list[dict] = []
+        for sec in cutter.sections:
+            heading = re.sub(r"\s+", " ", sec["heading"]).strip() or names[file]
+            text = re.sub(r"\s+", " ", "".join(sec["parts"])).strip()
+            if sec["level"]:
+                while parents and parents[-1]["level"] >= sec["level"]:
+                    parents.pop()
+            parent = parents[-1]["heading"] if parents else ""
+            if sec["level"]:
+                parents.append({"level": sec["level"], "heading": heading})
+            if not text and not sec["level"]:
+                continue  # the lead of a page that starts straight with a heading
+            entries.append({"p": file, "a": sec["id"], "h": heading, "c": names[file], "g": parent, "t": text})
+    if not entries:
+        die("search index: no entries")
+    return entries
+
+
+def write_search_index(entries: list[dict]) -> None:
+    """Write docs/assets/search-index.json and record its hash for bust_cache(). Fails on empty or duplicate entries."""
+    global SEARCH_HASH
+    seen = set()
+    for e in entries:
+        key = (e["p"], e["a"])
+        if key in seen:
+            die(f"search index: duplicate anchor {e['a']!r} on {e['p']}")
+        seen.add(key)
+        if not e["h"]:
+            die(f"search index: empty heading for {e['a']!r} on {e['p']}")
+        if re.search(HTML_TAG_RE, e["t"] + " " + e["h"]):
+            die(f"search index: HTML left in the text of {e['a']!r} on {e['p']}")
+    data = json.dumps(entries, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    SEARCH_HASH = hashlib.sha256(data).hexdigest()[:10]
+    (OUT / "assets" / SEARCH_INDEX).write_bytes(data)
+    print(f"build.py: wrote {OUT / 'assets' / SEARCH_INDEX} ({len(entries)} entries, {len(data) // 1024} KiB)")
+
+
 def check_unrendered_markdown(pages: dict[str, str]) -> None:
     """Fail if the visible text of a page still holds raw markdown (an HTML block swallowed it)."""
     patterns = [
@@ -961,6 +1089,7 @@ def main() -> None:
     chapter_pages = build_chapter_pages(md, env, tokens, diagrams, template, read_boxes(md_text))
     check_unrendered_markdown({GUIDE_PAGE: body, **chapter_pages})
     chapter_ids = {f: page_ids(p) for f, p in chapter_pages.items()}
+    search_entries = build_search_index(chapter_pages)
     n_page_links = check_page_links(chapter_pages, ids)
     page = (template
             .replace("{{title}}", html.escape(title))
@@ -993,6 +1122,7 @@ def main() -> None:
     for asset in ASSETS:
         shutil.copy2(SITE / asset, OUT / "assets" / asset)
     shutil.copytree(SITE / "vendor", OUT / "assets" / "vendor")
+    write_search_index(search_entries)
     shutil.copytree(SITE / "images", OUT / "images", ignore=shutil.ignore_patterns("*.md"))
     (OUT / GUIDE_PAGE).write_text(bust_cache(external_links_in_new_tab(page)), encoding="utf-8")
     for fname, chapter_page in chapter_pages.items():
