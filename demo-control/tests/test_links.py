@@ -107,5 +107,17 @@ def _jpeg_size(path) -> tuple[int, int]:
 
 def test_every_published_tile_id_has_a_480x270_thumbnail():
     from demo_control.links_card import THUMBS
-    for tid in ("overview-dashboard", "stream-lineage", "topic-inventory-cdc", "topic-stock-sellable"):
+    for tid in ("overview-dashboard", "stream-lineage", "topic-inventory-cdc", "topic-stock-sellable",
+                "llm-obs", "synthetics", "monitors", "rum", "shop-p0048", "shop-p0092"):
         assert _jpeg_size(THUMBS / f"{tid}.jpg") == (480, 270), tid
+
+
+def test_every_link_id_in_publish_links_has_a_thumbnail():
+    """Every id publish-links.sh can publish (the quoted first field of a link tuple) has a thumbnail, so no tile is an empty box."""
+    import re
+    from pathlib import Path
+    from demo_control.links_card import THUMBS
+    script = Path(__file__).resolve().parents[2] / "compose" / "scripts" / "publish-links.sh"
+    ids = set(re.findall(r'^\s*\("([a-z0-9-]+)",\s*"[A-Za-z]+",', script.read_text(), re.M))
+    assert len(ids) >= 15, f"found only {sorted(ids)} in {script}: the tuple pattern no longer matches"
+    assert not [i for i in sorted(ids) if not (THUMBS / f"{i}.jpg").is_file()]
