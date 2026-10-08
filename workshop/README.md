@@ -2111,11 +2111,13 @@ make sell-out PRODUCT=P0042 GAP=1.5
 
 </div>
 
-You should see, a few seconds after the last store sells out, an offer card for the Pathfinder Air that reads "Decided by: AI — chose Pathfinder Air (confidence 0.90, threshold 0.8)". The confidence changes a little from run to run.
+You should see, a few seconds after the last store sells out, an offer card with "Decided by: AI". Either the AI chose an alternative, for example "Decided by: AI — chose Pathfinder Air (confidence 0.90, threshold 0.8)", or it judged that none is a good substitute and the card reads "Sold out everywhere. We found similar items, but none is a good match for this one." with "Decided by: AI — no good substitute". Both are correct, and the confidence changes a little from run to run.
 
 <details><summary>What just happened</summary>
 
 Flink joined your cart (topic `carts.events`) with the `stock.sellable` value of 0 and emitted a cart at risk for this cart item. `offer-worker` found two eligible alternatives in EU 42, the Brenta Storm (approach shoe) and the Pathfinder Air (hiking shoe), and asked Jev which is a good substitute, with their kind, waterproofing, use and price difference. Jev chose the Pathfinder Air with a confidence above 0.8, so its choice stands. If the restock layer is on, the card also shows "Back in about N hours" with **Notify me** above "Or switch to Pathfinder Air in Ember red, 10% off": the restock date is a fact, not part of the AI's question ([Lab 5.2](#lab-52-restock-that-learns)). The worker checked the stock again and published the offer to the `offers` topic, where the Online shop reads it. Alone, the safe rule would have picked the Brenta Storm, the closest in price.
+
+The AI may also answer `none` (no good substitute) with a confidence above the threshold. Then no alternative is offered, and the card says that similar items exist but none is a good match, unlike the Pathfinder Lite in step 4, which has no eligible alternative at all. Earlier wording of this step: "an offer card for the Pathfinder Air that reads 'Decided by: AI — chose Pathfinder Air (confidence 0.90, threshold 0.8)'".
 
 </details>
 

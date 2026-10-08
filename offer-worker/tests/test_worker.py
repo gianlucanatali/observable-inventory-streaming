@@ -218,7 +218,9 @@ def test_jev_confident_none_offers_no_alternative(catalogue, redis_client, caplo
     assert (o["decision_route"], o["decision_reason"]) == ("JEV", "no_good_substitute")
     assert o["product_id"] is None and o["chosen_choice"] is None and o["discount_pct"] == 0
     assert o["jev_choice"] == "none" and o["rule_choice"] == "alt:P0160" and o["restock_eta"] is None
-    assert o["body"] == "Sold out everywhere, and nothing comparable is in stock right now."
+    # Comparable items were in stock; the AI judged none of them a good match: not the "nothing comparable" wording.
+    assert o["body"] == "Sold out everywhere. We found similar items, but none is a good match for this one."
+    assert (o["text_route"], o["text_reason"]) == ("TEMPLATE", "no_offer")
     assert ("completed", "NONE", False) in m.calls
     record = next(r for r in caplog.records if r.message == "offer published")
     assert record.ctx["decision"] == "JEV/no_good_substitute" and record.ctx["jev_choice"] == "none"
@@ -627,6 +629,8 @@ def test_every_outcome_with_and_without_the_restock_notice(catalogue, redis_clie
         assert o["body"].startswith(catalogue[offered]["name"]) and o["body"].endswith("Take 10% off if you switch.")
     elif restock:
         assert o["body"] == "Back in about 3 days. We will let you know as soon as it is back in stock."
+    elif reason == "no_good_substitute":
+        assert o["body"] == "Sold out everywhere. We found similar items, but none is a good match for this one."
     else:
         assert o["body"] == "Sold out everywhere, and nothing comparable is in stock right now."
     assert o["headline"] == f"{name} just sold out"

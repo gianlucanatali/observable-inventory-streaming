@@ -84,10 +84,12 @@ def _same_model(original: dict, alt: dict) -> bool:
 
 
 NO_OFFER_BODY = "Sold out everywhere, and nothing comparable is in stock right now."
+# Eligible alternatives existed, but the AI judged none of them a good substitute.
+NO_GOOD_SUBSTITUTE_BODY = "Sold out everywhere. We found similar items, but none is a good match for this one."
 
 
 def template_text(original: dict, alt: dict | None, discount_pct: int,
-                  restock_wait: str | None = None) -> tuple[str, str]:
+                  restock_wait: str | None = None, ai_found_no_good_substitute: bool = False) -> tuple[str, str]:
     """Headline and body. With an alternative the body describes it (the Restock notice, if any, is a separate
     structured fact the shop shows beside it); without one it is the Restock notice, else the no-Offer wording.
     The alternative's colour is named whenever it differs from the sold-out item's; the same model in another colour is
@@ -103,4 +105,4 @@ def template_text(original: dict, alt: dict | None, discount_pct: int,
         return headline, f"{alt['name']} by {alt['brand']}{colour} is in stock and similar. {take}"
     if restock_wait is not None:
         return headline, f"Back in {restock_wait}. We will let you know as soon as it is back in stock."
-    return headline, NO_OFFER_BODY
+    return headline, NO_GOOD_SUBSTITUTE_BODY if ai_found_no_good_substitute else NO_OFFER_BODY

@@ -199,8 +199,10 @@ class OfferWorker:
         return by_id[got.choice], "JEV", "accepted", got.confidence, jev_choice
 
     # --- text lane -----------------------------------------------------------------------------------------------
-    def _write_text(self, original: dict, alt: dict | None, restock_wait: str | None) -> tuple[str, str, str, str]:
-        headline, body = template_text(original, alt, self._cfg.discount_pct if alt else 0, restock_wait)
+    def _write_text(self, original: dict, alt: dict | None, restock_wait: str | None,
+                    no_good_substitute: bool = False) -> tuple[str, str, str, str]:
+        headline, body = template_text(original, alt, self._cfg.discount_pct if alt else 0, restock_wait,
+                                       no_good_substitute)
         if alt is None and restock_wait is None:
             return headline, body, "TEMPLATE", "no_offer"  # nothing to write about: the honest fixed wording
         if self._text is None:
@@ -271,7 +273,8 @@ class OfferWorker:
 
             alt = self._cat[chosen.product_id] if chosen else None
             restock_wait = prompt.business_duration(restock.business_s) if restock_included else None
-            headline, body, text_route, text_reason = self._write_text(original, alt, restock_wait)
+            headline, body, text_route, text_reason = self._write_text(
+                original, alt, restock_wait, no_good_substitute=(reason == "no_good_substitute"))
             self._m.text(text_route, text_reason)
 
             # offer_type stays required for older readers: ALTERNATIVE_PRODUCT with an alternative, else NOTIFY_ME

@@ -44,9 +44,12 @@ describe('OfferCard', () => {
   it('credits a confident "none" to the AI: no good substitute', () => {
     render(<OfferCard offer={{ ...offer, decision_route: 'JEV', decision_reason: 'no_good_substitute', jev_choice: 'none',
       jev_confidence: 0.9, product_id: null, chosen_choice: null, restock_notice: false, no_offer: true,
-      body: 'Sold out everywhere, and nothing comparable is in stock right now.' }} error={null} />);
+      body: 'Sold out everywhere. We found similar items, but none is a good match for this one.' }} error={null} />);
     expect(screen.getByTestId('offer-decision')).toHaveTextContent(
       'Decided by: AI — no good substitute (confidence 0.90, threshold 0.8)');
+    expect(screen.getByTestId('offer-card')).toHaveTextContent('We found similar items, but none is a good match');
+    expect(screen.getByTestId('offer-details')).toHaveTextContent('None: no good substitute');
+    expect(screen.getByTestId('offer-details')).not.toHaveTextContent('nothing comparable');
   });
 
   it('credits an accepted Jev decision to AI and names the product, not its id', () => {

@@ -33,7 +33,8 @@ export function alternativeName(offer) {
 function offerKind(offer) {
   const restock = hasRestockNotice(offer);
   if (offer.product_id) return restock ? 'Alternative or restock notice' : 'Alternative product';
-  return restock ? 'Restock notice' : 'None: nothing comparable in stock';
+  if (restock) return 'Restock notice';
+  return offer.decision_reason === 'no_good_substitute' ? 'None: no good substitute' : 'None: nothing comparable in stock';
 }
 
 // Jev's choice by name ("Pathfinder Air"); the backend's label, else the raw id.
