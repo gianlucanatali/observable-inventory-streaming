@@ -82,7 +82,7 @@ def main():
         page.wait_for_selector(".search-hit")
         res = results(page)
         phrase = [e for e in INDEX if "full demo reset" in e["t"].lower() or "full demo reset" in e["h"].lower()]
-        check(bool(res) and len(res) == min(25, len([e for e in INDEX if all(w in (e["h"] + e["c"] + e["g"] + e["t"]).lower() for w in ("full", "demo", "reset"))])),
+        check(bool(res) and len(res) == min(50, len([e for e in INDEX if all(w in (e["h"] + e["c"] + e["g"] + e["t"]).lower() for w in ("full", "demo", "reset"))])),
               f"'Full demo reset': {len(res)} results, all words required")
         check(res[0]["href"] in {f"{e['p']}#{e['a']}" for e in phrase}, f"'Full demo reset': the first result holds the exact phrase ({res[0]['head']!r})")
         page.keyboard.press("Enter")
@@ -115,7 +115,7 @@ def main():
         n_one = count("stock")
         n_two = count("stock FLINK")
         n_exp = len([e for e in INDEX if "stock" in (e["h"] + e["c"] + e["g"] + e["t"]).lower() and "flink" in (e["h"] + e["c"] + e["g"] + e["t"]).lower()])
-        check(0 < n_two <= n_one and n_two == min(n_exp, 25), f"two words are AND-ed ({n_one} for 'stock', {n_two} for 'stock FLINK', expected {min(n_exp, 25)})")
+        check(0 < n_two <= n_one and n_two == min(n_exp, 50), f"two words are AND-ed ({n_one} for 'stock', {n_two} for 'stock FLINK', expected {min(n_exp, 50)})")
         check(count("PREFLIGHT") == count("preflight") > 0, "case-insensitive")
         check(count("preflïght") == count("preflight"), "accent-insensitive (ï matches i)")
 

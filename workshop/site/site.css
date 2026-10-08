@@ -524,6 +524,12 @@ a.stk { text-decoration-style: dotted; }
 .search-hit-snippet { display: block; margin-top: 3px; color: var(--muted); font-size: 13.5px; overflow-wrap: anywhere; }
 .search-results mark { background: rgba(180, 140, 242, .35); color: inherit; border-radius: 3px; padding: 0 1px; }
 .search-msg { margin: 0; padding: 12px; color: var(--muted); }
+.search-progress { height: 3px; margin: 0 0 2px; border-radius: 2px; background: var(--border); overflow: hidden; }
+.search-progress-fill { height: 100%; width: 0; background: var(--accent); transition: width .15s linear; }
+.search-progress-fill.indeterminate { width: 35%; animation: search-slide 1.1s ease-in-out infinite alternate; }
+@keyframes search-slide { from { margin-left: 0; } to { margin-left: 65%; } }
+@media (prefers-reduced-motion: reduce) { .search-progress-fill.indeterminate { animation: none; width: 100%; } }
+.search-count { margin: 0; padding: 4px 12px 6px; color: var(--muted); font-size: 12px; }
 .search-foot { margin: 0; padding: 6px 12px 4px; color: var(--muted); font-size: 12px; }
 @media (max-width: 1180px) {
   .search { flex: none; }

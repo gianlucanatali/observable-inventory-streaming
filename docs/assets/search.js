@@ -10,7 +10,7 @@
   var toggle = root.querySelector(".search-toggle");
   var closeBtn = root.querySelector(".search-close");
   var indexUrl = root.getAttribute("data-index");
-  var MAX = 25;
+  var MAX = 50;
 
   var entries = null, loading = null, loadError = null;
   var hits = [], active = -1;
@@ -25,13 +25,71 @@
     return out;
   }
 
+  // Download progress, shown in the results area while the index loads: {phase: "download"|"indexing", got, total}.
+  var progress = { phase: "download", got: 0, total: 0 };
+
+  function showProgress() {
+    if (entries || loadError || !terms(input.value).length) return;
+    var text, pct = null;
+    if (progress.phase === "indexing") text = "Indexing…";
+    else if (progress.total > 0) { pct = Math.min(100, Math.floor(progress.got * 100 / progress.total)); text = "Loading search index… " + pct + "%"; }
+    else if (progress.got > 0) text = "Loading search index… " + Math.round(progress.got / 1024) + " KB";
+    else text = "Loading search…";
+    results.textContent = "";
+    var bar = document.createElement("div");
+    bar.className = "search-progress";
+    bar.setAttribute("aria-hidden", "true");
+    var fill = document.createElement("div");
+    fill.className = "search-progress-fill" + (pct === null ? " indeterminate" : "");
+    if (pct !== null) fill.style.width = pct + "%";
+    bar.appendChild(fill);
+    results.appendChild(bar);
+    var p = document.createElement("p");
+    p.className = "search-msg";
+    p.setAttribute("role", "status");
+    p.textContent = text;
+    results.appendChild(p);
+    hits = [];
+    active = -1;
+    show();
+  }
+
+  // Read the response body as a stream so the byte count can drive the progress text. No Content-Length (for example a
+  // compressed response): the KB received so far are shown instead.
+  function download(r) {
+    var total = parseInt(r.headers.get("Content-Length") || "0", 10) || 0;
+    progress = { phase: "download", got: 0, total: total };
+    if (!r.body || !r.body.getReader) return r.text();
+    var reader = r.body.getReader(), chunks = [];
+    function pump() {
+      return reader.read().then(function (res) {
+        if (res.done) return chunks;
+        chunks.push(res.value);
+        progress.got += res.value.length;
+        showProgress();
+        return pump();
+      });
+    }
+    return pump().then(function (parts) {
+      progress.phase = "indexing";
+      showProgress();
+      var dec = new TextDecoder("utf-8"), text = "";
+      parts.forEach(function (c) { text += dec.decode(c, { stream: true }); });
+      return text + dec.decode();
+    });
+  }
+
   function load() {
     if (entries) return Promise.resolve();
     if (loading) return loading;
     loading = fetch(indexUrl).then(function (r) {
       if (!r.ok) throw new Error("HTTP " + r.status + " for " + indexUrl);
-      return r.json();
-    }).then(function (data) {
+      return download(r);
+    }).then(function (text) {
+      // Let the browser paint "Indexing…" before the parse and normalisation block the thread.
+      return new Promise(function (res) { setTimeout(function () { res(text); }, 0); });
+    }).then(function (text) {
+      var data = JSON.parse(text);
       if (!Array.isArray(data) || !data.length) throw new Error("the search index is empty");
       data.forEach(function (e) { e.nh = norm(e.h); e.nc = norm(e.c + " " + e.g); e.nt = norm(e.t); });
       entries = data;
@@ -137,11 +195,17 @@
     var q = input.value;
     if (!terms(q).length) { hide(); results.textContent = ""; return; }
     if (loadError) { message("Search is unavailable: the index could not be loaded (" + loadError.message + "). Serve the site over http or reload."); return; }
-    if (!entries) { message("Loading the search index…"); return; }
+    if (!entries) { showProgress(); return; }
     var ts = terms(q);
     hits = search(q);
     if (!hits.length) { message("No results for “" + q.trim() + "”. Try fewer or different words."); return; }
-    results.textContent = "";
+    // Build the whole list off-screen, then swap it in: no half-built list can ever be visible.
+    var frag = document.createDocumentFragment();
+    var count = document.createElement("p");
+    count.className = "search-count";
+    count.setAttribute("role", "status");
+    count.textContent = hits.length + (hits.length === 1 ? " result" : " results") + (hits.length > MAX ? ", showing the first " + MAX : "");
+    frag.appendChild(count);
     hits.slice(0, MAX).forEach(function (h, k) {
       var a = document.createElement("a");
       a.className = "search-hit";
@@ -156,14 +220,16 @@
       var snip = document.createElement("span"); snip.className = "search-hit-snippet"; highlight(snip, snippet(h.e, ts), ts);
       a.appendChild(head); a.appendChild(crumb); a.appendChild(snip);
       a.addEventListener("click", function (ev) { ev.preventDefault(); go(h.e); });
-      results.appendChild(a);
+      frag.appendChild(a);
     });
     if (hits.length > MAX) {
       var foot = document.createElement("p");
       foot.className = "search-foot";
-      foot.textContent = "Showing " + MAX + " of " + hits.length + " results. Add a word to narrow them.";
-      results.appendChild(foot);
+      foot.textContent = "Showing the first " + MAX + " of " + hits.length + " results. Add a word to narrow them.";
+      frag.appendChild(foot);
     }
+    results.textContent = "";
+    results.appendChild(frag);
     show();
     setActive(0);
   }
@@ -198,8 +264,14 @@
 
   toggle.addEventListener("click", function () { if (root.classList.contains("open")) close(false); else open(); });
   closeBtn.addEventListener("click", function () { close(true); toggle.focus(); });
-  input.addEventListener("focus", function () { load().then(render); });
-  input.addEventListener("input", function () { load().then(render); render(); });
+  // Fetch the index early (when the browser is idle, or on first hover/focus/tap of the box), not on the first keystroke.
+  function prefetch() { load().then(render); }
+  if (window.requestIdleCallback) window.requestIdleCallback(prefetch, { timeout: 3000 }); else setTimeout(prefetch, 800);
+  root.addEventListener("pointerenter", prefetch, { once: true });
+  toggle.addEventListener("pointerdown", prefetch, { once: true });
+  input.addEventListener("focus", prefetch);
+  // render() at once shows "Loading search…" while the index is on its way; when it arrives, load().then(render) re-runs the query.
+  input.addEventListener("input", function () { render(); load().then(render); });
   input.addEventListener("keydown", function (e) {
     if (e.key === "ArrowDown") { e.preventDefault(); if (!results.hidden) setActive(active + 1); else render(); }
     else if (e.key === "ArrowUp") { e.preventDefault(); if (!results.hidden) setActive(active - 1); }
