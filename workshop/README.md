@@ -2024,7 +2024,7 @@ The fix now gets all traffic. You widened it in steps, each step passed the same
 
 ### Lab 5.1: Offers with a safe default
 
-*About 20 minutes.* When a product in a shopper's cart sells out, the Online shop offers an alternative. An external AI service judges which alternative is a good substitute, but its answer counts only when it is confident enough; otherwise a safe rule decides. You put three products in one cart and sell out all three: the AI picks the offer for two of them, and the third has nothing comparable, so the AI is not even asked. The AI part is optional, so the shop still works when the AI is slow, wrong or switched off, and every offer records why it was made.
+*About 20 minutes.* When a product in a shopper's cart sells out, the Online shop offers an alternative. An external AI service judges which alternative is a good substitute, but its answer counts only when it is confident enough; otherwise a safe rule decides. You put three products in one cart and sell out all three: the AI chooses an alternative for one of them, tells you that none of the alternatives is a good substitute for the second, and for the third there is nothing comparable, so the AI is not even asked. The AI part is optional, so the shop still works when the AI is slow, wrong or switched off, and every offer records why it was made.
 
 **Needs:** the `offers` layer. Lab 5.1 starts by turning it on (skip that if you chose everything at once). Lab 5.2 needs the `restock` layer and turns it on the same way.
 
@@ -2089,7 +2089,7 @@ The Online shop publishes one cart `ADD` event to Kafka per click and keeps the 
 
 </details>
 
-#### 2. Sell out the trail shoe: the AI decides
+#### 2. Sell out the trail shoe: the AI finds no good match
 
 Go back to the [`P0042` product page](#hop-5-the-shop-page "stack-link:shop").
 
@@ -2111,13 +2111,13 @@ make sell-out PRODUCT=P0042 GAP=1.5
 
 </div>
 
-You should see, a few seconds after the last store sells out, an offer card with "Decided by: AI". Either the AI chose an alternative, for example "Decided by: AI — chose Pathfinder Air (confidence 0.90, threshold 0.8)", or it judged that none is a good substitute and the card reads "Sold out everywhere. We found similar items, but none is a good match for this one." with "Decided by: AI — no good substitute". Both are correct, and the confidence changes a little from run to run.
+You should see, a few seconds after the last store sells out, a card that reads "Sold out everywhere. We found similar items, but none is a good match for this one." and "Decided by: AI — no good substitute".
 
 <details><summary>What just happened</summary>
 
-Flink joined your cart (topic `carts.events`) with the `stock.sellable` value of 0 and emitted a cart at risk for this cart item. `offer-worker` found two eligible alternatives in EU 42, the Brenta Storm (approach shoe) and the Pathfinder Air (hiking shoe), and asked Jev which is a good substitute, with their kind, waterproofing, use and price difference. Jev chose the Pathfinder Air with a confidence above 0.8, so its choice stands. If the restock layer is on, the card also shows "Back in about N hours" with **Notify me** above "Or switch to Pathfinder Air in Ember red, 10% off": the restock date is a fact, not part of the AI's question ([Lab 5.2](#lab-52-restock-that-learns)). The worker checked the stock again and published the offer to the `offers` topic, where the Online shop reads it. Alone, the safe rule would have picked the Brenta Storm, the closest in price.
+Flink joined your cart (topic `carts.events`) with the `stock.sellable` value of 0 and emitted a cart at risk for this cart item. `offer-worker` found two eligible alternatives in EU 42, the Brenta Storm (an approach shoe) and the Pathfinder Air (a hiking shoe for dry paths, not waterproof), and asked Jev whether either is a good substitute for the Trailrunner GTX, a waterproof trail running shoe. Jev answered `none`: neither is a close match. When the AI says none, no alternative is offered, even if its confidence is below the threshold; the card shows the confidence it had, and the decision is still the AI's. The worker checked the stock again and published the offer to the `offers` topic, where the Online shop reads it. If the restock layer is on, the card also shows "Back in about N hours" with **Notify me**: the restock date is a fact, not part of the AI's question ([Lab 5.2](#lab-52-restock-that-learns)). Unlike the Pathfinder Lite in step 4, this product does have eligible alternatives, so the AI was asked. The AI is not deterministic, so over many runs its answer for this shoe could differ, but today it says none.
 
-The AI may also answer `none` (no good substitute) with a confidence above the threshold. Then no alternative is offered, and the card says that similar items exist but none is a good match, unlike the Pathfinder Lite in step 4, which has no eligible alternative at all. Earlier wording of this step: "an offer card for the Pathfinder Air that reads 'Decided by: AI — chose Pathfinder Air (confidence 0.90, threshold 0.8)'".
+Earlier wording of this step: "an offer card with 'Decided by: AI'. Either the AI chose an alternative, for example 'Decided by: AI — chose Pathfinder Air (confidence 0.90, threshold 0.8)', or it judged that none is a good substitute and the card reads 'Sold out everywhere. We found similar items, but none is a good match for this one.' with 'Decided by: AI — no good substitute'. Both are correct, and the confidence changes a little from run to run." The first outcome came from an earlier question, which asked Jev to choose the best of two alternatives; it now also allows the answer "none". Alone, the safe rule would have picked the Brenta Storm, the closest in price.
 
 </details>
 
@@ -2143,7 +2143,7 @@ make sell-out PRODUCT=P0048 GAP=1.5
 
 </div>
 
-You should see an offer card that reads "The same Dolomia Evo in Glacier blue is in stock. Take 10% off if you switch." and "Decided by: AI — chose Dolomia Evo in Glacier blue (confidence 1.00, threshold 0.8)".
+You should see an offer card that reads "The same Dolomia Evo in Glacier blue is in stock. Take 10% off if you switch." and "Decided by: AI — chose Dolomia Evo in Glacier blue (confidence about 0.9, threshold 0.8)".
 
 <details><summary>If the safe rule decides instead</summary>
 
@@ -2183,17 +2183,17 @@ The Pathfinder Lite costs EUR 119.90. No other footwear in EU 42 is priced withi
 
 #### 5. Open the cart
 
-Click the cart badge. You should see three items marked "Sold out": the trail shoe and the boot each with its offer (alternative, −10%, "Decided by: AI") and a **Swap** button, and the Pathfinder Lite with "No comparable product in stock".
+Click the cart badge. You should see three items marked "Sold out": the boot with its offer (Dolomia Evo in Glacier blue, −10%, "Decided by: AI") and a **Swap** button, the trail shoe with "No good substitute · Decided by: AI" and no offer, and the Pathfinder Lite with "No comparable product in stock".
 
 <details><summary>What the cart shows, and what Swap does</summary>
 
-The offer is the one alternative picked for that item; "AI: 0.90" next to an alternative is Jev's confidence for the option it chose. The other eligible alternative is listed at full price, the way the worker found it: same category and size, in stock now. **Swap** removes the sold-out item and adds the alternative through the normal cart events (`ABANDON`, then `ADD`); swapping to the offer's alternative is recorded in RUM as the action `offer_accepted`. When a purchase order is due within 7 days, a line "Back in about N hours" with **Notify me** sits under the offer line; **Notify me** is recorded in RUM as `restock_notice_confirmed`.
+The offer is the one alternative picked for that item; "AI: 0.9" next to an alternative is Jev's confidence for the option it chose. For the trail shoe the AI chose none, so both eligible alternatives are listed at full price, without an offer. The other eligible alternative of the boot is listed at full price, the way the worker found it: same category and size, in stock now. **Swap** removes the sold-out item and adds the alternative through the normal cart events (`ABANDON`, then `ADD`); swapping to the offer's alternative is recorded in RUM as the action `offer_accepted`. When a purchase order is due within 7 days, a line "Back in about N hours" with **Notify me** sits under the offer line; **Notify me** is recorded in RUM as `restock_notice_confirmed`.
 
 </details>
 
 #### 6. Read a Jev call in LLM Observability
 
-Open the [LLM Observability](#6-read-a-jev-call-in-llm-observability "stack-link:llm-obs") link and open the latest trace and its `offer.jev.call` span. You should see in the input each alternative with its kind, waterproofing, use and price difference plus the option `none`, and in the output the choice and the confidence; there are two Jev calls, for the trail shoe and the boot, and none for the Pathfinder Lite.
+Open the [LLM Observability](#6-read-a-jev-call-in-llm-observability "stack-link:llm-obs") link and open the latest trace and its `offer.jev.call` span. You should see in the input each alternative with its kind, waterproofing, use and price difference plus the option `none`, and in the output the choice and the confidence; there are two Jev calls, for the trail shoe and the boot, and none for the Pathfinder Lite. For the boot the probability of the chosen alternative is high (confidence about 0.9); for the trail shoe the highest probability is on `none`.
 
 ![The offer.jev.call span for the boot: the options with their match summaries in the input, the choice and the confidence in the output](img/lab6-05-llmobs-jev-input-output.png)
 
@@ -2205,7 +2205,7 @@ From the Datadog menu, the same page is AI Observability > Agent Observability >
 
 #### 7. Use the kill switch
 
-In the [control panel](#2-open-the-control-panel "stack-link:control"), set **AI kill switch** (`offers_kill_switch`) to `1` and press **Save**. Then repeat steps 1 to 4. You should see "Decided by: safe rule — AI did not return a decision" on the trail shoe and the boot (the trail shoe now gets the Brenta Storm), and the same "nothing comparable" card for the Pathfinder Lite.
+In the [control panel](#2-open-the-control-panel "stack-link:control"), set **AI kill switch** (`offers_kill_switch`) to `1` and press **Save**. Then repeat steps 1 to 4. You should see "Decided by: safe rule — AI did not return a decision" on the trail shoe and the boot (the trail shoe now gets the Brenta Storm, the closest in price), and the same "nothing comparable" card for the Pathfinder Lite.
 
 <details><summary>More about the kill switch</summary>
 
@@ -2239,7 +2239,7 @@ make reset
 
 #### Checkpoint
 
-- [ ] One cart showed three sold-out items: two offers decided by the AI and one "nothing comparable" ([step 5](#5-open-the-cart)).
+- [ ] One cart showed three sold-out items: one alternative chosen by the AI, one "no good substitute" decided by the AI, and one "nothing comparable" ([step 5](#5-open-the-cart)).
 - [ ] An `offer.jev.call` span showed the options in its input and the choice and confidence in its output ([step 6](#6-read-a-jev-call-in-llm-observability)).
 - [ ] With the kill switch on, the safe rule decided every offer ([step 7](#7-use-the-kill-switch)).
 

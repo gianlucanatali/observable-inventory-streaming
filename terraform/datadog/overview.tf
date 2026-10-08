@@ -110,7 +110,7 @@ locals {
         "2. **Unknown is not zero**: a quiet store is named, never counted as zero.",
         "3. **The incident**: release 1.1.0 is slow; the canary gate stops it. [The night of the incident](${local.home_link.night}): what 100% would have done.",
         "4. **Canary the fix**: 1.2.0 takes traffic step by step, next to 1.0.0.",
-        "5. **The AI offer**: the AI decides only when it is sure; otherwise the rule does.",
+        "5. **The AI offer**: the AI picks the alternative only when it is sure, and its \"no good substitute\" always stands; if it is unsure or does not answer, the safe rule decides.",
         "6. **Datadog on top**: tests from outside, Confluent lag, monitors, cost.",
         "",
         "Links open in this tab; use the browser's Back to return. Charts of a Layer that is off stay empty.",

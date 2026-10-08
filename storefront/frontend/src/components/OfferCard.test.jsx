@@ -7,7 +7,7 @@ const offer = {
   headline: 'A comparable option is ready', body: 'A safe alternative is available.',
   offer_type: 'ALTERNATIVE_PRODUCT', product_id: 'P0160', store_id: null, discount_pct: 10,
   decision_route: 'RULE_DEFAULT', decision_reason: 'low_confidence',
-  jev_choice: 'none', jev_confidence: 0.76, min_confidence: 0.8,
+  jev_choice: 'alt:P0061', jev_choice_label: 'Pathfinder Air', jev_confidence: 0.76, min_confidence: 0.8,
   rule_choice: 'alt:P0160', chosen_choice: 'alt:P0160',
 };
 
@@ -17,7 +17,7 @@ describe('OfferCard', () => {
 
     expect(screen.getByRole('img', { name: 'Alternative product P0160' })).toHaveAttribute('src', '/img/P0160.jpg');
     expect(screen.getByTestId('offer-decision')).toHaveTextContent(
-      'Decided by: safe rule — AI suggested no substitute (confidence 0.76, below threshold 0.8)');
+      'Decided by: safe rule — AI suggested Pathfinder Air (confidence 0.76, below threshold 0.8)');
   });
 
   it('groups the complete offer narrative and facts beside its alternative product image', () => {
@@ -50,6 +50,18 @@ describe('OfferCard', () => {
     expect(screen.getByTestId('offer-card')).toHaveTextContent('We found similar items, but none is a good match');
     expect(screen.getByTestId('offer-details')).toHaveTextContent('None: no good substitute');
     expect(screen.getByTestId('offer-details')).not.toHaveTextContent('nothing comparable');
+  });
+
+  it('credits a below-threshold "none" to the AI too, with the low confidence visible', () => {
+    render(<OfferCard offer={{ ...offer, decision_route: 'JEV', decision_reason: 'no_good_substitute', jev_choice: 'none',
+      jev_choice_label: null, jev_confidence: 0.76, product_id: null, chosen_choice: null, restock_notice: false,
+      no_offer: true, body: 'Sold out everywhere. We found similar items, but none is a good match for this one.' }}
+      error={null} />);
+    expect(screen.getByTestId('offer-decision')).toHaveTextContent(
+      'Decided by: AI — no good substitute (confidence 0.76, below threshold 0.8)');
+    expect(screen.queryByTestId('offer-product')).toBeNull();
+    expect(screen.getByTestId('offer-card')).toHaveTextContent('We found similar items, but none is a good match');
+    expect(screen.getByTestId('offer-details')).toHaveTextContent('None: no good substitute');
   });
 
   it('credits an accepted Jev decision to AI and names the product, not its id', () => {

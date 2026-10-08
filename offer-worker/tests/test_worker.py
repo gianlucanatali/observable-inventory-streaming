@@ -176,6 +176,7 @@ def test_cart_without_readable_contents_gives_lower_bounds_not_the_random_signal
 @pytest.mark.parametrize(("choice", "confidence", "route", "reason", "logged_choice"), [
     ("alt:P0160", 0.95, "JEV", "accepted", "alt:P0160"),
     ("alt:P0160", 0.5, "RULE_DEFAULT", "low_confidence", "alt:P0160"),
+    ("none", 0.5, "JEV", "no_good_substitute", "none"),
     ("alt:P9999", 0.95, "RULE_DEFAULT", "invalid_choice", "alt:P9999"),
     ("secret-key", 0.95, "RULE_DEFAULT", "invalid_choice", "unrecognized"),
 ])
@@ -226,8 +227,35 @@ def test_jev_confident_none_offers_no_alternative(catalogue, redis_client, caplo
     assert record.ctx["decision"] == "JEV/no_good_substitute" and record.ctx["jev_choice"] == "none"
 
 
-def test_jev_unsure_none_is_the_safe_rule(catalogue, redis_client):
-    w, out, _ = build(make_cfg(), catalogue, redis_client, FakeJev(choice="none", confidence=0.5))
+def test_jev_none_below_the_threshold_still_offers_no_alternative(catalogue, redis_client, caplog):
+    """Jev's top label is "none" but its confidence is below the threshold: the Safe rule must not offer an alternative
+    Jev rated low. The AI decided; the low confidence stays visible in jev_confidence < min_confidence."""
+    caplog.set_level("INFO", logger="offer_worker")
+    jev = FakeJev(choice="none", confidence=0.76, probabilities={"alt:P0160": 0.01, "alt:P0061": 0.12, "none": 0.87})
+    w, out, m = build(make_cfg(), catalogue, redis_client, jev)
+    w.handle(risk())
+    o = only(out)
+    assert (o["decision_route"], o["decision_reason"]) == ("JEV", "no_good_substitute")
+    assert o["product_id"] is None and o["chosen_choice"] is None and o["discount_pct"] == 0
+    assert (o["jev_choice"], o["jev_confidence"], o["min_confidence"]) == ("none", 0.76, 0.8)
+    assert o["rule_choice"] == "alt:P0160"  # what the Safe rule would have picked, kept for comparison
+    assert o["body"] == "Sold out everywhere. We found similar items, but none is a good match for this one."
+    assert ("decision", "JEV", "no_good_substitute") in m.calls and ("completed", "NONE", False) in m.calls
+    record = next(r for r in caplog.records if r.message == "offer published")
+    assert record.ctx["decision"] == "JEV/no_good_substitute" and record.ctx["jev_confidence"] == 0.76
+
+
+def test_jev_none_below_the_threshold_keeps_the_restock_notice(catalogue, redis_client):
+    eta = near_restock(redis_client)
+    w, out, _ = build(make_cfg(), catalogue, redis_client, FakeJev(choice="none", confidence=0.3))
+    w.handle(risk())
+    o = only(out)
+    assert (o["decision_route"], o["decision_reason"], o["product_id"]) == ("JEV", "no_good_substitute", None)
+    assert o["restock_eta"] == eta and o["offer_type"] == "NOTIFY_ME"
+
+
+def test_jev_alternative_below_the_threshold_is_still_the_safe_rule(catalogue, redis_client):
+    w, out, _ = build(make_cfg(), catalogue, redis_client, FakeJev(choice="alt:P0061", confidence=0.76))
     w.handle(risk())
     o = only(out)
     assert (o["decision_route"], o["decision_reason"], o["product_id"]) == ("RULE_DEFAULT", "low_confidence", "P0160")
@@ -596,6 +624,7 @@ OUTCOMES = {
     "ai_accepts_alternative": ("P0042", lambda: FakeJev("alt:P0061", 0.86, probabilities=P0042_PROBABILITIES),
                                "JEV", "accepted", "P0061", "alt:P0061"),
     "ai_none": ("P0042", lambda: FakeJev("none", 0.9), "JEV", "no_good_substitute", None, "none"),
+    "ai_none_low_confidence": ("P0042", lambda: FakeJev("none", 0.76), "JEV", "no_good_substitute", None, "none"),
     "ai_unsure_safe_rule": ("P0042", lambda: FakeJev("alt:P0061", 0.4), "RULE_DEFAULT", "low_confidence", "P0160",
                             "alt:P0061"),
     # notify_me is no longer an option: an answer with it is invalid, logged as a bounded "unrecognized".

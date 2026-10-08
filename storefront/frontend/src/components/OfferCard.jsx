@@ -52,7 +52,9 @@ export function decisionSummary(offer) {
   const hasJevDecision = typeof offer.jev_choice === 'string' && typeof offer.jev_confidence === 'number';
   const hasThreshold = typeof offer.min_confidence === 'number';
   if (offer.decision_route === 'JEV' && hasJevDecision && hasThreshold && offer.decision_reason === 'no_good_substitute') {
-    return `Decided by: AI — no good substitute (confidence ${score(offer.jev_confidence)}, threshold ${threshold(offer.min_confidence)})`;
+    // "none" stands at any confidence: the safe rule never offers an alternative the AI ranked below "none".
+    const below = offer.jev_confidence < offer.min_confidence ? 'below threshold' : 'threshold';
+    return `Decided by: AI — no good substitute (confidence ${score(offer.jev_confidence)}, ${below} ${threshold(offer.min_confidence)})`;
   }
   if (offer.decision_route === 'JEV' && hasJevDecision && hasThreshold) {
     return `Decided by: AI — chose ${choiceLabel(offer)} (confidence ${score(offer.jev_confidence)}, threshold ${threshold(offer.min_confidence)})`;

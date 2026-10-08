@@ -48,6 +48,13 @@ notify-me is now offered to Jev only with a restock date, cart totals come from
 the cart contents, and each alternative is compared with the sold-out product.
 Live confidence under the new prompt is unmeasured.
 
+Update 2026-10-08: the question changed again. Jev is now asked only whether either
+eligible alternative is a good substitute, with `none` as an explicit answer, and the
+restock date is no longer part of it. Live today: P0048 chose an alternative at
+confidence 0.91 to 0.94 every time; P0042 answered `none` at probability 0.84 to 0.89,
+confidence 0.76 to 0.83. A `none` answer offers no alternative at any confidence. The
+threshold stays 0.8. The `notify_me` figures above belong to the earlier question.
+
 Proposal: retain `0.8` for the presentation so low-confidence choices continue
 to demonstrate the deterministic rule-default path. Before lowering it, collect
 at least 30 labelled decisions spanning notify-me and eligible alternatives,

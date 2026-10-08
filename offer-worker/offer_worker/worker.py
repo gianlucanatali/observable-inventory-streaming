@@ -169,8 +169,9 @@ class OfferWorker:
     def _decide(self, risk: dict, original: dict, alts: list[Candidate],
                 min_confidence: float) -> tuple[Candidate | None, str, str, float | None, str | None]:
         """(alternative or None, route, reason, jev confidence, jev choice). Jev answers which eligible alternative is a
-        good substitute, or none. A confident choice stands (JEV/accepted, or JEV/no_good_substitute for none);
-        everything else is the Safe rule's pick (RULE_DEFAULT)."""
+        good substitute, or none. "none" stands at any confidence (JEV/no_good_substitute): the Safe rule must not offer
+        an alternative the AI ranked below "none"; the low confidence stays visible as jev_confidence < min_confidence.
+        A confident alternative stands (JEV/accepted); everything else is the Safe rule's pick (RULE_DEFAULT)."""
         default = rule_default(alts)
         if not alts:
             return None, "RULE_DEFAULT", "no_alternative", None, None  # nothing to judge: no Jev call
@@ -192,10 +193,10 @@ class OfferWorker:
         if got.choice != NONE_ID and got.choice not in by_id:
             log.warning("Jev chose an id that is not allowed; rule default", extra={"ctx": {"choice": jev_choice}})
             return default, "RULE_DEFAULT", "invalid_choice", got.confidence, jev_choice
-        if got.confidence < min_confidence:
-            return default, "RULE_DEFAULT", "low_confidence", got.confidence, jev_choice
         if got.choice == NONE_ID:
             return None, "JEV", "no_good_substitute", got.confidence, jev_choice
+        if got.confidence < min_confidence:
+            return default, "RULE_DEFAULT", "low_confidence", got.confidence, jev_choice
         return by_id[got.choice], "JEV", "accepted", got.confidence, jev_choice
 
     # --- text lane -----------------------------------------------------------------------------------------------
