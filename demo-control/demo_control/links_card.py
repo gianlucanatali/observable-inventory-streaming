@@ -123,7 +123,7 @@ CARD = """<!-- links card (demo_control/links_card.py) -->
 #links-card summary { cursor:pointer; list-style:none; display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
 #links-card summary::-webkit-details-marker { display:none; }
 #links-card summary h2 { margin:0; } #links-card summary h2::before { content:"\\25BE  "; font-size:18px; } #links-card:not([open]) summary h2::before { content:"\\25B8  "; }
-.links-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; margin-top:14px; }
+.links-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; margin-top:8px; }
 .link-tile { display:flex; flex-direction:column; text-decoration:none; color:var(--ink); background:#faf7fe; border:1px solid var(--line); border-radius:12px; overflow:hidden; transition:border-color .15s, box-shadow .15s; }
 .link-tile:hover, .link-tile:focus-visible { border-color:var(--accent); box-shadow:0 4px 14px rgba(99,44,166,.18); }
 .link-tile img, .link-tile .no-thumb { display:block; width:100%; aspect-ratio:16/9; object-fit:cover; object-position:top left; background:#eee9f4; border-bottom:1px solid var(--line); }

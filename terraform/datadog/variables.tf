@@ -147,3 +147,18 @@ variable "shop_url" {
     error_message = "shop_url must be empty or look like http://host (scheme and host, no path)."
   }
 }
+
+variable "incident_window" {
+  description = "Optional fixed time window of a recorded all-traffic 1.1.0 incident on this stack (Unix ms, from_ms < to_ms) and a short label for the demo home note, for example \"2026-10-09 09:09-09:38 UTC\". Null (default): the Chapter 3 note explains how to record one. Set it in an untracked *.auto.tfvars file next to this module (gitignored), since the window is only meaningful for your own account's data."
+  type = object({
+    from_ms = number
+    to_ms   = number
+    label   = string
+  })
+  default = null
+
+  validation {
+    condition     = var.incident_window == null || try(var.incident_window.from_ms < var.incident_window.to_ms, false)
+    error_message = "incident_window.from_ms must be before incident_window.to_ms."
+  }
+}

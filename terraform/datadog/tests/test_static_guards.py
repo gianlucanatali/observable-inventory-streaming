@@ -20,16 +20,15 @@ required = [
     'resource "datadog_dashboard_json" "overview"',
     'output "overview_dashboard_url"',
     # demo home: Chapter 3 saturation with metrics that exist, ECS events overlay, 100% marker,
-    # the fixed "night of the incident" range
+    # the "night of the incident" range from var.incident_window (optional, per account)
     'title       = "UrbanStreet demo home [${local.env}]"',
     'max:aws.ecs.service.cpuutilization.maximum{${local.online_scope}} by {servicename}',
     'markers = [{ value = "y = 100", display_type = "error dashed", label = "task CPU limit (100%)" }]',
     'max:aws.applicationelb.un_healthy_host_count{${local.online_scope}} by {targetgroup}',
     'ecs_events_query = "source:amazon_ecs project:dd-demo stack:${var.stack}"',
     'events  = [{ q = local.demo_panel_query }, { q = local.ecs_events_query }]',
-    'home_incident_from_ms = 1791454200000',
-    'home_incident_to_ms   = 1791455400000',
-    'night        = "?tpl_var_env=${local.env}&from_ts=${local.home_incident_from_ms}&to_ts=${local.home_incident_to_ms}&live=false"',
+    'variable "incident_window"',
+    'from_ts=${var.incident_window.from_ms}&to_ts=${var.incident_window.to_ms}&live=false',
     'operation_name%3Acatalogue.prepare',
     '[local.overview_note.start]',
     # demo home Chapter 3: span breakdown (catalogue.prepare vs the whole lookup, by version), the slow-lookup traces list
@@ -153,7 +152,7 @@ for chapter_note in ("c1", "c2", "c3", "c4", "c5", "c6"):
     if not m or "${local.home_panel_md}" not in m.group(0):
         sys.exit(f"overview.tf: note {chapter_note} must link the control panel (local.home_panel_md)")
 c3 = re.search(r'c3 = join.*?\n      \]\)', overview, re.DOTALL).group(0)
-if c3.find("local.home_link.night") < 100:
+if c3.find("local.home_night_md") < 100:
     sys.exit("overview.tf: note c3 must carry the night link after the first lines (a link at the top of the widget needs two clicks)")
 if re.search(r'(?m)^[^#\n]*http://[^$\n"]*(elb\.amazonaws|amazonaws\.com)', overview):
     sys.exit("overview.tf: hard-coded AWS host; the shop links must come from var.shop_url")

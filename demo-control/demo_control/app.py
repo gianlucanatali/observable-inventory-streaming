@@ -106,22 +106,36 @@ PAGE = """<!doctype html>
 <title>Demo control ({{ stack }})</title>
 <style>
 :root { --bg:#f4effb; --ink:#2a1250; --muted:#635a72; --card:#fff; --line:#e7dcf6; --accent:#632ca6; --accent-dark:#4b1f86; --accent-ink:#fff; --shadow:0 3px 8px rgba(42,18,80,.08),0 12px 28px rgba(42,18,80,.10); --radius:16px; --off:#6b7380; --err:#a0273d; --ok:#187542; }
-* { box-sizing:border-box; } body { margin:0; background:var(--bg); color:var(--ink); font:18px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; }
+* { box-sizing:border-box; } body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif; }
 .control-header { background:linear-gradient(125deg,#2a1250,#632ca6); color:#fff; box-shadow:var(--shadow); }
-.header-inner,.control-page { max-width:1180px; margin:0 auto; padding-left:24px; padding-right:24px; }.header-inner { padding-top:24px; padding-bottom:24px; }
-h1 { font-size:36px; line-height:1.1; margin:0 0 8px; } h2 { font-size:24px; margin:32px 0 12px; text-transform:capitalize; color:var(--accent-dark); }
-.ctx { color:var(--muted); font-size:16px; margin:0; } .control-header .ctx,.control-header .ctx code { color:rgba(255,255,255,.86); }
-.control-page { padding-bottom:56px; }.control-card { background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); }
-.actions-card { margin-top:24px; padding:24px; border-color:#d9c6f1; }.actions-layout { display:grid; grid-template-columns:minmax(260px,1.25fr) minmax(360px,1fr); gap:24px; align-items:start; }
-.actions-card h2 { margin:0 0 6px; }.label { font-weight:800; font-size:18px; }.meta { color:var(--muted); font-size:15px; }.actions-card .meta { margin:0; }
-.action-controls { display:flex; flex-wrap:wrap; gap:10px; align-items:end; }.field { display:grid; gap:5px; flex:1 1 160px; font-size:15px; font-weight:700; color:var(--muted); }
-input { min-height:44px; font:inherit; padding:8px 10px; background:#fff; color:var(--ink); border:1px solid #cdb9e8; border-radius:10px; } input[type=number] { width:8em; }
-button { min-height:44px; font:inherit; font-size:16px; font-weight:800; padding:9px 14px; border-radius:10px; border:1px solid var(--accent); background:var(--accent); color:var(--accent-ink); cursor:pointer; box-shadow:0 4px 10px rgba(99,44,166,.18); }
+.header-inner,.control-page { max-width:1180px; margin:0 auto; padding-left:14px; padding-right:14px; }.header-inner { padding-top:10px; padding-bottom:10px; }
+h1 { font-size:24px; line-height:1.1; margin:0 0 4px; } h2 { font-size:19px; margin:18px 0 8px; text-transform:capitalize; color:var(--accent-dark); }
+.ctx { color:var(--muted); font-size:14px; margin:0; } .control-header .ctx,.control-header .ctx code { color:rgba(255,255,255,.86); }
+.control-page { padding-bottom:24px; }.control-card { background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); }
+.actions-card { margin-top:12px; padding:12px 14px; border-color:#d9c6f1; }.actions-layout { display:grid; grid-template-columns:minmax(200px,1.1fr) minmax(250px,1fr); gap:12px 16px; align-items:start; }
+.actions-card h2 { margin:0 0 2px; }.label { font-weight:800; font-size:15px; }.meta { color:var(--muted); font-size:13px; line-height:1.35; }.actions-card .meta { margin:0; }
+.action-controls { display:flex; flex-wrap:wrap; gap:6px; align-items:end; }.field { display:grid; gap:3px; flex:1 1 140px; font-size:13px; font-weight:700; color:var(--muted); }
+input { min-height:34px; font:inherit; padding:4px 8px; background:#fff; color:var(--ink); border:1px solid #cdb9e8; border-radius:10px; } input[type=number] { width:8em; }
+button { min-height:34px; font:inherit; font-size:14px; font-weight:800; padding:5px 11px; border-radius:8px; border:1px solid var(--accent); background:var(--accent); color:var(--accent-ink); cursor:pointer; box-shadow:0 4px 10px rgba(99,44,166,.18); }
 button:hover { background:var(--accent-dark); border-color:var(--accent-dark); } button.secondary { background:#fff; color:var(--accent-dark); box-shadow:none; } button:disabled,input:disabled { opacity:.5; cursor:not-allowed; }
-.action-progress { margin-top:18px; padding:12px 14px; border-radius:12px; background:#eee9f4; }.msg { min-height:1.5em; margin:0; font-size:15px; } .msg.err { color:var(--err); } .msg.ok { color:var(--ok); }
-.row { display:grid; grid-template-columns:minmax(250px,1.2fr) minmax(230px,1fr) minmax(280px,1fr); gap:16px 24px; padding:20px 22px; margin:12px 0; }.row.off { opacity:.6; }.value { font-size:26px; font-weight:800; }.unit { font-size:16px; color:var(--muted); font-weight:400; }
+.action-progress { margin-top:10px; padding:8px 10px; border-radius:10px; background:#eee9f4; }.msg { min-height:1.5em; margin:0; font-size:13px; } .msg.err { color:var(--err); } .msg.ok { color:var(--ok); }
+.row { display:grid; grid-template-columns:minmax(180px,1.2fr) minmax(170px,1fr) minmax(190px,1fr); gap:8px 16px; padding:10px 14px; margin:8px 0; }.row.off { opacity:.6; }.value { font-size:20px; font-weight:800; }.unit { font-size:16px; color:var(--muted); font-weight:400; }
 .badge { display:inline-block; font-size:14px; padding:2px 8px; border-radius:999px; border:1px solid var(--line); margin-right:6px; }.badge.off { color:var(--off); }.badge.err { color:var(--err); border-color:var(--err); }
-@media (max-width:800px) { .header-inner,.control-page { padding-left:16px; padding-right:16px; }.actions-layout,.row { grid-template-columns:1fr; } h1 { font-size:30px; } }
+.card-title { cursor:pointer; user-select:none; } .card-title::before { content:"\\25BE  "; font-size:18px; } .card-collapsed > .card-title::before,.card-collapsed .actions-layout > div > .card-title::before { content:"\\25B8  "; }
+.card-collapsed .action-progress,.card-collapsed .actions-layout > :not(:first-child),.card-collapsed .actions-layout > :first-child > :not(h2),.layer-card.card-collapsed > :not(h2) { display:none !important; }
+.card-collapsed.actions-card { margin-top:6px; padding:6px 14px; } .layer-card.card-collapsed h2 { margin:6px 0 0; }
+.curated .actions-layout > :first-child > p.meta:not(.chk-gate-for) { display:none; } .curated #chk-gate-for code { display:none; } .curated .control-header .ctx + .ctx { display:none; } .curated .header-inner { padding-top:6px; padding-bottom:6px; } .curated h1 { margin:0; font-size:20px; }
+.curated .actions-card:not(.card-collapsed) .action-progress { margin-top:6px; padding:5px 8px; } .curated .actions-card { margin-top:8px; }
+.curated .actions-layout { grid-template-columns:minmax(140px,.6fr) minmax(300px,1.4fr); } .curated #links-card summary .meta { display:none; }
+.curated main { display:flex; flex-wrap:wrap; column-gap:18px; } .curated main > * { flex:1 0 100%; } .curated main > .layer-card { flex:0 0 auto; }
+.curated .layer-card.card-collapsed h2 { margin:4px 0 6px; font-size:15px; } .curated .ops-weight { padding:3px 8px; } .curated .ops-weight b { font-size:18px; line-height:1.1; }
+.curated button { min-height:30px; padding:3px 9px; font-size:13px; } .curated .ops-buttons,.curated .action-controls { gap:5px; }
+.curated main > .layer-card:not(.card-collapsed) { flex:1 0 100%; min-width:0; } .curated .parameter-card { padding:8px 12px; margin:6px 0; }
+.curated .parameter-card > div > .meta:not(.st),.curated .parameter-card .msg:empty { display:none; } .curated .parameter-card .value { font-size:18px; }
+#actions .field { flex:0 1 auto; grid-template-columns:auto 1fr; align-items:center; column-gap:6px; } #actions .field label { grid-column:1 / -1; } #actions #product-id { width:7em; }
+#actions .field .meta { display:flex; gap:4px; align-items:center; flex-wrap:wrap; } #actions .pick-product { min-height:28px; padding:2px 8px; font-size:13px; }
+#actions #reset-data { margin-left:auto; } .actions-card .action-progress:has(> .msg:empty:only-child) { display:none; }
+@media (max-width:600px) { .actions-layout,.row { grid-template-columns:1fr; } }
 </style></head><body>
 <header class="control-header"><div class="header-inner"><h1>Demo control <span class="ctx">stack <code>{{ stack }}</code></span></h1>
 <p class="ctx">Layers running: <code>{{ running|join(', ') if running is not none else 'unknown' }}</code>
@@ -132,6 +146,7 @@ button:hover { background:var(--accent-dark); border-color:var(--accent-dark); }
 <section class="control-card actions-card" id="actions"><div class="actions-layout"><div><h2>Actions</h2><div class="label">Source data actions</div><p class="meta">These actions update PostgreSQL only, then verify the Redis serving view. Reset demo data refuses to start while background sales are on (they keep changing stock, so the reset could never converge): press <b>Sales off</b> first, or use <b>Full demo reset</b> (Background sales card) or <code>make reset</code>, which also stop sales and restore 100/0/0 routing. Reset never changes ALB routing.</p></div><div class="action-controls"><div class="field"><label for="product-id">Product ID</label><input id="product-id" value="P0042" aria-label="Product ID"><div class="meta">Lab 5.1: <button type="button" class="secondary pick-product" data-product="P0042" title="Trailrunner GTX EU 42: AI">P0042</button> <button type="button" class="secondary pick-product" data-product="P0048" title="Dolomia Evo Charcoal EU 42: AI">P0048</button> <button type="button" class="secondary pick-product" data-product="P0092" title="Pathfinder Lite Navy EU 42: nothing comparable">P0092</button></div></div><button id="sell-out">Sell out product</button><button id="reset-data" class="secondary">Reset demo data</button></div></div><div class="action-progress"><div class="msg action-status">Loading action status…</div></div></section>
 {{ ops_cards|safe }}
 {% for layer, rows in layers.items() %}
+<section class="layer-card" id="settings-{{ layer|lower|replace(' ', '-') }}">
 <h2>{{ layer }}</h2>
 {% for r in rows %}
 <div class="row control-card parameter-card {{ 'off' if r.status == 'layer_off' }}" data-key="{{ r.key }}" data-default="{{ r.default }}">
@@ -156,7 +171,8 @@ button:hover { background:var(--accent-dark); border-color:var(--accent-dark); }
     <div class="msg"></div>
   </div>
 </div>
-{% endfor %}{% endfor %}
+{% endfor %}
+</section>{% endfor %}
 </main>
 <script>
 async function put(row, value) {
@@ -179,5 +195,31 @@ const actionStatus = document.querySelector('.action-status');
 async function actionState() { const r = await fetch('/control/api/actions'); const j = await r.json(); actionStatus.className='msg ' + (j.status === 'failed' ? 'err' : j.status === 'succeeded' ? 'ok' : ''); actionStatus.textContent = (j.status || 'unknown') + ': ' + (j.error || j.progress || ''); const busy = ['queued','running'].includes(j.status); document.querySelector('#sell-out').disabled=busy; document.querySelector('#reset-data').disabled=busy; }
 async function runAction(name) { if (!confirm(name === 'reset' ? 'Reset source data to the deterministic baseline? (Background sales must be off.)' : 'Sell out this product in every store?')) return; const body=name === 'sell-out' ? {product_id:document.querySelector('#product-id').value} : {}; const r=await fetch('/control/api/actions/'+name,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); const j=await r.json(); if(!r.ok){ actionStatus.className='msg err'; actionStatus.textContent=j.error || 'Action request failed'; return; } actionState(); }
 document.querySelectorAll('.pick-product').forEach((b)=>{ b.onclick=()=>{ document.querySelector('#product-id').value=b.dataset.product; }; }); document.querySelector('#sell-out').onclick=()=>runAction('sell-out'); document.querySelector('#reset-data').onclick=()=>runAction('reset'); actionState(); setInterval(actionState, 1000);
+</script>
+<script>
+(function () {  // collapsible cards: click a card title; ?open=id,id starts only those cards open (no parameter: all open)
+  var cards = Array.prototype.slice.call(document.querySelectorAll('.control-card:not(.parameter-card), .layer-card'));
+  var param = new URLSearchParams(location.search).get('open');
+  var openIds = param === null ? null : param.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+  if (openIds !== null) document.body.classList.add('curated');  // curated view: descriptions hidden, only what the moment needs
+  function set(card, open) {
+    card.classList.toggle('card-collapsed', !open);
+    if (card.tagName === 'DETAILS') card.open = open;
+  }
+  cards.forEach(function (card) {
+    if (openIds !== null) set(card, openIds.indexOf(card.id) >= 0);
+    if (card.tagName === 'DETAILS') {
+      card.addEventListener('toggle', function () { card.classList.toggle('card-collapsed', !card.open); });
+      return;  // a details card toggles natively from its summary
+    }
+    var title = card.querySelector('h2');
+    if (!title) return;
+    title.classList.add('card-title'); title.setAttribute('role', 'button'); title.tabIndex = 0;
+    function flip(e) { if (e.target.closest && e.target.closest('button, input, select, a, textarea')) return; set(card, card.classList.contains('card-collapsed')); }
+    title.addEventListener('click', flip);
+    title.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flip(e); } });
+  });
+  if (location.hash.length > 1) { var t = document.getElementById(decodeURIComponent(location.hash.slice(1))); if (t) t.scrollIntoView(); }
+})();
 </script></body></html>
 """

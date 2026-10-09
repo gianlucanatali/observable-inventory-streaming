@@ -177,18 +177,20 @@ RESET_CARD = """<section class="control-card actions-card ops-card" id="reset-ca
 
 CARDS = """<!-- checks + background sales cards (demo_control/checks_card.py) -->
 <style>
-.chk-result { margin-top:10px; display:grid; gap:8px; }
+.chk-result { display:grid; gap:6px; } .chk-result:empty { display:none; }
+.chk-steps button { flex:1 1 0; } .chk-tools { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:6px; }
 .chk-table { width:100%; border-collapse:collapse; font-size:15px; } .chk-table th { text-align:left; color:var(--muted); font-weight:700; padding:4px 6px; border-bottom:1px solid var(--line); }
 .chk-table td { padding:4px 6px; border-bottom:1px solid var(--line); font-variant-numeric:tabular-nums; } .chk-table td:first-child { font-weight:800; }
 .chk-gates { list-style:none; margin:0; padding:0; font-size:15px; display:grid; gap:4px; } .chk-gates li { display:flex; gap:8px; align-items:baseline; }
 .chk-tag { display:inline-block; min-width:3.6em; text-align:center; font-weight:800; font-size:13px; padding:1px 6px; border-radius:999px; border:1px solid currentColor; }
 .chk-pass { color:var(--ok); } .chk-fail { color:var(--err); }
-.chk-verdict { font-size:20px; font-weight:800; } .chk-gate-for { font-size:15px; } .chk-gate-for code { font-size:14px; }
-.chk-rate { display:flex; gap:10px; align-items:baseline; } .chk-rate b { font-size:28px; font-weight:800; }
+.chk-verdict { font-size:20px; font-weight:800; } .chk-gate-for { font-size:13px; } .chk-gate-for code { font-size:14px; }
+.chk-rate { display:flex; gap:10px; align-items:baseline; margin-bottom:4px; } .chk-rate b { font-size:22px; font-weight:800; }
 </style>
-<section class="control-card actions-card ops-card" id="chk-card"><div class="actions-layout"><div><h2>Checks</h2><div class="label">Load, verify and canary gate on the VM</div><p class="meta">Runs on the on-prem VM through the scenario API, exactly like <code>make load</code>, <code>make verify</code> and <code>make canary-check</code>: load writes <code>/out/last.json</code>, verify writes <code>/out/verify.json</code>, and the canary gate reads both. Check canary gates the newer release with traffic (the canary) against the older one: 1.1.0 vs 1.0.0 at 90/10/0, 1.2.0 vs 1.0.0 at 90/0/10 or 50/0/50, 1.2.0 alone at 0/0/100.</p></div>
-<div><div class="ops-buttons"><button class="chk-btn" data-action="load"{{CHECKS_DIS}}>{{LOAD_LABEL}}</button><button class="chk-btn secondary" data-action="verify"{{CHECKS_DIS}}>Verify</button><button class="chk-btn" data-action="canary-check"{{CHECKS_DIS}}>Check canary</button><button class="secondary ops-refresh" id="chk-refresh"{{CHECKS_DIS}}>Refresh</button></div>
-<p class="meta chk-gate-for" id="chk-gate-for">Gate for live routing: loading…</p></div></div>
+<section class="control-card actions-card ops-card" id="chk-card"><div class="actions-layout"><div><h2>Checks</h2><div class="label">Load, verify and canary gate on the VM</div><p class="meta">Runs on the on-prem VM through the scenario API, exactly like <code>make load</code>, <code>make verify</code> and <code>make canary-check</code>: load writes <code>/out/last.json</code>, verify writes <code>/out/verify.json</code>, and the canary gate reads both. Check canary gates the newer release with traffic (the canary) against the older one: 1.1.0 vs 1.0.0 at 90/10/0, 1.2.0 vs 1.0.0 at 90/0/10 or 50/0/50, 1.2.0 alone at 0/0/100.</p>
+<p class="meta chk-gate-for" id="chk-gate-for">Gate for live routing: loading…</p></div>
+<div><div class="ops-buttons chk-steps"><button class="chk-btn" data-action="load"{{CHECKS_DIS}}>{{LOAD_LABEL}}</button><button class="chk-btn" data-action="verify"{{CHECKS_DIS}}>Verify</button><button class="chk-btn" data-action="canary-check"{{CHECKS_DIS}}>Check canary</button></div>
+<div class="chk-tools"><span class="meta">Run in order: load, verify, canary gate</span><button class="secondary ops-refresh" id="chk-refresh"{{CHECKS_DIS}}>Refresh</button></div></div></div>
 <div class="action-progress"><div class="msg" id="chk-msg"></div><div class="chk-result" id="chk-result"></div></div></section>
 <section class="control-card actions-card ops-card" id="sales-card"><div class="actions-layout"><div><h2>Background sales</h2><div class="label">jr sales rate</div><p class="meta">Sales off sets <code>sales_per_min_per_store</code> to 0 in every store (remembering the rate); Sales on restores it, then waits for a real sale. The jr containers must be running: <code>make sales-on</code> starts them, <code>make sales-off</code> and <code>make reset</code> stop them.</p></div>
 <div><div class="chk-rate"><b id="sales-rate">&mdash;</b><span class="meta" id="sales-meta">sales/min per store</span></div>

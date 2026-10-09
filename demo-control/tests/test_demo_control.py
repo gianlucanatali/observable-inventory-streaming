@@ -64,7 +64,7 @@ def test_page_renders_not_cached_and_grouped(client):
 def test_page_has_storefront_aligned_visual_contract_and_actions_before_parameters(client):
     html = client.get("/control/", headers=auth()).get_data(as_text=True)
     assert "--bg:#f4effb" in html and "--accent:#632ca6" in html
-    assert "font:18px/1.5" in html and "--radius:16px" in html
+    assert "font:15px/1.4" in html and "--radius:16px" in html
     assert '<header class="control-header">' in html
     assert '<main class="control-page">' in html
     assert 'class="control-card actions-card"' in html
@@ -267,3 +267,25 @@ def test_multi_store_second_store_failure_is_reported(client, parts):
 
 def test_multi_store_unset_in_both_is_unset(client):
     assert params(client)["time_compression"]["status"] == "unset"
+
+
+# --- collapsible cards (?open=id,id) -------------------------------------------------------------------------------
+def test_page_has_every_card_id_and_the_collapse_script(client):
+    html = client.get("/control/", headers=auth()).get_data(as_text=True)
+    for card_id in ("actions", "ops-routing", "ops-feeds", "chk-card", "sales-card", "reset-card", "links-card",
+                    "settings-core", "settings-offers", "settings-restock"):
+        assert f'id="{card_id}"' in html, card_id
+    assert "URLSearchParams(location.search).get('open')" in html and "card-collapsed" in html
+    # no server-side collapsing: with no parameter every card is expanded exactly as before
+    assert 'class="control-card actions-card card-collapsed' not in html
+
+
+def test_open_parameter_does_not_change_the_server_render(client):
+    plain = client.get("/control/", headers=auth()).get_data(as_text=True)
+    assert client.get("/control/?open=actions,nope", headers=auth()).get_data(as_text=True) == plain
+
+
+def test_curated_view_class_is_added_only_by_the_open_parameter(client):
+    html = client.get("/control/", headers=auth()).get_data(as_text=True)
+    assert "classList.add('curated')" in html and "if (openIds !== null)" in html
+    assert 'class="curated"' not in html and "<body class" not in html

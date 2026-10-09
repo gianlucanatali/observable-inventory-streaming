@@ -68,12 +68,25 @@ def register(app: Flask, control) -> None:
 def cards_html(control) -> str:
     backend = getattr(control, "alb", None)  # routing backend: AlbRouting (hybrid) or NginxRouting (local mode)
     routing_on, feeds_on = backend is not None, getattr(control, "feeds", None) is not None
-    buttons = "".join(
-        f'<button class="ops-btn ops-route{" secondary" if name == "route-baseline" else ""}" data-action="{name}" '
-        f'data-weights="{"/".join(map(str, w))}" data-why="{why}"{"" if routing_on else " disabled"}>{label}</button>'
-        for name, (label, w, why) in PRESETS.items())
-    buttons += (f'<button class="ops-btn ops-route secondary" data-action="{ROLLBACK}"'
-                f'{"" if routing_on else " disabled"}>Rollback</button>')
+    dis = "" if routing_on else " disabled"
+
+    def btn(name: str, cls: str = "") -> str:
+        if name == ROLLBACK:
+            return f'<button class="ops-btn ops-route{cls}" data-action="{ROLLBACK}"{dis}>Rollback</button>'
+        label, w, why = PRESETS[name]
+        return (f'<button class="ops-btn ops-route{cls}" data-action="{name}" '
+                f'data-weights="{"/".join(map(str, w))}" data-why="{why}"{dis}>{label}</button>')
+
+    def group(title: str, body: str, cls: str = "") -> str:
+        return f'<div class="ops-group{cls}"><span class="ops-group-label">{title}</span><div class="ops-buttons">{body}</div></div>'
+
+    # Story order (talk flow): 1.1.0 canary, recover, 1.2.0 canary; the Incident preset is never pressed live.
+    grouped = {"canary-110-10", "route-baseline", "canary-10", "canary-100", "canary-50", "incident"}
+    rest = "".join(btn(n) for n in PRESETS if n not in grouped)  # any future preset still gets a button
+    buttons = (group("1.1.0", btn("canary-110-10"))
+               + group("Recover", btn(ROLLBACK) + btn("route-baseline", " secondary"))
+               + group("1.2.0", btn("canary-10") + btn("canary-100") + btn("canary-50", " secondary ops-quiet") + rest)
+               + group("Danger", btn("incident", " ops-danger"), " ops-group-danger"))
     stores = "".join(f'<option value="{s}"{" selected" if s == "S03" else ""}>{s}</option>' for s in STORES)
     dis = "" if feeds_on else " disabled"
     return (OPS_HTML.replace("{{ROUTE_BUTTONS}}", buttons).replace("{{STORE_OPTIONS}}", stores)
@@ -87,27 +100,46 @@ def cards_html(control) -> str:
 
 OPS_HTML = """<!-- ops cards: release routing + store feed (demo_control/ops.py) -->
 <style>
-.ops-weights { display:flex; gap:10px; margin:8px 0; }
+.ops-weights { display:flex; gap:6px; margin:6px 0; }
 .ops-weight { flex:1; background:#faf7fe; border:1px solid var(--line); border-radius:12px; padding:8px 10px; text-align:center; }
-.ops-weight b { display:block; font-size:28px; font-weight:800; line-height:1.2; } .ops-weight span { color:var(--muted); font-size:14px; font-weight:700; }
+.ops-weight b { display:block; font-size:22px; font-weight:800; line-height:1.2; } .ops-weight span { color:var(--muted); font-size:14px; font-weight:700; }
 .ops-weight.hot { border-color:var(--accent); background:#eee9f4; box-shadow:inset 0 -4px 0 var(--accent); }
-.ops-buttons { display:flex; flex-wrap:wrap; gap:10px; align-items:end; } .ops-buttons button { white-space:nowrap; }
+.ops-buttons { display:flex; flex-wrap:wrap; gap:6px; align-items:end; } .ops-buttons button { white-space:nowrap; }
 .ops-feeds { width:100%; border-collapse:collapse; font-size:15px; margin:4px 0 0; } .ops-feeds td { padding:4px 6px; border-bottom:1px solid var(--line); }
 .ops-feeds td:first-child { font-weight:800; width:3.5em; }
 .ops-state-PAUSED { color:var(--err); font-weight:800; } .ops-state-RUNNING { color:var(--ok); font-weight:800; } .ops-state-ERROR, .ops-state-FAILED { color:var(--err); font-weight:800; }
 select.ops-store { min-height:44px; font:inherit; padding:8px 10px; background:#fff; color:var(--ink); border:1px solid #cdb9e8; border-radius:10px; }
-.ops-card .action-progress { display:grid; gap:6px; }
+.ops-card .action-progress { display:grid; gap:4px; }
+/* live state sits under the card title (left), the buttons that change it on the right */
+.ops-live { margin-top:6px; } .ops-live-head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.ops-live .ops-weights { margin:4px 0; }
+.ops-groups { display:grid; gap:6px; }
+.ops-group { display:grid; grid-template-columns:4.6em 1fr; gap:8px; align-items:center; }
+.ops-group-label { font-size:13px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; }
+.ops-group-danger { margin-top:6px; padding-top:8px; border-top:1px dashed var(--line); }
+.ops-group-danger .ops-group-label { color:var(--err); }
+button.ops-danger { background:#fff; color:var(--err); border:1px dashed var(--err); box-shadow:none; font-weight:700; }
+button.ops-danger:hover { background:#fbecef; border-color:var(--err); }
+button.ops-quiet { border-style:dashed; font-weight:700; color:var(--muted); }
+button.ops-refresh { min-height:26px; padding:2px 8px; font-size:13px; font-weight:700; border-color:var(--line); color:var(--muted); }
+button.ops-refresh::before { content:"\\21BB\\00a0"; }
+button.ops-refresh:hover { color:var(--accent-dark); border-color:var(--accent); background:#faf7fe; }
+.ops-card .action-progress:not(:has(> :not(:empty))) { display:none; } .ops-card .action-progress > .msg:empty { display:none; }
+.ops-feed-controls .field { flex:0 0 auto; } .ops-feed-controls select.ops-store { min-height:34px; padding:4px 8px; }
+.ops-feeds td:nth-child(3) { color:var(--muted); font-size:13px; }
 </style>
-<section class="control-card actions-card ops-card" id="ops-routing"><div class="actions-layout"><div><h2>Release routing</h2><div class="label">Inventory API traffic split</div><p class="meta">{{ROUTING_TEXT}} Same weights as <code>make canary-110-10</code>, <code>incident</code>, <code>canary-10/50/100</code>, <code>rollback</code>, <code>route-baseline</code>. Rollback restores the routing in effect before the last change.</p></div>
-<div><div class="ops-buttons">{{ROUTE_BUTTONS}}<button class="secondary ops-refresh" id="ops-route-refresh">Refresh weights</button></div></div></div>
-<div class="action-progress"><div class="meta">{{ROUTING_LIVE}}</div><div class="ops-weights" id="ops-weights"><div class="ops-weight"><b>&mdash;</b><span>1.0.0</span></div><div class="ops-weight"><b>&mdash;</b><span>1.1.0</span></div><div class="ops-weight"><b>&mdash;</b><span>1.2.0</span></div></div>
-<div class="meta" id="ops-route-prev">Previous: unknown</div><div class="msg" id="ops-route-msg"></div></div></section>
-<section class="control-card actions-card ops-card" id="ops-feeds"><div class="actions-layout"><div><h2>Store feed</h2><div class="label">Debezium store connectors</div><p class="meta">Pauses or resumes one store's change feed through the Kafka Connect REST API on the on-prem VM (same as <code>make store-pause|store-resume STORE=Sxx</code>). A paused store stops sending stock changes; its source keeps selling.</p></div>
-<div class="action-controls"><div class="field"><label for="ops-store">Store</label><select class="ops-store" id="ops-store"{{FEED_DISABLED}}>{{STORE_OPTIONS}}</select></div>
+<section class="control-card actions-card ops-card" id="ops-routing"><div class="actions-layout"><div><h2>Release routing</h2><div class="label">Inventory API traffic split</div><p class="meta">{{ROUTING_TEXT}} Same weights as <code>make canary-110-10</code>, <code>incident</code>, <code>canary-10/50/100</code>, <code>rollback</code>, <code>route-baseline</code>. Rollback restores the routing in effect before the last change.</p>
+<div class="ops-live"><div class="ops-live-head"><span class="meta">{{ROUTING_LIVE}}</span><button class="secondary ops-refresh" id="ops-route-refresh" title="Read the live weights again">Refresh weights</button></div><div class="ops-weights" id="ops-weights"><div class="ops-weight"><b>&mdash;</b><span>1.0.0</span></div><div class="ops-weight"><b>&mdash;</b><span>1.1.0</span></div><div class="ops-weight"><b>&mdash;</b><span>1.2.0</span></div></div>
+<div class="meta" id="ops-route-prev">Previous: unknown</div></div></div>
+<div class="ops-groups">{{ROUTE_BUTTONS}}</div></div>
+<div class="action-progress"><div class="msg" id="ops-route-msg"></div></div></section>
+<section class="control-card actions-card ops-card" id="ops-feeds"><div class="actions-layout"><div><h2>Store feed</h2><div class="label">Debezium store connectors</div><p class="meta">Pauses or resumes one store's change feed through the Kafka Connect REST API on the on-prem VM (same as <code>make store-pause|store-resume STORE=Sxx</code>). A paused store stops sending stock changes; its source keeps selling.</p>
+<div class="ops-live"><table class="ops-feeds" id="ops-feed-table"><tbody><tr><td colspan="3">Loading connector state…</td></tr></tbody></table></div></div>
+<div class="action-controls ops-feed-controls"><div class="field"><label for="ops-store">Store</label><select class="ops-store" id="ops-store"{{FEED_DISABLED}}>{{STORE_OPTIONS}}</select></div>
 <button class="ops-btn ops-feed" data-action="store-pause"{{FEED_DISABLED}}>Pause feed</button>
 <button class="ops-btn ops-feed secondary" data-action="store-resume"{{FEED_DISABLED}}>Resume feed</button>
 <button class="secondary ops-refresh" id="ops-feed-refresh"{{FEED_DISABLED}}>Refresh state</button></div></div>
-<div class="action-progress"><table class="ops-feeds" id="ops-feed-table"><tbody><tr><td colspan="3">Loading connector state…</td></tr></tbody></table><div class="msg" id="ops-feed-msg"></div></div></section>
+<div class="action-progress"><div class="msg" id="ops-feed-msg"></div></div></section>
 <script>
 (() => {
   const ROUTING_ON = {{ROUTING_ON}}, FEEDS_ON = {{FEEDS_ON}};

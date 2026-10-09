@@ -13,10 +13,9 @@
 # paths, so they work on any Datadog site.
 
 locals {
-  # The night of the 1.1.0 saturation on stack hybrid: 2026-10-08 10:10-10:30 UTC, in Unix ms (from_ts/to_ts, live=false:
-  # https://docs.datadoghq.com/dashboards/guide/custom_time_frames/). Meaningful only for dd-demo-hybrid.
-  home_incident_from_ms = 1791454200000
-  home_incident_to_ms   = 1791455400000
+  # The night of the incident: a recorded all-traffic 1.1.0 run of this stack (var.incident_window, from_ts/to_ts with
+  # live=false: https://docs.datadoghq.com/dashboards/guide/custom_time_frames/). Null: the notes say how to record one.
+  home_night_md = var.incident_window == null ? "The night of the incident: no window recorded for this stack yet (route all traffic to 1.1.0 under load for a few minutes, roll back, then set `incident_window`)" : "[The night of the incident](?tpl_var_env=${local.env}&from_ts=${var.incident_window.from_ms}&to_ts=${var.incident_window.to_ms}&live=false) (${var.incident_window.label})"
 
   # Amazon ECS service events of this stack (task started, unhealthy, stopped, steady state). The integration tags them
   # source:amazon_ecs plus the AWS resource tags project/stack (Events Explorer, 2026-10-07).
@@ -24,7 +23,6 @@ locals {
 
   home_link = {
     # Same dashboard, fixed range, this stack's env. A query-only relative link keeps the current dashboard path.
-    night        = "?tpl_var_env=${local.env}&from_ts=${local.home_incident_from_ms}&to_ts=${local.home_incident_to_ms}&live=false"
     stock        = "${datadog_dashboard_json.stock.url}?tpl_var_env=${local.env}"
     online       = var.enable_fargate ? one(datadog_dashboard_json.online[*].url) : null
     feed_monitor = "/monitors/${datadog_monitor.feed_state.id}"
@@ -69,6 +67,19 @@ locals {
         events  = [{ q = local.ecs_events_query }]
         markers = []
       }
+      alb_wait = {
+        title   = "Slowest response the load balancer waited for, by release target group (s)"
+        queries = [["q1", "max:aws.applicationelb.target_response_time.maximum{${local.online_scope}} by {targetgroup}"]]
+        events  = [{ q = local.demo_panel_query }]
+        markers = [{ value = "y = ${var.p95_threshold_seconds}", display_type = "error dashed", label = "p95 objective (${var.p95_threshold_seconds} s)" }]
+      }
+      traffic_share = {
+        title   = "Share of lookups per version (%), panel actions as markers"
+        queries = [["q1", "sum:trace.flask.request.hits{${local.dsvc},${local.lookup}} by {version}.as_count()"], ["q2", "sum:trace.flask.request.hits{${local.dsvc},${local.lookup}}.as_count()"]]
+        formula = "100 * q1 / q2"
+        events  = [{ q = local.demo_panel_query }]
+        markers = []
+      }
       hits = {
         title   = "inventory-api lookups by version, panel actions as markers"
         queries = [["q1", "sum:trace.flask.request.hits{${local.dsvc},${local.lookup}} by {version}.as_count()"]]
@@ -88,7 +99,7 @@ locals {
         requests = [{
           display_type    = "line"
           response_format = "timeseries"
-          formulas        = [{ formula = "q1" }]
+          formulas        = [{ formula = lookup(v, "formula", "q1") }]
           queries         = [for q in v.queries : { data_source = "metrics", name = q[0], query = q[1] }]
         }]
         },
@@ -137,7 +148,7 @@ locals {
     }
     slow_lookups = {
       definition = {
-        type  = "list_stream"
+        type = "list_stream"
         # The Spans list stream has no sort option: "These data sources support a search query but do not provide a sort
         # option" (https://docs.datadoghq.com/dashboards/widgets/list/). The API schema has a generic query.sort, but the docs do
         # not say it applies to trace_stream, so the title says what is shown: the newest matching spans.
@@ -237,7 +248,7 @@ locals {
         "",
         "1. **One honest number**: how old is the stock a shopper sees, per store.",
         "2. **Unknown is not zero**: a quiet store is named, never counted as zero.",
-        "3. **The incident**: release 1.1.0 is slow; the canary gate stops it. [The night of the incident](${local.home_link.night}): what 100% would have done.",
+        "3. **The incident**: release 1.1.0 is slow; the canary gate stops it. ${local.home_night_md}: what 100% would have done.",
         "4. **Canary the fix**: 1.2.0 takes traffic step by step, next to 1.0.0.",
         "5. **The AI offer**: the AI picks the alternative only when it is sure, and its \"no good substitute\" always stands; if it is unsure or does not answer, the safe rule decides.",
         "6. **Datadog on top**: tests from outside, Confluent lag, monitors, cost.",
@@ -255,7 +266,7 @@ locals {
         "Deeper: [store-feed monitor](${local.home_link.feed_monitor}) · [stock dashboard](${local.home_link.stock}) · [all monitors of this stack](${local.home_link.monitors}) · ${local.home_panel_md}",
       ])
       c3 = join("\n", [
-        "**Chapter 3: the incident.** Live view: p95 per release, the CPU of each ECS service against its whole vCPU, and unhealthy targets; markers are ECS events and control-panel actions, listed beside the p95 chart. [The night of the incident](${local.home_link.night}) (2026-10-08 10:10-10:30 UTC, all traffic on 1.1.0; data only on `dd-demo-hybrid`): CPU flat at 100% for about four minutes, p95 above 3 s, the target unhealthy, ECS replaced the task. Two span views show where the time goes: `catalogue.prepare` against the whole lookup by version (only 1.1.0 prepares the catalogue on every request) and the newest lookups over 1 s, each opening its trace. At 10% the gate stops 1.1.0 while it is only slow.",
+        "**Chapter 3: the incident.** Live view: p95 per release, the CPU of each ECS service against its whole vCPU, and unhealthy targets; markers are ECS events and control-panel actions, listed beside the p95 chart. ${local.home_night_md}: all traffic on 1.1.0, CPU flat at 100%, p95 far above the objective, the target unhealthy; then the rollback and 1.2.0 through its canary. Two span views show where the time goes: `catalogue.prepare` against the whole lookup by version (only 1.1.0 prepares the catalogue on every request) and the newest lookups over 1 s, each opening its trace. At 10% the gate stops 1.1.0 while it is only slow.",
         "",
         "Deeper: [APM inventory-api, compare versions (Deployments)](${local.home_link.apm}) · [1.1.0 spans of `catalogue.prepare`](${local.home_link.trace_110}) · [Amazon ECS events](${local.home_link.ecs_events}) · ${local.home_online_md} · ${local.home_panel_md}",
       ])
@@ -326,6 +337,7 @@ locals {
         local.overview_spans.breakdown,
         local.overview_spans.slow_lookups,
         local.overview_chart.ecs_cpu_max,
+        local.overview_chart.alb_wait,
         local.overview_chart.alb_unhealthy,
       ]
     },
@@ -334,6 +346,7 @@ locals {
       title = "4. Canary the fix"
       widgets = [
         local.overview_note.c4,
+        local.overview_chart.traffic_share,
         local.overview_chart.hits,
         local.ts.error_rate,
       ]
